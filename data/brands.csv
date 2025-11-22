@@ -1,0 +1,11 @@
+id,name,slug,description,logo,website,isActive,createdAt,updatedAt
+brand_1,Dr. Vranjes,dr-vranjes,"Итальянский бренд ароматических свечей и диффузоров премиум-класса","/images/brands/dr-vranjes.png","https://www.drvranjes.it",true,2024-01-01T00:00:00Z,2024-01-01T00:00:00Z
+brand_2,Locherber Milano,locherber-milano,"Роскошные ароматические свечи и диффузоры из Милана","/images/brands/locherber-milano.jpg","https://www.locherbermilano.com",true,2024-01-01T00:00:00Z,2024-01-01T00:00:00Z
+brand_3,Mathilde M,mathilde-m,"Французский бренд ароматических свечей ручной работы","/images/brands/mathilde-m.png","https://www.mathildem.fr",true,2024-01-01T00:00:00Z,2024-01-01T00:00:00Z
+brand_4,Diptyque,diptyque,"Французский бренд ароматических свечей и парфюмерии","/images/brands/diptyque.png","https://www.diptyque.com",true,2024-01-01T00:00:00Z,2024-01-01T00:00:00Z
+brand_5,Byredo,byredo,"Шведский бренд нишевой парфюмерии и ароматических свечей","/images/brands/byredo.png","https://www.byredo.com",true,2024-01-01T00:00:00Z,2024-01-01T00:00:00Z
+brand_6,Le Labo,le-labo,"Американский бренд нишевой парфюмерии и ароматических свечей","/images/brands/le-labo.png","https://www.lelabofragrances.com",true,2024-01-01T00:00:00Z,2024-01-01T00:00:00Z
+brand_7,Tom Dixon,tom-dixon,"Британский дизайнер ароматических свечей и интерьерных ароматов","/images/brands/tom-dixon.png","https://www.tomdixon.net",true,2024-01-01T00:00:00Z,2024-01-01T00:00:00Z
+brand_8,Cire Trudon,cire-trudon,"Французский бренд ароматических свечей с 300-летней историей","/images/brands/cire-trudon.png","https://www.ciretrudon.com",true,2024-01-01T00:00:00Z,2024-01-01T00:00:00Z
+
+

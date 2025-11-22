@@ -1,0 +1,9 @@
+id,name,slug,description,image,isActive,createdAt,updatedAt
+cat_1,Ароматы для дома,home,"Ароматические свечи, диффузоры и ароматы для создания уютной атмосферы дома","/images/categories/home.jpg",true,2024-01-01T00:00:00Z,2024-01-01T00:00:00Z
+cat_2,Ароматы для бизнеса,business,"Ароматические решения для офисов, салонов и коммерческих пространств","/images/categories/business.jpg",true,2024-01-01T00:00:00Z,2024-01-01T00:00:00Z
+cat_3,Свечи,candles,"Ароматические свечи различных размеров и ароматов","/images/categories/candles.jpg",true,2024-01-01T00:00:00Z,2024-01-01T00:00:00Z
+cat_4,Диффузоры,diffusers,"Диффузоры для ароматизации помещений","/images/categories/diffusers.jpg",true,2024-01-01T00:00:00Z,2024-01-01T00:00:00Z
+cat_5,Ароматические палочки,incense,"Ароматические палочки и благовония","/images/categories/incense.jpg",true,2024-01-01T00:00:00Z,2024-01-01T00:00:00Z
+cat_6,Ручные работы,handmade,"Ароматические изделия ручной работы","/images/categories/handmade.jpg",true,2024-01-01T00:00:00Z,2024-01-01T00:00:00Z
+
+

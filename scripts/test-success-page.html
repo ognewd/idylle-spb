@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Success Page</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .test-section {
+      background: #f5f5f5;
+      padding: 20px;
+      margin-bottom: 20px;
+      border-radius: 8px;
+    }
+    .test-section h2 {
+      margin-top: 0;
+    }
+    button {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    button:hover {
+      background: #5568d3;
+    }
+    .info {
+      background: #e3f2fd;
+      padding: 10px;
+      border-radius: 5px;
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>🧪 Тест страницы успешного заказа</h1>
+  
+  <div class="test-section">
+    <h2>Шаг 1: Добавьте тестовые данные в localStorage</h2>
+    <div class="info">
+      Нажмите кнопку ниже, чтобы добавить тестовые данные заказа в localStorage
+    </div>
+    <button onclick="addTestData()">Добавить тестовые данные</button>
+    <button onclick="clearData()">Очистить данные</button>
+    <div id="dataStatus"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>Шаг 2: Откройте страницу успеха</h2>
+    <div class="info">
+      После добавления данных откройте страницу:<br>
+      <a href="http://localhost:3000/checkout/success" target="_blank">
+        http://localhost:3000/checkout/success
+      </a>
+    </div>
+  </div>
+
+  <div class="test-section">
+    <h2>Текущие данные в localStorage:</h2>
+    <pre id="currentData">Загрузка...</pre>
+  </div>
+
+  <script>
+    function addTestData() {
+      const testData = {
+        orderNumber: 'idy123',
+        firstName: 'Иван',
+        lastName: 'Петров'
+      };
+      localStorage.setItem('lastOrderData', JSON.stringify(testData));
+      updateStatus();
+      alert('✅ Тестовые данные добавлены в localStorage!\n\nТеперь откройте страницу успеха.');
+    }
+
+    function clearData() {
+      localStorage.removeItem('lastOrderData');
+      updateStatus();
+      alert('🗑️ Данные удалены из localStorage');
+    }
+
+    function updateStatus() {
+      const data = localStorage.getItem('lastOrderData');
+      const statusDiv = document.getElementById('dataStatus');
+      const currentDataDiv = document.getElementById('currentData');
+      
+      if (data) {
+        statusDiv.innerHTML = '<div style="color: green; font-weight: bold;">✅ Данные присутствуют в localStorage</div>';
+        currentDataDiv.textContent = JSON.stringify(JSON.parse(data), null, 2);
+      } else {
+        statusDiv.innerHTML = '<div style="color: orange;">⚠️ Данные отсутствуют в localStorage</div>';
+        currentDataDiv.textContent = 'Нет данных';
+      }
+    }
+
+    // Update on load
+    updateStatus();
+  </script>
+</body>
+</html>

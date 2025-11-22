@@ -1,0 +1,27 @@
+В Mailtrap нужно использовать настройки SANDBOX (тестовый режим), а не LIVE.
+
+Как получить настройки:
+
+1. Откройте Mailtrap
+2. Перейдите в "Email Testing" → "Sandboxes" → "My Inbox"
+3. Откройте вкладку "SMTP Settings"
+4. Выберите вкладку "Nodemailer"
+5. Скопируйте следующие значения:
+
+   Host: sandbox.smtp.mailtrap.io
+   Port: 2525
+   Username: (начинается с букв/чисел)
+   Password: (длинная строка)
+
+6. Добавьте эти значения в .env.local:
+
+   SMTP_HOST="sandbox.smtp.mailtrap.io"
+   SMTP_PORT="2525"
+   SMTP_USER="ваш-username-из-sandbox"
+   SMTP_PASS="ваш-password-из-sandbox"
+
+⚠️ НЕ используйте:
+- live.smtp.mailtrap.io (это для реальной отправки)
+- API токен как пароль
+
+✅ Используйте sandbox настройки для тестирования!

@@ -1,0 +1,11 @@
+id,name,slug,description,logo,website,isActive,createdAt,updatedAt
+brand_1,Dr. Vranjes Firenze,dr-vranjes-firenze,"Итальянский бренд элитных ароматов для дома","/images/brands/dr-vranjes-firenze.png","https://drvranjes.com",true,2024-01-01T00:00:00Z,2024-01-01T00:00:00Z
+brand_2,Locherber Milano,locherber-milano,"Итальянский бренд, создающий уникальные ароматы и предметы интерьера","/images/brands/locherber-milano.jpg","https://locherbermilano.com",true,2024-01-01T00:00:00Z,2024-01-01T00:00:00Z
+brand_3,Mathilde M,mathilde-m,"Французский бренд ароматических свечей ручной работы","/images/brands/mathilde-m.png","https://www.mathildem.fr",true,2024-01-01T00:00:00Z,2024-01-01T00:00:00Z
+brand_4,Jo Malone London,jo-malone-london,"Британский бренд парфюмерии и ароматов для дома","/images/brands/jo-malone-london.png","https://www.jomalone.com",true,2024-01-01T00:00:00Z,2024-01-01T00:00:00Z
+brand_5,Diptyque,diptyque,"Французский дом парфюмерии, известный своими свечами и ароматами","/images/brands/diptyque.png","https://www.diptyqueparis.com",true,2024-01-01T00:00:00Z,2024-01-01T00:00:00Z
+brand_6,Byredo,byredo,"Шведский бренд, предлагающий уникальные ароматы и товары для дома","/images/brands/byredo.png","https://byredo.com",true,2024-01-01T00:00:00Z,2024-01-01T00:00:00Z
+brand_7,Acqua di Parma,acqua-di-parma,"Итальянский бренд, известный своими классическими ароматами","/images/brands/acqua-di-parma.png","https://www.acquadiparma.com",true,2024-01-01T00:00:00Z,2024-01-01T00:00:00Z
+brand_8,Fornasetti,fornasetti,"Итальянский бренд, известный своими уникальными предметами интерьера и ароматами","/images/brands/fornasetti.png","https://www.fornasetti.com",true,2024-01-01T00:00:00Z,2024-01-01T00:00:00Z
+
+

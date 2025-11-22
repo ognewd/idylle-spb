@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест API администраторов</title>
+</head>
+<body>
+    <h1>Тест API администраторов</h1>
+    <div id="result"></div>
+    
+    <script>
+        async function testAPI() {
+            try {
+                console.log('Тестируем API...');
+                const response = await fetch('/api/admin/admins');
+                const result = await response.json();
+                
+                console.log('Результат:', result);
+                document.getElementById('result').innerHTML = `
+                    <h2>Результат API:</h2>
+                    <p>Статус: ${response.status}</p>
+                    <p>Успех: ${result.success}</p>
+                    <p>Количество администраторов: ${result.admins?.length || 0}</p>
+                    <pre>${JSON.stringify(result, null, 2)}</pre>
+                `;
+            } catch (error) {
+                console.error('Ошибка:', error);
+                document.getElementById('result').innerHTML = `
+                    <h2>Ошибка:</h2>
+                    <p>${error.message}</p>
+                `;
+            }
+        }
+        
+        testAPI();
+    </script>
+</body>
+</html>
+

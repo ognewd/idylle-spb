@@ -1,0 +1,6 @@
+id,email,name,phone,password,role,isActive,createdAt,updatedAt
+user_1,admin@idylle.spb.ru,Администратор,+7 (812) 123-45-67,$2b$12$LQv3c1yqBwEHXw7Gk7xrZOQ1gJ9X7V5N8K2L3M4P5Q6R7S8T9U0V1W2X3Y4Z5,admin,true,2024-01-01T00:00:00Z,2024-01-01T00:00:00Z
+user_2,manager@idylle.spb.ru,Менеджер,+7 (812) 123-45-68,$2b$12$LQv3c1yqBwEHXw7Gk7xrZOQ1gJ9X7V5N8K2L3M4P5Q6R7S8T9U0V1W2X3Y4Z5,admin,true,2024-01-01T00:00:00Z,2024-01-01T00:00:00Z
+user_3,test@example.com,Тестовый пользователь,+7 (812) 123-45-69,$2b$12$LQv3c1yqBwEHXw7Gk7xrZOQ1gJ9X7V5N8K2L3M4P5Q6R7S8T9U0V1W2X3Y4Z5,user,true,2024-01-01T00:00:00Z,2024-01-01T00:00:00Z
+
+

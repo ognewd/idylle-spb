@@ -1,0 +1,20 @@
+.vercel
+node_modules
+.next
+.DS_Store
+.env.local
+.env*.local
+*.log
+
+# Загруженные файлы (не должны быть в Git)
+public/uploads/
+
+# Временные файлы
+остатки и ШК.xls
+*.xls
+*.xlsx
+!data/*.csv
+
+# Build artifacts
+*.pack.gz
+.next/cache/

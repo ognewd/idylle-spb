@@ -1,0 +1,6 @@
+id,productId,categoryId,isPrimary,createdAt
+pc_1,prod_1,cat_3,true,2024-01-01T00:00:00Z
+pc_2,prod_2,cat_3,true,2024-01-01T00:00:00Z
+pc_3,prod_3,cat_3,true,2024-01-01T00:00:00Z
+
+
