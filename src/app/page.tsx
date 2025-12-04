@@ -201,36 +201,36 @@ export default function HomePage() {
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <Card className="group cursor-pointer overflow-hidden">
-              <Link href="/catalog?category=perfume">
+              <Link href="/aromaty-dlya-doma">
                 <div className="aspect-[4/3] bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center">
                   <div className="text-center space-y-4">
-                    <div className="text-6xl">💎</div>
-                    <h3 className="text-xl font-semibold">Парфюмы</h3>
-                    <p className="text-muted-foreground">Эксклюзивные ароматы</p>
+                    <div className="text-6xl">🏠</div>
+                    <h3 className="text-xl font-semibold">Ароматы для дома</h3>
+                    <p className="text-muted-foreground">Создайте неповторимую атмосферу</p>
                   </div>
                 </div>
               </Link>
             </Card>
             
             <Card className="group cursor-pointer overflow-hidden">
-              <Link href="/catalog?category=home">
+              <Link href="/uyut-i-interer">
                 <div className="aspect-[4/3] bg-gradient-to-br from-green-100 to-blue-100 flex items-center justify-center">
                   <div className="text-center space-y-4">
-                    <div className="text-6xl">🏠</div>
-                    <h3 className="text-xl font-semibold">Товары для дома</h3>
-                    <p className="text-muted-foreground">Создайте уют</p>
+                    <div className="text-6xl">✨</div>
+                    <h3 className="text-xl font-semibold">Уют и интерьер</h3>
+                    <p className="text-muted-foreground">Товары для уюта</p>
                   </div>
                 </div>
               </Link>
             </Card>
             
             <Card className="group cursor-pointer overflow-hidden">
-              <Link href="/catalog?category=accessories">
+              <Link href="/podarki">
                 <div className="aspect-[4/3] bg-gradient-to-br from-yellow-100 to-orange-100 flex items-center justify-center">
                   <div className="text-center space-y-4">
-                    <div className="text-6xl">✨</div>
-                    <h3 className="text-xl font-semibold">Аксессуары</h3>
-                    <p className="text-muted-foreground">Стильные дополнения</p>
+                    <div className="text-6xl">🎁</div>
+                    <h3 className="text-xl font-semibold">Подарки</h3>
+                    <p className="text-muted-foreground">Идеальные подарки для близких</p>
                   </div>
                 </div>
               </Link>
