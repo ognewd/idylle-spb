@@ -1,8 +1,26 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+interface HealthCheckResponse {
+  status: string;
+  timestamp: string;
+  uptime: number;
+  environment: string;
+  checks: {
+    database: string;
+    api: string;
+  };
+  version: string;
+  database?: {
+    products: number;
+    categories: number;
+    brands: number;
+  };
+  error?: string;
+}
+
 export async function GET() {
-  const healthCheck = {
+  const healthCheck: HealthCheckResponse = {
     status: 'ok',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
@@ -27,7 +45,7 @@ export async function GET() {
     ]);
 
     healthCheck.status = 'ok';
-    (healthCheck as any).database = {
+    healthCheck.database = {
       products: productCount,
       categories: categoryCount,
       brands: brandCount,
@@ -46,4 +64,3 @@ export async function GET() {
 
 // Allow GET requests for health checks
 export const dynamic = 'force-dynamic';
-
