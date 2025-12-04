@@ -13,20 +13,11 @@ const nextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'idylle-spb.vercel.app',
-      },
-      {
-        protocol: 'https',
-        hostname: '*.vercel.app',
-      },
-      {
-        protocol: 'https',
         hostname: 'images.unsplash.com',
       },
     ],
   },
   eslint: {
-    // Предупреждения не блокируют продакшн билд
     ignoreDuringBuilds: true,
   },
   typescript: {

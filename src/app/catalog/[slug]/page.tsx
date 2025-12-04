@@ -67,12 +67,8 @@ interface ProductPageProps {
 
 async function getProduct(slug: string): Promise<{ product: Product; relatedProducts: Product[] } | null> {
   try {
-    const baseUrl = process.env.NODE_ENV === 'production' 
-      ? 'https://idylle-oytq859np-dognevs-projects.vercel.app'
-      : 'http://localhost:3000';
-    
-    const response = await fetch(`${baseUrl}/api/products/${slug}`, {
-      cache: 'no-store', // Ensure fresh data
+    const response = await fetch(`http://localhost:3000/api/products/${slug}`, {
+      cache: 'no-store',
     });
     
     if (!response.ok) {

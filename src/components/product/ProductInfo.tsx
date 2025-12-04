@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Heart, ShoppingCart, Star, Truck, Shield, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCart } from '@/contexts/CartContext';
+import { useWishlist } from '@/contexts/WishlistContext';
 
 interface ProductVariant {
   id: string;
@@ -83,13 +84,13 @@ interface ProductInfoProps {
 
 export function ProductInfo({ product, className }: ProductInfoProps) {
   const { addItem } = useCart();
+  const { isInWishlist, toggle } = useWishlist();
   
   // Find default variant or use first one
   const defaultVariant = product.variants?.find(v => v.isDefault) || product.variants?.[0] || null;
   
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(defaultVariant);
   const [quantity, setQuantity] = useState(1);
-  const [isInWishlist, setIsInWishlist] = useState(false);
 
   // Calculate price and discount based on selected variant or product
   const finalPrice = selectedVariant?.price || product.price;
@@ -110,8 +111,15 @@ export function ProductInfo({ product, className }: ProductInfoProps) {
   const isOutOfStock = finalStock === 0;
 
   const handleAddToWishlist = () => {
-    setIsInWishlist(!isInWishlist);
-    // TODO: Implement wishlist API call
+    toggle({
+      id: product.id,
+      slug: product.slug,
+      name: product.name,
+      image: product.images && product.images.length > 0
+        ? (product.images[0]?.url || '/placeholder-product.jpg')
+        : '/placeholder-product.jpg',
+      price: finalPrice,
+    });
   };
 
   const handleAddToCart = () => {
@@ -365,7 +373,7 @@ export function ProductInfo({ product, className }: ProductInfoProps) {
               size="lg"
               onClick={handleAddToWishlist}
             >
-              <Heart className={cn("h-4 w-4", isInWishlist && "fill-red-500 text-red-500")} />
+              <Heart className={cn("h-4 w-4", isInWishlist(product.id) && "fill-red-500 text-red-500")} />
             </Button>
           </div>
 
@@ -390,10 +398,10 @@ export function ProductInfo({ product, className }: ProductInfoProps) {
             <Heart
               className={cn(
                 "h-4 w-4 mr-2",
-                isInWishlist ? "fill-red-500 text-red-500" : ""
+                isInWishlist(product.id) ? "fill-red-500 text-red-500" : ""
               )}
             />
-            {isInWishlist ? 'В избранном' : 'В избранное'}
+            {isInWishlist(product.id) ? 'В избранном' : 'В избранное'}
           </Button>
         </div>
       )}
