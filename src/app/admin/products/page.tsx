@@ -89,13 +89,24 @@ export default function AdminProductsPage() {
       }
 
       const token = localStorage.getItem('admin_token');
+      if (!token) {
+        console.error('❌ No admin token found');
+        router.push('/admin/login');
+        return;
+      }
+
       const searchParam = searchQuery !== undefined ? searchQuery : searchTerm;
       const url = `/api/admin/products?page=${page}&limit=20${searchParam ? `&search=${encodeURIComponent(searchParam)}` : ''}`;
+      
+      console.log('🔍 Loading products from:', url);
+      
       const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
+
+      console.log('📡 Response status:', response.status, response.statusText);
 
       if (response.ok) {
         const data = await response.json();
