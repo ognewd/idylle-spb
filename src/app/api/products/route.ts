@@ -325,10 +325,14 @@ export async function GET(request: NextRequest) {
           if (!seasonal) {
             let maxCat: { id: string; name: string; discount: number } | null = null;
             for (const pc of product.productCategories || []) {
-              const arr = categoryIdToDiscounts.get(pc.categoryId);
-              if (arr && arr.length > 0) {
-                for (const s of arr) {
-                  if (!maxCat || s.discount > maxCat.discount) maxCat = s;
+              // Исправлено: при использовании select структура меняется
+              const categoryId = pc.category?.id;
+              if (categoryId) {
+                const arr = categoryIdToDiscounts.get(categoryId);
+                if (arr && arr.length > 0) {
+                  for (const s of arr) {
+                    if (!maxCat || s.discount > maxCat.discount) maxCat = s;
+                  }
                 }
               }
             }
