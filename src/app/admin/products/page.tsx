@@ -135,17 +135,7 @@ export default function AdminProductsPage() {
     }
   }, [searchTerm]);
 
-  // Debounce search and reload products
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      setCurrentPage(1);
-      setHasMore(true);
-      loadProducts(1, false, searchTerm);
-    }, searchTerm ? 500 : 0); // 500ms debounce only if search term exists
-
-    return () => clearTimeout(timeoutId);
-  }, [searchTerm]); // Separate effect for search to avoid conflicts
-
+  // Initial load on mount
   useEffect(() => {
     const token = localStorage.getItem('admin_token');
     if (!token) {
@@ -157,17 +147,28 @@ export default function AdminProductsPage() {
     const categoryParam = searchParams.get('category');
     if (categoryParam) {
       setSelectedCategoryId(categoryParam);
-      // Load category name
       loadCategoryName(categoryParam);
     }
 
-    // Only load products if search is empty (search is handled by separate effect)
-    if (!searchTerm) {
+    // Initial load of products
+    setCurrentPage(1);
+    setHasMore(true);
+    loadProducts(1, false);
+  }, []); // Only run once on mount
+
+  // Reload when search term changes (with debounce)
+  useEffect(() => {
+    // Skip initial load if searchTerm is empty (already handled above)
+    if (searchTerm === '') return;
+
+    const timeoutId = setTimeout(() => {
       setCurrentPage(1);
       setHasMore(true);
-      loadProducts(1, false);
-    }
-  }, [router, searchParams]); // Removed loadProducts and searchTerm to avoid conflicts
+      loadProducts(1, false, searchTerm);
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm, loadProducts]);
 
   // Load more products on scroll
   useEffect(() => {
