@@ -51,28 +51,43 @@ export async function GET(request: NextRequest) {
     }
 
     // Get total count with search
-    const total = await prisma.product.count({ where });
+    let total = 0;
+    let products = [];
+    
+    try {
+      total = await prisma.product.count({ where });
+      console.log('Total products count:', total);
+    } catch (countError) {
+      console.error('Error counting products:', countError);
+      throw countError;
+    }
 
-    const products = await prisma.product.findMany({
-      where,
-      skip,
-      take: limit,
-      include: {
-        brand: true,
-        productCategories: {
-          include: {
-            category: true,
+    try {
+      products = await prisma.product.findMany({
+        where,
+        skip,
+        take: limit,
+        include: {
+          brand: true,
+          productCategories: {
+            include: {
+              category: true,
+            },
+          },
+          images: {
+            orderBy: { sortOrder: 'asc' },
+          },
+          variants: {
+            orderBy: { sortOrder: 'asc' },
           },
         },
-        images: {
-          orderBy: { sortOrder: 'asc' },
-        },
-        variants: {
-          orderBy: { sortOrder: 'asc' },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+        orderBy: { createdAt: 'desc' },
+      });
+      console.log('Products fetched:', products.length);
+    } catch (fetchError) {
+      console.error('Error fetching products:', fetchError);
+      throw fetchError;
+    }
 
     return NextResponse.json({
       products,
