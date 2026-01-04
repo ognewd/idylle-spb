@@ -99,13 +99,19 @@ export default function AdminProductsPage() {
 
       if (response.ok) {
         const data = await response.json();
+        console.log('Products API response:', { 
+          productsCount: data.products?.length || 0, 
+          total: data.pagination?.total || 0,
+          page: data.pagination?.page,
+          totalPages: data.pagination?.totalPages
+        });
         if (append) {
-          setProducts(prev => [...prev, ...data.products]);
+          setProducts(prev => [...prev, ...(data.products || [])]);
         } else {
           setProducts(data.products || []);
           setTotalProducts(data.pagination?.total || 0);
         }
-        setHasMore(data.pagination?.page < data.pagination?.totalPages);
+        setHasMore((data.pagination?.page || 1) < (data.pagination?.totalPages || 1));
       } else {
         // Обработка ошибок API
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
