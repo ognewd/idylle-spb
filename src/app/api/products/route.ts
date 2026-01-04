@@ -195,85 +195,155 @@ export async function GET(request: NextRequest) {
       take: limit,
     });
 
-    // Load active seasonal discounts
-    const now = new Date();
-    const activeDiscounts = await prisma.seasonalDiscount.findMany({
-      where: {
-        isActive: true,
-        startDate: { lte: now },
-        endDate: { gte: now },
-      },
-      include: {
-        products: true,
-        categories: true,
-      },
-    });
+    // Load active seasonal discounts with error handling for production
+    const isProduction = process.env.NODE_ENV === 'production';
+    let activeDiscounts: any[] = [];
+    let productIdToDiscount = new Map<string, { id: string; name: string; discount: number }>();
+    let categoryIdToDiscounts = new Map<string, { id: string; name: string; discount: number }[]>();
 
-    // Build productId -> discount map
-    const productIdToDiscount = new Map<string, { id: string; name: string; discount: number }>();
-    for (const d of activeDiscounts) {
-      for (const p of d.products) {
-        productIdToDiscount.set(p.productId, { id: d.id, name: d.name, discount: d.discount });
+    try {
+      const now = new Date();
+      activeDiscounts = await prisma.seasonalDiscount.findMany({
+        where: {
+          isActive: true,
+          startDate: { lte: now },
+          endDate: { gte: now },
+        },
+        include: {
+          products: true,
+          categories: true,
+        },
+      });
+
+      // Build productId -> discount map
+      productIdToDiscount = new Map<string, { id: string; name: string; discount: number }>();
+      for (const d of activeDiscounts) {
+        for (const p of d.products) {
+          productIdToDiscount.set(p.productId, { id: d.id, name: d.name, discount: d.discount });
+        }
       }
-    }
-    // Also map categories
-    const categoryIdToDiscounts = new Map<string, { id: string; name: string; discount: number }[]>();
-    for (const d of activeDiscounts) {
-      for (const c of d.categories) {
-        const arr = categoryIdToDiscounts.get(c.categoryId) || [];
-        arr.push({ id: d.id, name: d.name, discount: d.discount });
-        categoryIdToDiscounts.set(c.categoryId, arr);
+      // Also map categories
+      categoryIdToDiscounts = new Map<string, { id: string; name: string; discount: number }[]>();
+      for (const d of activeDiscounts) {
+        for (const c of d.categories) {
+          const arr = categoryIdToDiscounts.get(c.categoryId) || [];
+          arr.push({ id: d.id, name: d.name, discount: d.discount });
+          categoryIdToDiscounts.set(c.categoryId, arr);
+        }
+      }
+    } catch (discountError) {
+      // In production, continue without discounts if there's an error
+      // In development, log the error but don't fail silently
+      if (isProduction) {
+        console.warn('⚠️ Failed to load seasonal discounts in production, continuing without discounts:', discountError);
+      } else {
+        console.error('❌ Failed to load seasonal discounts:', discountError);
+        throw discountError; // In dev, fail loudly to catch issues
       }
     }
 
     // Calculate average ratings and apply seasonal discounts to price
-    const productsWithRatings = products.map(product => {
-      // Пока нет отзывов, устанавливаем рейтинг 0
-      const averageRating = 0;
-      const reviewCount = 0;
-      // Determine seasonal discount (product-specific has priority, otherwise by category, take max)
-      let seasonal: { id: string; name: string; discount: number } | null =
-        productIdToDiscount.get(product.id) || null;
-      if (!seasonal) {
-        let maxCat: { id: string; name: string; discount: number } | null = null;
-        for (const pc of product.productCategories) {
-          const arr = categoryIdToDiscounts.get(pc.categoryId);
-          if (arr && arr.length > 0) {
-            for (const s of arr) {
-              if (!maxCat || s.discount > maxCat.discount) maxCat = s;
+    // Wrap in try-catch for production safety
+    let productsWithRatings: any[];
+    try {
+      productsWithRatings = products.map(product => {
+        try {
+          // Пока нет отзывов, устанавливаем рейтинг 0
+          const averageRating = 0;
+          const reviewCount = 0;
+          // Determine seasonal discount (product-specific has priority, otherwise by category, take max)
+          let seasonal: { id: string; name: string; discount: number } | null =
+            productIdToDiscount.get(product.id) || null;
+          if (!seasonal) {
+            let maxCat: { id: string; name: string; discount: number } | null = null;
+            for (const pc of product.productCategories || []) {
+              const arr = categoryIdToDiscounts.get(pc.categoryId);
+              if (arr && arr.length > 0) {
+                for (const s of arr) {
+                  if (!maxCat || s.discount > maxCat.discount) maxCat = s;
+                }
+              }
             }
+            seasonal = maxCat;
+          }
+          // Apply discount to numeric price for display
+          const basePrice = Number(product.price) || 0;
+          const discountedPrice = seasonal ? Math.max(0, Math.round(basePrice * (100 - seasonal.discount) / 100)) : basePrice;
+
+          return {
+            ...product,
+            averageRating: averageRating,
+            reviewCount: reviewCount,
+            price: discountedPrice,
+            comparePrice: seasonal ? basePrice : (product.comparePrice ? Number(product.comparePrice) : null),
+            seasonalDiscount: seasonal || null,
+            images: (product.images || []).map((img: any) => ({
+              url: img.url || '',
+              alt: img.alt || '',
+              isPrimary: img.isPrimary || false,
+            })),
+            variants: (product.variants || []).map((v: any) => ({
+              id: v.id,
+              name: v.name || '',
+              value: v.value || '',
+              price: Number(v.price) || 0,
+              comparePrice: v.comparePrice ? Number(v.comparePrice) : null,
+              stock: v.stock || 0,
+              sku: v.sku || '',
+              isDefault: v.isDefault || false,
+            })),
+          };
+        } catch (productError) {
+          // In production, return a simplified version of the product
+          // In development, throw to catch issues
+          if (isProduction) {
+            console.warn(`⚠️ Error processing product ${product.id}, using fallback:`, productError);
+            return {
+              ...product,
+              averageRating: 0,
+              reviewCount: 0,
+              price: Number(product.price) || 0,
+              comparePrice: product.comparePrice ? Number(product.comparePrice) : null,
+              seasonalDiscount: null,
+              images: [],
+              variants: [],
+            };
+          } else {
+            throw productError;
           }
         }
-        seasonal = maxCat;
+      });
+    } catch (processingError) {
+      // Final fallback: return products without discounts
+      if (isProduction) {
+        console.warn('⚠️ Error processing products, using fallback without discounts:', processingError);
+        productsWithRatings = products.map(product => ({
+          ...product,
+          averageRating: 0,
+          reviewCount: 0,
+          price: Number(product.price) || 0,
+          comparePrice: product.comparePrice ? Number(product.comparePrice) : null,
+          seasonalDiscount: null,
+          images: (product.images || []).map((img: any) => ({
+            url: img.url || '',
+            alt: img.alt || '',
+            isPrimary: img.isPrimary || false,
+          })),
+          variants: (product.variants || []).map((v: any) => ({
+            id: v.id,
+            name: v.name || '',
+            value: v.value || '',
+            price: Number(v.price) || 0,
+            comparePrice: v.comparePrice ? Number(v.comparePrice) : null,
+            stock: v.stock || 0,
+            sku: v.sku || '',
+            isDefault: v.isDefault || false,
+          })),
+        }));
+      } else {
+        throw processingError;
       }
-      // Apply discount to numeric price for display
-      const basePrice = Number(product.price);
-      const discountedPrice = seasonal ? Math.max(0, Math.round(basePrice * (100 - seasonal.discount) / 100)) : basePrice;
-
-      return {
-        ...product,
-        averageRating: averageRating,
-        reviewCount: reviewCount,
-        price: discountedPrice,
-        comparePrice: seasonal ? basePrice : (product.comparePrice ? Number(product.comparePrice) : null),
-        seasonalDiscount: seasonal || null,
-        images: product.images.map(img => ({
-          url: img.url,
-          alt: img.alt,
-          isPrimary: img.isPrimary,
-        })),
-        variants: product.variants.map(v => ({
-          id: v.id,
-          name: v.name,
-          value: v.value,
-          price: Number(v.price),
-          comparePrice: v.comparePrice ? Number(v.comparePrice) : null,
-          stock: v.stock,
-          sku: v.sku,
-          isDefault: v.isDefault,
-        })),
-      };
-    });
+    }
 
     return NextResponse.json({
       products: productsWithRatings,
@@ -286,8 +356,21 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Products API error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
+    // In production, provide more helpful error info
+    // In development, show full error details
+    if (process.env.NODE_ENV === 'production') {
+      console.error('Full error details:', { message: errorMessage, stack: errorStack });
+    }
+    
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { 
+        error: 'Internal server error',
+        // Only include details in development
+        ...(process.env.NODE_ENV !== 'production' && { details: errorMessage })
+      },
       { status: 500 }
     );
   }
