@@ -85,8 +85,25 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Admin products error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
+    // Логируем детальную информацию об ошибке для отладки
+    console.error('Error details:', {
+      message: errorMessage,
+      stack: errorStack,
+      name: error instanceof Error ? error.name : undefined,
+    });
+    
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { 
+        error: 'Internal server error',
+        // В продакшене не показываем детали ошибки
+        ...(process.env.NODE_ENV !== 'production' && { 
+          details: errorMessage,
+          stack: errorStack 
+        })
+      },
       { status: 500 }
     );
   }
