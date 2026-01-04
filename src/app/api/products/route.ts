@@ -312,6 +312,7 @@ export async function GET(request: NextRequest) {
 
     // Calculate average ratings and apply seasonal discounts to price
     // Wrap in try-catch for production safety
+    const isProduction = process.env.NODE_ENV === 'production';
     let productsWithRatings: any[];
     try {
       productsWithRatings = products.map(product => {
