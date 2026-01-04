@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
 // Конфигурация кеширования для Next.js App Router
-export const revalidate = 60; // Кешировать на 60 секунд
-export const dynamic = 'force-dynamic'; // Переопределяем для API routes
+// export const revalidate = 60; // Не работает для API routes в Next.js App Router
+export const dynamic = 'force-dynamic'; // API routes всегда dynamic
 
 // Кеширование для сезонных скидок (1 минута)
 let cachedDiscounts: {
