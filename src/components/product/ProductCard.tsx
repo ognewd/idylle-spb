@@ -219,25 +219,19 @@ export function ProductCard({
         {/* Action Buttons */}
         <div
           className={cn(
-            "absolute top-2 right-2 flex flex-col gap-2 transition-opacity duration-300 z-20",
-            isHovered ? "opacity-100" : "opacity-70"
+            "absolute top-2 right-2 flex flex-col gap-2 transition-opacity duration-300",
+            isHovered ? "opacity-100" : "opacity-0"
           )}
         >
           <Button
             variant="secondary"
             size="icon"
-            className="h-8 w-8 shadow-md pointer-events-auto"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              handleAddToWishlist(e);
-            }}
-            type="button"
-            aria-label={wishlistHas(product.id) ? "Удалить из избранного" : "Добавить в избранное"}
+            className="h-8 w-8 shadow-md"
+            onClick={handleAddToWishlist}
           >
             <Heart
               className={cn(
-                "h-4 w-4 transition-colors",
+                "h-4 w-4",
                 wishlistHas(product.id) ? "fill-red-500 text-red-500" : ""
               )}
             />

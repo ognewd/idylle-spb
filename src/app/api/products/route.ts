@@ -1,7 +1,73 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+// Кеширование для сезонных скидок (1 минута)
+let cachedDiscounts: {
+  data: any[];
+  productIdMap: Map<string, { id: string; name: string; discount: number }>;
+  categoryIdMap: Map<string, { id: string; name: string; discount: number }[]>;
+  timestamp: number;
+} | null = null;
+
+const DISCOUNT_CACHE_TTL = 60 * 1000; // 1 минута
+
+async function getCachedDiscounts() {
+  const now = Date.now();
+  if (cachedDiscounts && (now - cachedDiscounts.timestamp) < DISCOUNT_CACHE_TTL) {
+    return cachedDiscounts;
+  }
+
+  try {
+    const nowDate = new Date();
+    const activeDiscounts = await prisma.seasonalDiscount.findMany({
+      where: {
+        isActive: true,
+        startDate: { lte: nowDate },
+        endDate: { gte: nowDate },
+      },
+      include: {
+        products: true,
+        categories: true,
+      },
+    });
+
+    const productIdMap = new Map<string, { id: string; name: string; discount: number }>();
+    const categoryIdMap = new Map<string, { id: string; name: string; discount: number }[]>();
+
+    for (const d of activeDiscounts) {
+      for (const p of d.products) {
+        productIdMap.set(p.productId, { id: d.id, name: d.name, discount: d.discount });
+      }
+      for (const c of d.categories) {
+        const arr = categoryIdMap.get(c.categoryId) || [];
+        arr.push({ id: d.id, name: d.name, discount: d.discount });
+        categoryIdMap.set(c.categoryId, arr);
+      }
+    }
+
+    cachedDiscounts = {
+      data: activeDiscounts,
+      productIdMap,
+      categoryIdMap,
+      timestamp: now,
+    };
+
+    return cachedDiscounts;
+  } catch (error) {
+    console.warn('⚠️ Failed to load seasonal discounts:', error);
+    // Return empty cache on error
+    return {
+      data: [],
+      productIdMap: new Map(),
+      categoryIdMap: new Map(),
+      timestamp: Date.now(),
+    };
+  }
+}
+
 export async function GET(request: NextRequest) {
+  // Кеширование ответа на 60 секунд
+  const revalidate = 60;
   try {
     const { searchParams } = new URL(request.url);
     
@@ -164,11 +230,10 @@ export async function GET(request: NextRequest) {
         orderBy = { createdAt: 'desc' };
     }
 
-    // Get total count for pagination
-    const total = await prisma.product.count({ where });
-
-    // Get products with pagination
-    const products = await prisma.product.findMany({
+    // Параллельно получаем count и продукты для лучшей производительности
+    const [total, products] = await Promise.all([
+      prisma.product.count({ where }),
+      prisma.product.findMany({
       where,
       include: {
         brand: true,
@@ -188,59 +253,19 @@ export async function GET(request: NextRequest) {
             { isDefault: 'desc' },
             { sortOrder: 'asc' },
           ],
+          take: 5, // Ограничиваем количество вариантов для списка
         },
       },
-      orderBy,
-      skip: (page - 1) * limit,
-      take: limit,
-    });
+        orderBy,
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+    ]);
 
-    // Load active seasonal discounts with error handling for production
-    const isProduction = process.env.NODE_ENV === 'production';
-    let activeDiscounts: any[] = [];
-    let productIdToDiscount = new Map<string, { id: string; name: string; discount: number }>();
-    let categoryIdToDiscounts = new Map<string, { id: string; name: string; discount: number }[]>();
-
-    try {
-      const now = new Date();
-      activeDiscounts = await prisma.seasonalDiscount.findMany({
-        where: {
-          isActive: true,
-          startDate: { lte: now },
-          endDate: { gte: now },
-        },
-        include: {
-          products: true,
-          categories: true,
-        },
-      });
-
-      // Build productId -> discount map
-      productIdToDiscount = new Map<string, { id: string; name: string; discount: number }>();
-      for (const d of activeDiscounts) {
-        for (const p of d.products) {
-          productIdToDiscount.set(p.productId, { id: d.id, name: d.name, discount: d.discount });
-        }
-      }
-      // Also map categories
-      categoryIdToDiscounts = new Map<string, { id: string; name: string; discount: number }[]>();
-      for (const d of activeDiscounts) {
-        for (const c of d.categories) {
-          const arr = categoryIdToDiscounts.get(c.categoryId) || [];
-          arr.push({ id: d.id, name: d.name, discount: d.discount });
-          categoryIdToDiscounts.set(c.categoryId, arr);
-        }
-      }
-    } catch (discountError) {
-      // In production, continue without discounts if there's an error
-      // In development, log the error but don't fail silently
-      if (isProduction) {
-        console.warn('⚠️ Failed to load seasonal discounts in production, continuing without discounts:', discountError);
-      } else {
-        console.error('❌ Failed to load seasonal discounts:', discountError);
-        throw discountError; // In dev, fail loudly to catch issues
-      }
-    }
+    // Получаем кешированные скидки
+    const discountCache = await getCachedDiscounts();
+    const productIdToDiscount = discountCache.productIdMap;
+    const categoryIdToDiscounts = discountCache.categoryIdMap;
 
     // Calculate average ratings and apply seasonal discounts to price
     // Wrap in try-catch for production safety
@@ -345,7 +370,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       products: productsWithRatings,
       pagination: {
         page,
@@ -354,6 +379,11 @@ export async function GET(request: NextRequest) {
         totalPages: Math.ceil(total / limit),
       },
     });
+
+    // Добавляем заголовки кеширования
+    response.headers.set('Cache-Control', `public, s-maxage=${revalidate}, stale-while-revalidate=${revalidate * 2}`);
+
+    return response;
   } catch (error) {
     console.error('Products API error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';

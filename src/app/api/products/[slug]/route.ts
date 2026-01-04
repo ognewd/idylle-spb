@@ -5,6 +5,8 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { slug: string } }
 ) {
+  // Кеширование ответа на 120 секунд для отдельных товаров
+  const revalidate = 120;
   try {
     const product = await prisma.product.findUnique({
       where: {
@@ -142,7 +144,7 @@ export async function GET(
     const basePrice = Number(product.price);
     const discountedPrice = seasonal ? Math.max(0, Math.round(basePrice * (100 - seasonal.discount) / 100)) : basePrice;
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       product: {
         ...product,
         averageRating: Math.round(averageRating * 10) / 10,
@@ -176,6 +178,11 @@ export async function GET(
       },
       relatedProducts: relatedProductsWithRatings,
     });
+
+    // Добавляем заголовки кеширования
+    response.headers.set('Cache-Control', `public, s-maxage=${revalidate}, stale-while-revalidate=${revalidate * 2}`);
+
+    return response;
   } catch (error) {
     console.error('Product API error:', error);
     return NextResponse.json(

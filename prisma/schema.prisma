@@ -120,6 +120,12 @@ model Product {
 
   @@map("products")
   @@index([myWarehouseCode])
+  @@index([slug])
+  @@index([isActive])
+  @@index([brandId])
+  @@index([price])
+  @@index([isActive, brandId])
+  @@index([isActive, price])
 }
 
 model ProductCategory {
