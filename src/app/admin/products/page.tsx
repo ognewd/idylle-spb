@@ -102,13 +102,27 @@ export default function AdminProductsPage() {
         if (append) {
           setProducts(prev => [...prev, ...data.products]);
         } else {
-          setProducts(data.products);
-          setTotalProducts(data.pagination.total);
+          setProducts(data.products || []);
+          setTotalProducts(data.pagination?.total || 0);
         }
-        setHasMore(data.pagination.page < data.pagination.totalPages);
+        setHasMore(data.pagination?.page < data.pagination?.totalPages);
+      } else {
+        // Обработка ошибок API
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('API Error:', response.status, errorData);
+        if (response.status === 401) {
+          // Неавторизован - перенаправить на страницу входа
+          router.push('/admin/login');
+        } else {
+          // Другая ошибка - показать сообщение
+          setProducts([]);
+          setTotalProducts(0);
+        }
       }
     } catch (error) {
       console.error('Error loading products:', error);
+      setProducts([]);
+      setTotalProducts(0);
     } finally {
       setIsLoading(false);
       setIsLoadingMore(false);
