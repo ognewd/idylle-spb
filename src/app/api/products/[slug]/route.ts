@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+// Конфигурация кеширования для Next.js App Router
+export const revalidate = 120; // Кешировать на 120 секунд
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { slug: string } }
 ) {
-  // Кеширование ответа на 120 секунд для отдельных товаров
-  const revalidate = 120;
+  // Кеширование настроено через export const revalidate выше
   try {
     const product = await prisma.product.findUnique({
       where: {
@@ -179,8 +181,10 @@ export async function GET(
       relatedProducts: relatedProductsWithRatings,
     });
 
-    // Добавляем заголовки кеширования
-    response.headers.set('Cache-Control', `public, s-maxage=${revalidate}, stale-while-revalidate=${revalidate * 2}`);
+    // Заголовки кеширования для Vercel Edge
+    response.headers.set('Cache-Control', 'public, s-maxage=120, stale-while-revalidate=240');
+    response.headers.set('CDN-Cache-Control', 'public, s-maxage=120');
+    response.headers.set('Vercel-CDN-Cache-Control', 'public, s-maxage=120');
 
     return response;
   } catch (error) {

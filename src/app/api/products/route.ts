@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+// Конфигурация кеширования для Next.js App Router
+export const revalidate = 60; // Кешировать на 60 секунд
+export const dynamic = 'force-dynamic'; // Переопределяем для API routes
+
 // Кеширование для сезонных скидок (1 минута)
 let cachedDiscounts: {
   data: any[];
@@ -66,8 +70,7 @@ async function getCachedDiscounts() {
 }
 
 export async function GET(request: NextRequest) {
-  // Кеширование ответа на 60 секунд
-  const revalidate = 60;
+  // Кеширование настроено через export const revalidate выше
   try {
     const { searchParams } = new URL(request.url);
     
@@ -234,28 +237,68 @@ export async function GET(request: NextRequest) {
     const [total, products] = await Promise.all([
       prisma.product.count({ where }),
       prisma.product.findMany({
-      where,
-      include: {
-        brand: true,
-        productCategories: {
-          include: {
-            category: true,
+        where,
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          description: true,
+          shortDescription: true,
+          price: true,
+          comparePrice: true,
+          sku: true,
+          isActive: true,
+          isFeatured: true,
+          stock: true,
+          createdAt: true,
+          brand: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+            },
+          },
+          productCategories: {
+            select: {
+              category: {
+                select: {
+                  id: true,
+                  name: true,
+                  slug: true,
+                },
+              },
+            },
+          },
+          images: {
+            select: {
+              url: true,
+              alt: true,
+              isPrimary: true,
+            },
+            orderBy: [
+              { isPrimary: 'desc' },
+              { sortOrder: 'asc' },
+            ],
+            take: 3, // Ограничиваем количество изображений для списка
+          },
+          variants: {
+            select: {
+              id: true,
+              name: true,
+              value: true,
+              price: true,
+              comparePrice: true,
+              stock: true,
+              sku: true,
+              isDefault: true,
+            },
+            orderBy: [
+              { isDefault: 'desc' },
+              { sortOrder: 'asc' },
+            ],
+            take: 3, // Ограничиваем количество вариантов для списка
           },
         },
-        images: {
-          orderBy: [
-            { isPrimary: 'desc' },
-            { sortOrder: 'asc' },
-          ],
-        },
-        variants: {
-          orderBy: [
-            { isDefault: 'desc' },
-            { sortOrder: 'asc' },
-          ],
-          take: 5, // Ограничиваем количество вариантов для списка
-        },
-      },
         orderBy,
         skip: (page - 1) * limit,
         take: limit,
@@ -380,8 +423,10 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Добавляем заголовки кеширования
-    response.headers.set('Cache-Control', `public, s-maxage=${revalidate}, stale-while-revalidate=${revalidate * 2}`);
+    // Заголовки кеширования для Vercel Edge
+    response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=120');
+    response.headers.set('CDN-Cache-Control', 'public, s-maxage=60');
+    response.headers.set('Vercel-CDN-Cache-Control', 'public, s-maxage=60');
 
     return response;
   } catch (error) {
