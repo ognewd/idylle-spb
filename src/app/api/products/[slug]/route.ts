@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-// Конфигурация кеширования для Next.js App Router
-export const revalidate = 120; // Кешировать на 120 секунд
-
 export async function GET(
   request: NextRequest,
   { params }: { params: { slug: string } }
 ) {
-  // Кеширование настроено через export const revalidate выше
+  // Кеширование настроено через заголовки Cache-Control
   try {
     const product = await prisma.product.findUnique({
       where: {
