@@ -105,9 +105,15 @@ function HomeAromasContent() {
         });
         
         // Fetch products and filters
+        // Фильтры запрашиваем только при первой загрузке или если они не были загружены
+        const productsPromise = fetch(`/api/products?${queryParams.toString()}`);
+        const filtersPromise = filters.length === 0 
+          ? fetch('/api/filters?category=aromaty-dlya-doma')
+          : Promise.resolve(null);
+        
         const [productsResponse, filtersResponse] = await Promise.all([
-          fetch(`/api/products?${queryParams.toString()}`),
-          fetch('/api/filters?category=aromaty-dlya-doma'),
+          productsPromise,
+          filtersPromise,
         ]);
         
         if (!productsResponse.ok) {
@@ -115,7 +121,7 @@ function HomeAromasContent() {
         }
         
         const productsData: ApiResponse = await productsResponse.json();
-        const filtersData = await filtersResponse.json();
+        const filtersData = filtersResponse ? await filtersResponse.json() : null;
         
         // Ensure products is an array
         const products = Array.isArray(productsData?.products) ? productsData.products : [];
@@ -131,59 +137,62 @@ function HomeAromasContent() {
         const maxPrice = prices.length > 0 ? Math.ceil(Math.max(...prices) / 1000) * 1000 : 50000;
 
         // Build filters array (используем все опции из API, не фильтруем по загруженным товарам)
-        const newFilters: Filter[] = [];
+        // Обновляем фильтры только если получили новые данные
+        if (filtersData) {
+          const newFilters: Filter[] = [];
 
-        // Вид товара
-        if (filtersData.productType && filtersData.productType.length > 0) {
+          // Вид товара
+          if (filtersData.productType && filtersData.productType.length > 0) {
+            newFilters.push({
+              id: 'productType',
+              name: 'Вид товара',
+              type: 'checkbox',
+              options: filtersData.productType,
+            });
+          }
+
+          // Назначение
+          if (filtersData.purpose && filtersData.purpose.length > 0) {
+            newFilters.push({
+              id: 'purpose',
+              name: 'Назначение',
+              type: 'checkbox',
+              options: filtersData.purpose,
+            });
+          }
+
+          // Бренд
+          if (filtersData.brand && filtersData.brand.length > 0) {
+            newFilters.push({
+              id: 'brand',
+              name: 'Бренд',
+              type: 'checkbox',
+              options: filtersData.brand,
+            });
+          }
+
+          // Страна
+          if (filtersData.country && filtersData.country.length > 0) {
+            newFilters.push({
+              id: 'country',
+              name: 'Страна',
+              type: 'checkbox',
+              options: filtersData.country,
+            });
+          }
+
+          // Цена (всегда добавляем)
           newFilters.push({
-            id: 'productType',
-            name: 'Вид товара',
-            type: 'checkbox',
-            options: filtersData.productType,
+            id: 'price',
+            name: 'Цена',
+            type: 'range',
+            min: minPrice,
+            max: maxPrice,
+            step: 1000,
           });
+
+          setFilters(newFilters);
         }
-
-        // Назначение
-        if (filtersData.purpose && filtersData.purpose.length > 0) {
-          newFilters.push({
-            id: 'purpose',
-            name: 'Назначение',
-            type: 'checkbox',
-            options: filtersData.purpose,
-          });
-        }
-
-        // Бренд
-        if (filtersData.brand && filtersData.brand.length > 0) {
-          newFilters.push({
-            id: 'brand',
-            name: 'Бренд',
-            type: 'checkbox',
-            options: filtersData.brand,
-          });
-        }
-
-        // Страна
-        if (filtersData.country && filtersData.country.length > 0) {
-          newFilters.push({
-            id: 'country',
-            name: 'Страна',
-            type: 'checkbox',
-            options: filtersData.country,
-          });
-        }
-
-        // Цена (всегда добавляем)
-        newFilters.push({
-          id: 'price',
-          name: 'Цена',
-          type: 'range',
-          min: minPrice,
-          max: maxPrice,
-          step: 1000,
-        });
-
-        setFilters(newFilters);
       } catch (error) {
         console.error('Error fetching data:', error);
         // Set empty arrays on error to prevent undefined issues

@@ -67,11 +67,21 @@ interface ProductPageProps {
 
 async function getProduct(slug: string): Promise<{ product: Product; relatedProducts: Product[] } | null> {
   try {
-    const response = await fetch(`http://localhost:3000/api/products/${slug}`, {
-      cache: 'no-store',
+    // In server components, we can call the API directly
+    // Use NEXT_PUBLIC_BASE_URL if set, otherwise construct from VERCEL_URL or default
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
+                    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
+                    (process.env.NODE_ENV === 'production' ? 'https://idylle-spb.vercel.app' : 'http://localhost:3000');
+    
+    const response = await fetch(`${baseUrl}/api/products/${slug}`, {
+      cache: 'no-store', // Ensure fresh data
+      headers: {
+        'Content-Type': 'application/json',
+      },
     });
     
     if (!response.ok) {
+      console.error(`Failed to fetch product: ${response.status} ${response.statusText}`);
       return null;
     }
     

@@ -101,7 +101,7 @@ export function ProductFilters({ filters, className, basePath = '/catalog' }: Pr
       }
       debounceTimerRef.current = setTimeout(() => {
         updateURL(newFilters);
-      }, 300); // 300ms delay
+      }, 500); // 500ms delay для лучшей производительности
     } else {
       updateURL(newFilters);
     }
@@ -189,12 +189,12 @@ export function ProductFilters({ filters, className, basePath = '/catalog' }: Pr
                         // Добавляем элемент, если его еще нет
                         if (!currentArray.includes(option.id)) {
                           const newValue = [...currentArray, option.id];
-                          updateFilter(filter.id, newValue);
+                          updateFilter(filter.id, newValue, true); // Добавлен debounce
                         }
                       } else {
                         // Удаляем элемент
                         const newValue = currentArray.filter((v: string) => v !== option.id);
-                        updateFilter(filter.id, newValue.length > 0 ? newValue : null);
+                        updateFilter(filter.id, newValue.length > 0 ? newValue : null, true); // Добавлен debounce
                       }
                     }}
                   />
