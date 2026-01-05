@@ -50,18 +50,14 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    // Фильтруем товары без бренда, так как они вызывают ошибку Prisma
-    // brandId должен существовать - используем простой подход:
-    // Запрашиваем все товары, но обрабатываем null brand в коде
-    // Однако, если brandId обязательное поле, просто используем исходный where
-    const whereWithBrand = where;
-    
+    // Запрашиваем все товары, фильтруем без brand в коде после загрузки
+    // Это избегает ошибки Prisma при использовании include с null brand
     let total = 0;
     let products = [];
     
     try {
-      total = await prisma.product.count({ where: whereWithBrand });
-      console.log('Total products count (with brand):', total);
+      total = await prisma.product.count({ where });
+      console.log('Total products count:', total);
     } catch (countError) {
       console.error('Error counting products:', countError);
       throw countError;
@@ -69,9 +65,9 @@ export async function GET(request: NextRequest) {
 
     try {
       // Используем select вместо include, чтобы избежать ошибки с null brand
-      // Затем обрабатываем данные вручную
+      // Затем фильтруем товары без brand в JavaScript коде
       const productsRaw = await prisma.product.findMany({
-        where: whereWithBrand,
+        where,
         skip,
         take: limit,
         select: {
