@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getImageUrl } from '@/lib/image-url';
 
 // Конфигурация кеширования для Next.js App Router
 // export const revalidate = 60; // Не работает для API routes в Next.js App Router
@@ -369,7 +370,7 @@ export async function GET(request: NextRequest) {
             comparePrice: seasonal ? basePrice : (product.comparePrice ? Number(product.comparePrice) : null),
             seasonalDiscount: seasonal || null,
             images: (product.images || []).map((img: any) => ({
-              url: img.url || '',
+              url: getImageUrl(img.url),
               alt: img.alt || '',
               isPrimary: img.isPrimary || false,
             })),
@@ -416,7 +417,7 @@ export async function GET(request: NextRequest) {
           comparePrice: product.comparePrice ? Number(product.comparePrice) : null,
           seasonalDiscount: null,
           images: (product.images || []).map((img: any) => ({
-            url: img.url || '',
+            url: getImageUrl(img.url),
             alt: img.alt || '',
             isPrimary: img.isPrimary || false,
           })),

@@ -66,8 +66,9 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(bytes);
     await writeFile(filePath, buffer);
 
-    // Return URL (always relative, Nginx will serve from correct location)
-    const url = `/uploads/products/${filename}`;
+    // Return URL - use full URL for Next.js Image Optimization to work
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    const url = `${baseUrl}/uploads/products/${filename}`;
     
     return NextResponse.json({ url });
   } catch (error) {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getImageUrl } from '@/lib/image-url';
 
 export async function GET(
   request: NextRequest,
@@ -136,6 +137,10 @@ export async function GET(
       reviewCount: 0,
       price: Number(relatedProduct.price),
       comparePrice: relatedProduct.comparePrice ? Number(relatedProduct.comparePrice) : null,
+      images: (relatedProduct.images || []).map(img => ({
+        ...img,
+        url: getImageUrl(img.url),
+      })),
     }));
 
     // Compute seasonal discount and discounted price for the main product
@@ -152,7 +157,7 @@ export async function GET(
         comparePrice: seasonal ? basePrice : (product.comparePrice ? Number(product.comparePrice) : null),
         seasonalDiscount: seasonal || null,
         images: product.images.map(img => ({
-          url: img.url,
+          url: getImageUrl(img.url),
           alt: img.alt,
           isPrimary: img.isPrimary,
         })),

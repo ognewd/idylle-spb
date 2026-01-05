@@ -23,6 +23,14 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'images.unsplash.com',
       },
+      {
+        protocol: 'https',
+        hostname: 'aromarussia.ru',
+      },
+      {
+        protocol: 'http',
+        hostname: 'aromarussia.ru',
+      },
     ],
   },
   eslint: {
