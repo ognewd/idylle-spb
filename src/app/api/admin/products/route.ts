@@ -50,16 +50,11 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    // Get total count with search (только товары с брендом)
     // Фильтруем товары без бренда, так как они вызывают ошибку Prisma
     // brandId не должен быть null или пустой строкой
-    const whereWithBrand = {
+    const whereWithBrand: any = {
       ...where,
-      AND: [
-        ...(where.AND || []),
-        { brandId: { not: null } },
-        { brandId: { not: '' } },
-      ],
+      brandId: { not: null },
     };
     
     let total = 0;
@@ -74,12 +69,6 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      // Фильтруем товары, у которых есть brand (чтобы избежать ошибки null)
-      const whereWithBrand = {
-        ...where,
-        brandId: { not: null },
-      };
-      
       products = await prisma.product.findMany({
         where: whereWithBrand,
         skip,
