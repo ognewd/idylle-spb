@@ -91,10 +91,24 @@ function CatalogContent() {
 
         // Fetch products
         const productsResponse = await fetch(`/api/products?${queryParams.toString()}`);
+        
+        if (!productsResponse.ok) {
+          throw new Error(`API returned ${productsResponse.status}: ${productsResponse.statusText}`);
+        }
+        
         const productsData: ApiResponse = await productsResponse.json();
         
-        setProducts(productsData.products);
-        setPagination(productsData.pagination);
+        if (!productsData.products || !productsData.pagination) {
+          throw new Error('Invalid API response structure');
+        }
+        
+        setProducts(productsData.products || []);
+        setPagination(productsData.pagination || {
+          page: 1,
+          limit: 24,
+          total: 0,
+          totalPages: 0,
+        });
 
         // Fetch filters (categories, brands, and other filters)
         const [categoriesResponse, filtersResponse] = await Promise.all([
