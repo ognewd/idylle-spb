@@ -126,6 +126,14 @@ model Product {
   @@index([price])
   @@index([isActive, brandId])
   @@index([isActive, price])
+  @@index([productType])
+  @@index([volume])
+  @@index([purpose])
+  @@index([country])
+  @@index([isActive, productType])
+  @@index([isActive, volume])
+  @@index([isActive, purpose])
+  @@index([isActive, country])
 }
 
 model ProductCategory {
