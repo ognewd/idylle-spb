@@ -73,7 +73,7 @@ export function ProductCard({
 }: ProductCardProps) {
   // Защита от undefined/null product или отсутствующих обязательных полей
   if (!product || !product.slug || !product.brand || !product.brand.slug) {
-    console.warn('ProductCard: invalid product data', product);
+    // Товары без brand не отображаются (отфильтрованы на сервере, но могут попасть из кеша)
     return null;
   }
 
