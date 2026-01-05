@@ -6,6 +6,14 @@ import { join } from 'path';
 import { existsSync } from 'fs';
 
 export async function POST(request: NextRequest) {
+  // На Vercel файловая система только для чтения
+  // writeFile() не работает в production на Vercel
+  if (process.env.VERCEL === '1') {
+    return NextResponse.json(
+      { error: 'Загрузка файлов через файловую систему не поддерживается на Vercel. Используйте Vercel Blob Storage, Cloudinary или другое облачное хранилище.' },
+      { status: 501 }
+    );
+  }
   try {
     const authHeader = request.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
