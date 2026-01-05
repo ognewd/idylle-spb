@@ -116,8 +116,15 @@ function CatalogContent() {
           fetch('/api/filters'),
         ]);
         
-        const categories = await categoriesResponse.json();
-        const filtersData = await filtersResponse.json();
+        if (!categoriesResponse.ok) {
+          console.warn('Categories API error:', categoriesResponse.status);
+        }
+        if (!filtersResponse.ok) {
+          console.warn('Filters API error:', filtersResponse.status);
+        }
+        
+        const categories = categoriesResponse.ok ? await categoriesResponse.json() : [];
+        const filtersData = filtersResponse.ok ? await filtersResponse.json() : {};
 
         // Build filters array
         const filtersDataArray: Filter[] = [
