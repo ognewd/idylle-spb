@@ -336,7 +336,7 @@ function CatalogContent() {
               </p>
             </div>
             
-            <SortSelector currentSort="newest" />
+            <SortSelector currentSort={searchParams.get('sort') || 'newest'} />
           </div>
 
           <div
