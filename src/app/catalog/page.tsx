@@ -123,8 +123,11 @@ function CatalogContent() {
           console.warn('Filters API error:', filtersResponse.status);
         }
         
-        const categories = categoriesResponse.ok ? await categoriesResponse.json() : [];
+        const categoriesData = categoriesResponse.ok ? await categoriesResponse.json() : [];
         const filtersData = filtersResponse.ok ? await filtersResponse.json() : {};
+        
+        // Убеждаемся, что categories - массив
+        const categories = Array.isArray(categoriesData) ? categoriesData : [];
 
         // Build filters array
         const filtersDataArray: Filter[] = [
