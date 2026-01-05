@@ -52,9 +52,14 @@ export async function GET(request: NextRequest) {
 
     // Get total count with search (только товары с брендом)
     // Фильтруем товары без бренда, так как они вызывают ошибку Prisma
+    // brandId не должен быть null или пустой строкой
     const whereWithBrand = {
       ...where,
-      brandId: { not: null },
+      AND: [
+        ...(where.AND || []),
+        { brandId: { not: null } },
+        { brandId: { not: '' } },
+      ],
     };
     
     let total = 0;
