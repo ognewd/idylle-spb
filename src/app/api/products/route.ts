@@ -234,7 +234,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Параллельно получаем count и продукты для лучшей производительности
-    const [total, products] = await Promise.all([
+    // Используем select вместо include для brand, чтобы избежать ошибки при null brandId
+    const [total, productsRaw] = await Promise.all([
       prisma.product.count({ where }),
       prisma.product.findMany({
         where,
@@ -251,13 +252,7 @@ export async function GET(request: NextRequest) {
           isFeatured: true,
           stock: true,
           createdAt: true,
-          brand: {
-            select: {
-              id: true,
-              name: true,
-              slug: true,
-            },
-          },
+          brandId: true, // Включаем brandId для ручного сопоставления
           productCategories: {
             select: {
               category: {
@@ -304,6 +299,20 @@ export async function GET(request: NextRequest) {
         take: limit,
       }),
     ]);
+
+    // Загружаем все бренды заранее и сопоставляем их с продуктами
+    const allBrands = await prisma.brand.findMany({
+      select: { id: true, name: true, slug: true },
+    });
+    const brandMap = new Map(allBrands.map(brand => [brand.id, brand]));
+
+    // Сопоставляем бренды и фильтруем товары без бренда
+    const products = productsRaw
+      .map(p => ({
+        ...p,
+        brand: p.brandId ? brandMap.get(p.brandId) : null,
+      }))
+      .filter(p => p.brand !== null); // Фильтруем товары, у которых brand не найден
 
     // Получаем кешированные скидки
     const discountCache = await getCachedDiscounts();
