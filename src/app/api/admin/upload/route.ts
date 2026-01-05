@@ -1,22 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { prisma } from '@/lib/prisma';
-import { createSupabaseAdminClient } from '@/lib/supabase';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 
 export async function POST(request: NextRequest) {
-  // Проверяем, используется ли Supabase Storage
-  const useSupabaseStorage = !!process.env.NEXT_PUBLIC_SUPABASE_URL && !!process.env.SUPABASE_SERVICE_ROLE_KEY;
-  
-  // Если на Vercel и не настроен Supabase Storage, возвращаем ошибку
-  if (process.env.VERCEL === '1' && !useSupabaseStorage) {
-    return NextResponse.json(
-      { error: 'Загрузка файлов через файловую систему не поддерживается на Vercel. Настройте Supabase Storage или другое облачное хранилище.' },
-      { status: 501 }
-    );
-  }
   try {
     const authHeader = request.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -62,57 +51,23 @@ export async function POST(request: NextRequest) {
     const extension = file.name.split('.').pop() || 'jpg';
     const filename = `${timestamp}-${randomString}.${extension}`;
 
-    let url: string;
-
-    if (useSupabaseStorage) {
-      // Загрузка в Supabase Storage
-      try {
-        const supabase = createSupabaseAdminClient();
-        const bytes = await file.arrayBuffer();
-        const buffer = Buffer.from(bytes);
-
-        const { data, error } = await supabase.storage
-          .from('products') // Название bucket в Supabase Storage
-          .upload(`products/${filename}`, buffer, {
-            contentType: file.type,
-            upsert: false, // Не перезаписывать существующие файлы
-          });
-
-        if (error) {
-          console.error('Supabase Storage upload error:', error);
-          return NextResponse.json(
-            { error: `Ошибка загрузки в Supabase Storage: ${error.message}` },
-            { status: 500 }
-          );
-        }
-
-        // Получаем публичный URL файла
-        const { data: urlData } = supabase.storage
-          .from('products')
-          .getPublicUrl(`products/${filename}`);
-
-        url = urlData.publicUrl;
-      } catch (supabaseError) {
-        console.error('Supabase Storage error:', supabaseError);
-        return NextResponse.json(
-          { error: 'Ошибка при работе с Supabase Storage' },
-          { status: 500 }
-        );
-      }
-    } else {
-      // Локальная загрузка (только для development)
-      const uploadsDir = join(process.cwd(), 'public', 'uploads', 'products');
-      if (!existsSync(uploadsDir)) {
-        await mkdir(uploadsDir, { recursive: true });
-      }
-
-      const filePath = join(uploadsDir, filename);
-      const bytes = await file.arrayBuffer();
-      const buffer = Buffer.from(bytes);
-      await writeFile(filePath, buffer);
-
-      url = `/uploads/products/${filename}`;
+    // Determine uploads directory (use environment variable for production, fallback to public for dev)
+    const uploadsBaseDir = process.env.UPLOADS_DIR || join(process.cwd(), 'public', 'uploads');
+    const uploadsDir = join(uploadsBaseDir, 'products');
+    
+    // Create uploads directory if it doesn't exist
+    if (!existsSync(uploadsDir)) {
+      await mkdir(uploadsDir, { recursive: true });
     }
+
+    // Save file
+    const filePath = join(uploadsDir, filename);
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+    await writeFile(filePath, buffer);
+
+    // Return URL (always relative, Nginx will serve from correct location)
+    const url = `/uploads/products/${filename}`;
     
     return NextResponse.json({ url });
   } catch (error) {
@@ -123,5 +78,4 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
 
