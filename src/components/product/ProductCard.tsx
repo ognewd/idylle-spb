@@ -71,6 +71,12 @@ export function ProductCard({
   className,
   priority = false,
 }: ProductCardProps) {
+  // Защита от undefined/null product или отсутствующих обязательных полей
+  if (!product || !product.slug || !product.brand || !product.brand.slug) {
+    console.warn('ProductCard: invalid product data', product);
+    return null;
+  }
+
   const { addItem } = useCart();
   const { isInWishlist: wishlistHas, toggle } = useWishlist();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
