@@ -201,13 +201,22 @@ export async function GET(request: NextRequest) {
     }
 
     if (search) {
+      // Для поиска по бренду сначала найдем бренды по имени, затем используем brandId
+      const matchingBrands = await prisma.brand.findMany({
+        where: {
+          name: { contains: search, mode: 'insensitive' },
+        },
+        select: { id: true },
+      });
+      const matchingBrandIds = matchingBrands.map(b => b.id);
+
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
         { description: { contains: search, mode: 'insensitive' } },
         { manufacturerSku: { contains: search, mode: 'insensitive' } },
         { aromaDescription: { contains: search, mode: 'insensitive' } },
         { topNotes: { contains: search, mode: 'insensitive' } },
-        { brand: { name: { contains: search, mode: 'insensitive' } } },
+        ...(matchingBrandIds.length > 0 ? [{ brandId: { in: matchingBrandIds } }] : []),
       ];
     }
 
