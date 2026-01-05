@@ -62,20 +62,57 @@ export async function POST(request: NextRequest) {
     const extension = file.name.split('.').pop() || 'jpg';
     const filename = `${timestamp}-${randomString}.${extension}`;
 
-    // Create uploads directory if it doesn't exist
-    const uploadsDir = join(process.cwd(), 'public', 'uploads', 'products');
-    if (!existsSync(uploadsDir)) {
-      await mkdir(uploadsDir, { recursive: true });
+    let url: string;
+
+    if (useSupabaseStorage) {
+      // Загрузка в Supabase Storage
+      try {
+        const supabase = createSupabaseAdminClient();
+        const bytes = await file.arrayBuffer();
+        const buffer = Buffer.from(bytes);
+
+        const { data, error } = await supabase.storage
+          .from('products') // Название bucket в Supabase Storage
+          .upload(`products/${filename}`, buffer, {
+            contentType: file.type,
+            upsert: false, // Не перезаписывать существующие файлы
+          });
+
+        if (error) {
+          console.error('Supabase Storage upload error:', error);
+          return NextResponse.json(
+            { error: `Ошибка загрузки в Supabase Storage: ${error.message}` },
+            { status: 500 }
+          );
+        }
+
+        // Получаем публичный URL файла
+        const { data: urlData } = supabase.storage
+          .from('products')
+          .getPublicUrl(`products/${filename}`);
+
+        url = urlData.publicUrl;
+      } catch (supabaseError) {
+        console.error('Supabase Storage error:', supabaseError);
+        return NextResponse.json(
+          { error: 'Ошибка при работе с Supabase Storage' },
+          { status: 500 }
+        );
+      }
+    } else {
+      // Локальная загрузка (только для development)
+      const uploadsDir = join(process.cwd(), 'public', 'uploads', 'products');
+      if (!existsSync(uploadsDir)) {
+        await mkdir(uploadsDir, { recursive: true });
+      }
+
+      const filePath = join(uploadsDir, filename);
+      const bytes = await file.arrayBuffer();
+      const buffer = Buffer.from(bytes);
+      await writeFile(filePath, buffer);
+
+      url = `/uploads/products/${filename}`;
     }
-
-    // Save file
-    const filePath = join(uploadsDir, filename);
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    await writeFile(filePath, buffer);
-
-    // Return URL
-    const url = `/uploads/products/${filename}`;
     
     return NextResponse.json({ url });
   } catch (error) {
