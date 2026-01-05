@@ -64,12 +64,12 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      // Используем select вместо include, чтобы избежать ошибки с null brand
-      // Затем фильтруем товары без brand в JavaScript коде
+      // Запрашиваем товары БЕЗ brand в select, чтобы избежать ошибки
+      // Затем загрузим brand отдельно для товаров, у которых он есть
       const productsRaw = await prisma.product.findMany({
         where,
         skip,
-        take: limit,
+        take: limit * 2, // Запрашиваем больше, чтобы после фильтрации осталось достаточно
         select: {
           id: true,
           name: true,
@@ -97,13 +97,6 @@ export async function GET(request: NextRequest) {
           createdAt: true,
           updatedAt: true,
           brandId: true,
-          brand: {
-            select: {
-              id: true,
-              name: true,
-              slug: true,
-            },
-          },
           productCategories: {
             select: {
               category: {
@@ -143,8 +136,27 @@ export async function GET(request: NextRequest) {
         orderBy: { createdAt: 'desc' },
       });
 
-      // Фильтруем товары, у которых brand существует
-      products = productsRaw.filter((p: any) => p.brand !== null);
+      // Загружаем brand для товаров, у которых brandId существует
+      const productsWithBrand = await Promise.all(
+        productsRaw
+          .filter((p: any) => p.brandId) // Фильтруем товары с brandId
+          .slice(0, limit) // Берем только нужное количество
+          .map(async (p: any) => {
+            try {
+              const brand = await prisma.brand.findUnique({
+                where: { id: p.brandId },
+                select: { id: true, name: true, slug: true },
+              });
+              return { ...p, brand };
+            } catch (error) {
+              // Если бренд не найден, пропускаем товар
+              return null;
+            }
+          })
+      );
+
+      // Фильтруем товары с существующим brand
+      products = productsWithBrand.filter((p: any) => p !== null && p.brand !== null);
       console.log('Products fetched:', products.length, '(filtered from', productsRaw.length, ')');
     } catch (fetchError) {
       console.error('Error fetching products:', fetchError);
