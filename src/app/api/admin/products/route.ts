@@ -51,14 +51,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Фильтруем товары без бренда, так как они вызывают ошибку Prisma
-    // brandId должен существовать (не null, не пустая строка)
-    // В Prisma для String полей используем другой синтаксис
-    const whereWithBrand: any = {
-      ...where,
-      brand: {
-        isNot: null, // Правильный синтаксис для фильтрации по связанной таблице
-      },
-    };
+    // brandId должен существовать - используем простой подход:
+    // Запрашиваем все товары, но обрабатываем null brand в коде
+    // Однако, если brandId обязательное поле, просто используем исходный where
+    const whereWithBrand = where;
     
     let total = 0;
     let products = [];
@@ -72,27 +68,88 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      products = await prisma.product.findMany({
+      // Используем select вместо include, чтобы избежать ошибки с null brand
+      // Затем обрабатываем данные вручную
+      const productsRaw = await prisma.product.findMany({
         where: whereWithBrand,
         skip,
         take: limit,
-        include: {
-          brand: true,
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          description: true,
+          shortDescription: true,
+          price: true,
+          comparePrice: true,
+          sku: true,
+          volume: true,
+          gender: true,
+          aromaFamily: true,
+          ingredients: true,
+          stock: true,
+          weight: true,
+          dimensions: true,
+          myWarehouseCode: true,
+          manufacturerSku: true,
+          productType: true,
+          purpose: true,
+          country: true,
+          barcode: true,
+          isActive: true,
+          isFeatured: true,
+          createdAt: true,
+          updatedAt: true,
+          brandId: true,
+          brand: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+            },
+          },
           productCategories: {
-            include: {
-              category: true,
+            select: {
+              category: {
+                select: {
+                  id: true,
+                  name: true,
+                  slug: true,
+                },
+              },
             },
           },
           images: {
+            select: {
+              id: true,
+              url: true,
+              alt: true,
+              sortOrder: true,
+              isPrimary: true,
+            },
             orderBy: { sortOrder: 'asc' },
           },
           variants: {
+            select: {
+              id: true,
+              name: true,
+              value: true,
+              price: true,
+              comparePrice: true,
+              stock: true,
+              sku: true,
+              isDefault: true,
+              sortOrder: true,
+            },
             orderBy: { sortOrder: 'asc' },
           },
         },
         orderBy: { createdAt: 'desc' },
       });
-      console.log('Products fetched:', products.length);
+
+      // Фильтруем товары, у которых brand существует
+      products = productsRaw.filter((p: any) => p.brand !== null);
+      console.log('Products fetched:', products.length, '(filtered from', productsRaw.length, ')');
     } catch (fetchError) {
       console.error('Error fetching products:', fetchError);
       throw fetchError;
