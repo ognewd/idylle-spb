@@ -135,11 +135,13 @@ function CatalogContent() {
             id: 'category',
             name: 'Категория',
             type: 'checkbox',
-            options: categories.map((cat: any) => ({
-              id: cat.slug,
-              name: cat.name,
-              count: cat.productCount,
-            })),
+            options: categories
+              .filter((cat: any) => cat && cat.slug) // Фильтруем undefined/null значения
+              .map((cat: any) => ({
+                id: cat.slug,
+                name: cat.name || '',
+                count: cat.productCount || 0,
+              })),
           },
           {
             id: 'productType',
