@@ -51,10 +51,13 @@ export async function GET(request: NextRequest) {
     }
 
     // Фильтруем товары без бренда, так как они вызывают ошибку Prisma
-    // brandId не должен быть null или пустой строкой
+    // brandId должен существовать (не null, не пустая строка)
+    // В Prisma для String полей используем другой синтаксис
     const whereWithBrand: any = {
       ...where,
-      brandId: { not: null },
+      brand: {
+        isNot: null, // Правильный синтаксис для фильтрации по связанной таблице
+      },
     };
     
     let total = 0;
