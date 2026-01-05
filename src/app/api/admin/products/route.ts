@@ -50,21 +50,33 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    // Get total count with search
+    // Get total count with search (только товары с брендом)
+    // Фильтруем товары без бренда, так как они вызывают ошибку Prisma
+    const whereWithBrand = {
+      ...where,
+      brandId: { not: null },
+    };
+    
     let total = 0;
     let products = [];
     
     try {
-      total = await prisma.product.count({ where });
-      console.log('Total products count:', total);
+      total = await prisma.product.count({ where: whereWithBrand });
+      console.log('Total products count (with brand):', total);
     } catch (countError) {
       console.error('Error counting products:', countError);
       throw countError;
     }
 
     try {
+      // Фильтруем товары, у которых есть brand (чтобы избежать ошибки null)
+      const whereWithBrand = {
+        ...where,
+        brandId: { not: null },
+      };
+      
       products = await prisma.product.findMany({
-        where,
+        where: whereWithBrand,
         skip,
         take: limit,
         include: {
