@@ -1,16 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { prisma } from '@/lib/prisma';
+import { createSupabaseAdminClient } from '@/lib/supabase';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 
 export async function POST(request: NextRequest) {
-  // На Vercel файловая система только для чтения
-  // writeFile() не работает в production на Vercel
-  if (process.env.VERCEL === '1') {
+  // Проверяем, используется ли Supabase Storage
+  const useSupabaseStorage = !!process.env.NEXT_PUBLIC_SUPABASE_URL && !!process.env.SUPABASE_SERVICE_ROLE_KEY;
+  
+  // Если на Vercel и не настроен Supabase Storage, возвращаем ошибку
+  if (process.env.VERCEL === '1' && !useSupabaseStorage) {
     return NextResponse.json(
-      { error: 'Загрузка файлов через файловую систему не поддерживается на Vercel. Используйте Vercel Blob Storage, Cloudinary или другое облачное хранилище.' },
+      { error: 'Загрузка файлов через файловую систему не поддерживается на Vercel. Настройте Supabase Storage или другое облачное хранилище.' },
       { status: 501 }
     );
   }
