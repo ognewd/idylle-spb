@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Heart, ShoppingCart, Eye, Star } from 'lucide-react';
+import { Heart, ShoppingCart, Eye, Star, Image as ImageIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCart } from '@/contexts/CartContext';
 import { useWishlist } from '@/contexts/WishlistContext';
@@ -174,28 +174,35 @@ export function ProductCard({
   return (
     <Card
       className={cn(
-        "group relative overflow-hidden transition-all duration-300 hover:shadow-lg",
+        "group relative overflow-hidden transition-all duration-300 hover:shadow-lg h-full flex flex-col",
         className
       )}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* Product Image Section */}
-      <div className="relative aspect-square overflow-hidden bg-muted">
-        <Link href={`/catalog/${product.slug}`} className="block h-full w-full">
-          <Image
-            src={product.images && product.images.length > 0 
-              ? (typeof product.images[currentImageIndex] === 'string' 
+      <div className="relative overflow-hidden" style={{ aspectRatio: '5/6', minHeight: '350px', maxHeight: '450px' }}>
+        <Link href={`/catalog/${product.slug}`} className="block h-full w-full flex items-center justify-center">
+          {product.images && product.images.length > 0 && (typeof product.images[currentImageIndex] === 'string' 
+            ? product.images[currentImageIndex] 
+            : product.images[currentImageIndex]?.url) ? (
+            <Image
+              src={typeof product.images[currentImageIndex] === 'string' 
                 ? product.images[currentImageIndex] 
-                : product.images[currentImageIndex]?.url || '/placeholder-product.jpg')
-              : '/placeholder-product.jpg'}
-            alt={product.name}
-            fill
-            className="object-cover transition-transform duration-300 group-hover:scale-105"
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            priority={priority}
-            loading={priority ? undefined : "lazy"}
-          />
+                : product.images[currentImageIndex]?.url || ''}
+              alt={product.name}
+              fill
+              className="object-contain transition-transform duration-300 group-hover:scale-105"
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              priority={priority}
+              loading={priority ? undefined : "lazy"}
+            />
+          ) : (
+            <div className="flex flex-col items-center justify-center text-muted-foreground space-y-3 p-2 bg-muted w-full h-full">
+              <ImageIcon className="h-16 w-16 opacity-50" />
+              <p className="text-sm text-center px-4">Изображение еще не добавлено</p>
+            </div>
+          )}
         </Link>
 
         {/* Badges */}

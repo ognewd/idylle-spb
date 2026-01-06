@@ -115,9 +115,9 @@ export default async function ProductPage({ params }: ProductPageProps) {
     <div className="container mx-auto px-4 py-8">
       <Breadcrumbs items={breadcrumbItems} />
       
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-6">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 mt-6">
         {/* Product Images */}
-        <div className="space-y-4">
+        <div className="lg:col-span-2 space-y-4">
           <ProductImageCarousel 
             images={product.images.map(img => img.url)} 
             name={product.name} 
@@ -125,7 +125,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
         </div>
 
         {/* Product Info */}
-        <div className="space-y-6">
+        <div className="lg:col-span-3 space-y-6">
           <ProductInfo product={product} />
         </div>
       </div>
