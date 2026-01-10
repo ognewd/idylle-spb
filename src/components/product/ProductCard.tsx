@@ -180,7 +180,7 @@ export function ProductCard({
         "bg-muted p-2": !(product.images && product.images.length > 0)
       })} style={{ aspectRatio: '5/6', minHeight: '350px', maxHeight: '450px' }}>
         {product.images && product.images.length > 0 ? (
-          <Link href={`/catalog/${product.slug}`} className="relative block w-full h-full p-4 flex items-center justify-center">
+          <Link href={`/catalog/${product.slug}`} className="absolute inset-0 flex items-center justify-center p-4">
             <Image
               src={getImageUrl(
                 typeof product.images[currentImageIndex] === 'string' 
@@ -198,10 +198,8 @@ export function ProductCard({
                 objectPosition: 'center',
                 width: 'auto',
                 height: 'auto',
-                maxWidth: '100%',
-                maxHeight: '100%',
-                display: 'block',
-                margin: '0 auto'
+                maxWidth: 'calc(100% - 2rem)',
+                maxHeight: 'calc(100% - 2rem)'
               }}
             />
           </Link>
