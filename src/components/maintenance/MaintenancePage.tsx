@@ -33,7 +33,8 @@ export function MaintenancePage() {
   }
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <>
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       {/* Blurred city background */}
       <div 
         className="absolute inset-0 opacity-30"
@@ -78,6 +79,7 @@ export function MaintenancePage() {
           </div>
         </div>
       </div>
+    </div>
     </>
   );
 }
