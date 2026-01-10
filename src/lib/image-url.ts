@@ -15,8 +15,8 @@ export function getImageUrl(url: string | null | undefined): string {
   // Если относительный путь, добавляем базовый URL
   let baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
   
-  // На клиенте, если NEXT_PUBLIC_BASE_URL не установлен, используем текущий origin
-  if (typeof window !== 'undefined' && !baseUrl.includes('localhost')) {
+  // На клиенте, всегда используем текущий origin (более надежно)
+  if (typeof window !== 'undefined') {
     baseUrl = window.location.origin;
   }
   

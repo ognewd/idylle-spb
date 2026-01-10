@@ -182,9 +182,11 @@ export function ProductCard({
         {product.images && product.images.length > 0 ? (
           <Link href={`/catalog/${product.slug}`} className="block h-full w-full flex items-center justify-center">
             <Image
-              src={typeof product.images[currentImageIndex] === 'string' 
-                ? product.images[currentImageIndex] as string
-                : getImageUrl(product.images[currentImageIndex]?.url)}
+              src={getImageUrl(
+                typeof product.images[currentImageIndex] === 'string' 
+                  ? product.images[currentImageIndex] as string
+                  : product.images[currentImageIndex]?.url
+              )}
               alt={product.name}
               fill
               className="object-contain transition-transform duration-300 group-hover:scale-105"
