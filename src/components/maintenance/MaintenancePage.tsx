@@ -34,12 +34,14 @@ export function MaintenancePage() {
       <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       {/* Blurred city background */}
       <div 
-        className="absolute inset-0 opacity-20"
+        className="absolute inset-0 opacity-30"
         style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='1920' height='1080' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3ClinearGradient id='grad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%23475569;stop-opacity:1' /%3E%3Cstop offset='100%25' style='stop-color:%23233446;stop-opacity:1' /%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100%25' height='100%25' fill='url(%23grad)'/%3E%3Cpath d='M0,800 L200,750 L400,700 L600,720 L800,680 L1000,700 L1200,680 L1400,700 L1600,720 L1800,700 L1920,750 L1920,1080 L0,1080 Z' fill='%23344556' opacity='0.6'/%3E%3Crect x='100' y='600' width='80' height='150' fill='%23455667'/%3E%3Crect x='250' y='550' width='100' height='200' fill='%23455667'/%3E%3Crect x='400' y='580' width='90' height='170' fill='%23455667'/%3E%3Crect x='550' y='540' width='110' height='210' fill='%23455667'/%3E%3Crect x='720' y='570' width='85' height='180' fill='%23455667'/%3E%3Crect x='900' y='590' width='95' height='160' fill='%23455667'/%3E%3Crect x='1100' y='560' width='105' height='190' fill='%23455667'/%3E%3Crect x='1300' y='550' width='90' height='200' fill='%23455667'/%3E%3Crect x='1500' y='580' width='100' height='170' fill='%23455667'/%3E%3Crect x='1700' y='600' width='80' height='150' fill='%23455667'/%3E%3C/svg%3E")`,
+          backgroundImage: `linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #1e293b 100%), 
+                           url("data:image/svg+xml,%3Csvg width='1920' height='1080' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3ClinearGradient id='grad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%23475569;stop-opacity:1' /%3E%3Cstop offset='100%25' style='stop-color:%23233446;stop-opacity:1' /%3E%3C/linearGradient%3E%3Cfilter id='blur'%3E%3CfeGaussianBlur stdDeviation='15'/%3E%3C/filter%3E%3C/defs%3E%3Crect width='100%25' height='100%25' fill='url(%23grad)'/%3E%3Cg filter='url(%23blur)'%3E%3Cpath d='M0,800 L200,750 L400,700 L600,720 L800,680 L1000,700 L1200,680 L1400,700 L1600,720 L1800,700 L1920,750 L1920,1080 L0,1080 Z' fill='%23344556' opacity='0.8'/%3E%3Crect x='100' y='600' width='80' height='150' fill='%23455667' opacity='0.9'/%3E%3Crect x='250' y='550' width='100' height='200' fill='%23455667' opacity='0.9'/%3E%3Crect x='400' y='580' width='90' height='170' fill='%23455667' opacity='0.9'/%3E%3Crect x='550' y='540' width='110' height='210' fill='%23455667' opacity='0.9'/%3E%3Crect x='720' y='570' width='85' height='180' fill='%23455667' opacity='0.9'/%3E%3Crect x='900' y='590' width='95' height='160' fill='%23455667' opacity='0.9'/%3E%3Crect x='1100' y='560' width='105' height='190' fill='%23455667' opacity='0.9'/%3E%3Crect x='1300' y='550' width='90' height='200' fill='%23455667' opacity='0.9'/%3E%3Crect x='1500' y='580' width='100' height='170' fill='%23455667' opacity='0.9'/%3E%3Crect x='1700' y='600' width='80' height='150' fill='%23455667' opacity='0.9'/%3E%3Ccircle cx='120' cy='650' r='3' fill='%23fbbf24' opacity='0.6'/%3E%3Ccircle cx='270' cy='600' r='3' fill='%23fbbf24' opacity='0.6'/%3E%3Ccircle cx='420' cy='630' r='3' fill='%23fbbf24' opacity='0.6'/%3E%3Ccircle cx='570' cy='590' r='3' fill='%23fbbf24' opacity='0.6'/%3E%3Ccircle cx='740' cy='620' r='3' fill='%23fbbf24' opacity='0.6'/%3E%3Ccircle cx='920' cy='640' r='3' fill='%23fbbf24' opacity='0.6'/%3E%3Ccircle cx='1120' cy='610' r='3' fill='%23fbbf24' opacity='0.6'/%3E%3Ccircle cx='1320' cy='600' r='3' fill='%23fbbf24' opacity='0.6'/%3E%3Ccircle cx='1520' cy='630' r='3' fill='%23fbbf24' opacity='0.6'/%3E%3C/g%3E%3C/svg%3E")`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
-          filter: 'blur(20px)',
+          filter: 'blur(25px)',
+          backgroundBlendMode: 'overlay',
         }}
       />
       
@@ -65,7 +67,7 @@ export function MaintenancePage() {
               Планируемое открытие
             </p>
             <p className="text-2xl sm:text-3xl font-semibold text-white">
-              14 февраля 2025
+              14 февраля 2025 года
             </p>
           </div>
           
