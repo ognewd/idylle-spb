@@ -178,26 +178,28 @@ export function ProductCard({
       {/* Product Image Section */}
       <div className={cn("relative overflow-hidden bg-white", {
         "bg-muted p-2": !(product.images && product.images.length > 0)
-      })} style={{ aspectRatio: '5/6', minHeight: '350px', maxHeight: '450px' }}>
+      })} style={{ minHeight: '350px', maxHeight: '450px' }}>
         {product.images && product.images.length > 0 ? (
           <Link href={`/catalog/${product.slug}`} className="absolute inset-0 flex items-center justify-center p-4">
-            <div className="relative w-full h-full">
-              <Image
-                src={getImageUrl(
-                  typeof product.images[currentImageIndex] === 'string' 
-                    ? product.images[currentImageIndex] as string
-                    : product.images[currentImageIndex]?.url
-                )}
-                alt={product.name}
-                fill
-                className="object-contain transition-transform duration-300 group-hover:scale-105"
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                priority={priority}
-                loading={priority ? undefined : "lazy"}
-                style={{ 
-                  objectPosition: 'center'
-                }}
-              />
+            <div className="relative w-full h-full flex items-center justify-center">
+              <div className="relative" style={{ width: '100%', maxWidth: '100%', height: '100%', maxHeight: '100%', aspectRatio: '5/6' }}>
+                <Image
+                  src={getImageUrl(
+                    typeof product.images[currentImageIndex] === 'string' 
+                      ? product.images[currentImageIndex] as string
+                      : product.images[currentImageIndex]?.url
+                  )}
+                  alt={product.name}
+                  fill
+                  className="object-contain transition-transform duration-300 group-hover:scale-105"
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                  priority={priority}
+                  loading={priority ? undefined : "lazy"}
+                  style={{ 
+                    objectPosition: 'center'
+                  }}
+                />
+              </div>
             </div>
           </Link>
         ) : (
