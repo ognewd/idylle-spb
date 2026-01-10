@@ -56,6 +56,11 @@
   body {
     @apply bg-background text-foreground;
   }
+  
+  /* Скрываем основной контент когда показывается заглушка (не для админов) */
+  body:not(.admin-visible) > div > div.min-h-screen {
+    display: none !important;
+  }
 }
 
 @layer utilities {
