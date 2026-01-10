@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Eye, Edit, Code } from 'lucide-react';
 
 // Динамически загружаем ReactQuill только на клиенте
+// @ts-ignore - react-quill не имеет типов в @types
 const ReactQuill = dynamic(() => import('react-quill'), { ssr: false });
 import 'react-quill/dist/quill.snow.css';
 import '@/app/quill.css';
