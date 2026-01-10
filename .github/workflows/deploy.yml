@@ -31,8 +31,12 @@ jobs:
           script: |
             cd /root/idylle-spb
             
+            # Удалить конфликтующие файлы (если есть)
+            rm -f idylle_spb_backup.sql idylle_spb_data_only.sql 2>/dev/null || true
+            
             # Получить последние изменения
-            git pull origin main
+            git fetch origin
+            git reset --hard origin/main || git pull origin main
             
             # Установить зависимости
             npm install

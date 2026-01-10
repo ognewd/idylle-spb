@@ -18,3 +18,9 @@ public/uploads/
 # Build artifacts
 *.pack.gz
 .next/cache/
+
+# Database backups (should not be in git)
+*_backup.sql
+*_data_only.sql
+idylle_spb_backup.sql
+idylle_spb_data_only.sql
