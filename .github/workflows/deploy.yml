@@ -45,6 +45,10 @@ jobs:
             npx prisma db push --accept-data-loss || true
             npx prisma generate
             
+            # Очистить старые build файлы перед новой сборкой
+            rm -rf .next
+            rm -rf node_modules/.cache
+            
             # Собрать приложение
             npm run build
             
