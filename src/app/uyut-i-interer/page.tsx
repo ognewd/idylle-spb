@@ -72,6 +72,10 @@ function HomeCozyContent() {
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [categoryContent, setCategoryContent] = useState<string | null>(null);
+  const [categoryName, setCategoryName] = useState<string>('Уют и интерьер');
+  const [categoryDescription, setCategoryDescription] = useState<string | null>(null);
+  const [isCategoryContentLoading, setIsCategoryContentLoading] = useState(true);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 24,
@@ -83,6 +87,32 @@ function HomeCozyContent() {
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  // Load category content
+  useEffect(() => {
+    if (!isMounted) return;
+    setIsCategoryContentLoading(true);
+    
+    fetch(`/api/categories?slug=uyut-i-interer&_=${Date.now()}`, { cache: 'no-store' })
+      .then(res => res.json())
+      .then(data => {
+        console.log('Category data loaded:', data);
+        if (data && data.length > 0) {
+          const category = data.find((c: any) => c.slug === 'uyut-i-interer') || data[0];
+          if (category) {
+            console.log('Category found:', category.name);
+            console.log('Page content:', category.pageContent ? `${category.pageContent.substring(0, 100)}...` : 'null');
+            setCategoryName(category.name || 'Уют и интерьер');
+            setCategoryDescription(category.description || null);
+            setCategoryContent(category.pageContent || null);
+          }
+        } else {
+          console.warn('No category data found');
+        }
+      })
+      .catch(err => console.error('Error loading category:', err))
+      .finally(() => setIsCategoryContentLoading(false));
+  }, [isMounted]);
 
   // Fetch products and filters
   useEffect(() => {
@@ -297,12 +327,14 @@ function HomeCozyContent() {
             </div>
             
             <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
-              Уют и интерьер
+              {categoryName}
             </h1>
             
-            <p className="text-lg md:text-xl text-gray-100 mb-8 max-w-xl">
-              Создайте неповторимую атмосферу уюта с премиальными товарами для интерьера
-            </p>
+            {categoryDescription && (
+              <p className="text-lg md:text-xl text-gray-100 mb-8 max-w-xl">
+                {categoryDescription}
+              </p>
+            )}
             
             <Button 
               size="lg" 
@@ -335,33 +367,41 @@ function HomeCozyContent() {
 
             <Card className="bg-card/90 backdrop-blur-md border-primary/20 shadow-xl">
               <CardContent className="p-6">
-                <div className={`space-y-4 text-muted-foreground ${!isDescriptionExpanded ? 'line-clamp-3' : ''}`}>
-                  <p className="leading-relaxed">
-                    Создайте уютную и стильную атмосферу в вашем доме с помощью премиальных товаров для интерьера. 
-                    Каждый элемент продуман до мелочей, чтобы добавить тепла и гармонии в ваше пространство.
-                  </p>
-
-                  <p className="font-medium text-foreground">
-                    Мы предлагаем широкий выбор товаров для создания идеального интерьера, которые подчеркнут 
-                    ваш уникальный стиль и создадут атмосферу комфорта.
-                  </p>
-                </div>
-
-                <Button
-                  variant="ghost"
-                  className="w-full mt-4"
-                  onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
-                >
-                  {isDescriptionExpanded ? (
-                    <>
-                      Свернуть <ChevronUp className="ml-2 h-4 w-4" />
-                    </>
-                  ) : (
-                    <>
-                      Читать далее <ChevronDown className="ml-2 h-4 w-4" />
-                    </>
-                  )}
-                </Button>
+                {isCategoryContentLoading ? (
+                  <div className="animate-pulse space-y-4">
+                    <div className="h-4 bg-muted rounded w-3/4" />
+                    <div className="h-4 bg-muted rounded w-full" />
+                    <div className="h-4 bg-muted rounded w-1/2" />
+                  </div>
+                ) : categoryContent ? (
+                  <>
+                    <div 
+                      className={`prose prose-lg max-w-none prose-headings:font-bold prose-p:text-muted-foreground prose-p:leading-relaxed prose-p:mb-4 prose-p:last:mb-0 prose-ul:list-disc prose-ol:list-decimal prose-a:text-primary prose-a:underline hover:prose-a:text-primary/80 prose-img:rounded-lg prose-img:shadow-sm ${!isDescriptionExpanded && categoryContent.length > 300 ? 'line-clamp-3' : ''}`}
+                      dangerouslySetInnerHTML={{ __html: categoryContent }}
+                    />
+                    {categoryContent.length > 300 && (
+                      <Button
+                        variant="ghost"
+                        className="w-full mt-4"
+                        onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
+                      >
+                        {isDescriptionExpanded ? (
+                          <>
+                            Свернуть <ChevronUp className="ml-2 h-4 w-4" />
+                          </>
+                        ) : (
+                          <>
+                            Читать далее <ChevronDown className="ml-2 h-4 w-4" />
+                          </>
+                        )}
+                      </Button>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-muted-foreground text-center py-8">
+                    <p>Описание категории пока отсутствует.</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

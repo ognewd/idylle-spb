@@ -272,6 +272,7 @@ function CatalogContent() {
 
   const [selectedCategory, setSelectedCategory] = useState<any>(null);
   const [categoryContent, setCategoryContent] = useState<string | null>(null);
+  const [categoryDescription, setCategoryDescription] = useState<string | null>(null);
 
   // Load category content when category is selected
   useEffect(() => {
@@ -291,6 +292,7 @@ function CatalogContent() {
             const cat = data.find((c: any) => c.slug === categorySlug);
             if (cat) {
               setSelectedCategory(cat);
+              setCategoryDescription(cat.description || null);
               setCategoryContent(cat.pageContent || null);
             }
           }
@@ -298,6 +300,7 @@ function CatalogContent() {
         .catch(err => console.error('Error loading category:', err));
     } else {
       setSelectedCategory(null);
+      setCategoryDescription(null);
       setCategoryContent(null);
     }
   }, [searchParams]);
@@ -353,15 +356,25 @@ function CatalogContent() {
     <div className="container mx-auto px-4 py-8">
       <Breadcrumbs items={breadcrumbItems} />
       
-      {/* Category Content */}
-      {categoryContent && selectedCategory && (
+      {/* Category Hero Section */}
+      {selectedCategory && (categoryDescription || categoryContent) && (
         <div className="mt-6 mb-8">
-          <article className="bg-white rounded-lg border p-6 shadow-sm">
-            <div 
-              dangerouslySetInnerHTML={{ __html: categoryContent }} 
-              className="category-content prose prose-lg max-w-none prose-headings:font-bold prose-p:text-gray-700 prose-p:mb-4 prose-p:last:mb-0 prose-ul:list-disc prose-ol:list-decimal prose-a:text-primary prose-a:underline hover:prose-a:text-primary/80 prose-img:rounded-lg prose-img:shadow-sm"
-            />
-          </article>
+          <div className="bg-white rounded-lg border p-6 shadow-sm">
+            <h1 className="text-3xl font-bold mb-4">
+              {selectedCategory.name}
+            </h1>
+            {categoryDescription && (
+              <p className="text-lg text-muted-foreground mb-6">
+                {categoryDescription}
+              </p>
+            )}
+            {categoryContent && (
+              <div 
+                dangerouslySetInnerHTML={{ __html: categoryContent }} 
+                className="category-content prose prose-lg max-w-none prose-headings:font-bold prose-p:text-gray-700 prose-p:mb-4 prose-p:last:mb-0 prose-ul:list-disc prose-ol:list-decimal prose-a:text-primary prose-a:underline hover:prose-a:text-primary/80 prose-img:rounded-lg prose-img:shadow-sm"
+              />
+            )}
+          </div>
         </div>
       )}
       

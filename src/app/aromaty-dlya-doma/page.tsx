@@ -74,6 +74,7 @@ function HomeAromasContent() {
   const [currentPage, setCurrentPage] = useState(1);
   const [categoryContent, setCategoryContent] = useState<string | null>(null);
   const [categoryName, setCategoryName] = useState<string>('Ароматы для дома');
+  const [categoryDescription, setCategoryDescription] = useState<string | null>(null);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 24,
@@ -107,6 +108,7 @@ function HomeAromasContent() {
             console.log('Category found:', category.name);
             console.log('Page content:', category.pageContent ? `${category.pageContent.substring(0, 100)}...` : 'null');
             setCategoryName(category.name || 'Ароматы для дома');
+            setCategoryDescription(category.description || null);
             setCategoryContent(category.pageContent || null);
           }
         } else {
@@ -332,9 +334,11 @@ function HomeAromasContent() {
               {categoryName}
             </h1>
             
-            <p className="text-lg md:text-xl text-gray-100 mb-8 max-w-xl">
-              Создайте неповторимую атмосферу уюта с премиальными свечами, диффузорами и ароматическими композициями
-            </p>
+            {categoryDescription && (
+              <p className="text-lg md:text-xl text-gray-100 mb-8 max-w-xl">
+                {categoryDescription}
+              </p>
+            )}
             
             <Button 
               size="lg" 
