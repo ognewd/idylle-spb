@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { Calendar } from 'lucide-react';
 
 export function MaintenancePage() {
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const pathname = usePathname();
 
   useEffect(() => {
     // Проверяем, есть ли токен админа
@@ -14,21 +16,21 @@ export function MaintenancePage() {
     
     // Добавляем класс к body для управления видимостью контента
     if (typeof window !== 'undefined') {
-      if (admin) {
+      if (admin || pathname?.startsWith('/admin')) {
         document.body.classList.add('admin-visible');
       } else {
         document.body.classList.remove('admin-visible');
       }
     }
-  }, []);
+  }, [pathname]);
 
   // Если проверка еще идет, не показываем ничего (или loading)
   if (isAdmin === null) {
     return null;
   }
 
-  // Если админ - не показываем заглушку, скрываем основной контент только для не-админов
-  if (isAdmin) {
+  // Если админ или находимся на странице админки - не показываем заглушку
+  if (isAdmin || pathname?.startsWith('/admin')) {
     return null;
   }
 
