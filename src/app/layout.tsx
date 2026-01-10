@@ -25,6 +25,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ru">
+      <head>
+        <style dangerouslySetInnerHTML={{
+          __html: `
+            body:not(.admin-visible) > div > div.min-h-screen {
+              display: none !important;
+            }
+          `
+        }} />
+      </head>
       <body className={inter.className}>
         <SessionProvider>
           <WishlistProvider>

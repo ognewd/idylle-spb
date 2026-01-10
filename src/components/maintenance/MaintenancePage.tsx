@@ -9,7 +9,17 @@ export function MaintenancePage() {
   useEffect(() => {
     // Проверяем, есть ли токен админа
     const adminToken = typeof window !== 'undefined' ? localStorage.getItem('admin_token') : null;
-    setIsAdmin(!!adminToken);
+    const admin = !!adminToken;
+    setIsAdmin(admin);
+    
+    // Добавляем класс к body для управления видимостью контента
+    if (typeof window !== 'undefined') {
+      if (admin) {
+        document.body.classList.add('admin-visible');
+      } else {
+        document.body.classList.remove('admin-visible');
+      }
+    }
   }, []);
 
   // Если проверка еще идет, не показываем ничего (или loading)
@@ -23,15 +33,7 @@ export function MaintenancePage() {
   }
 
   return (
-    <>
-      {/* Скрываем основной контент для не-админов */}
-      <style jsx global>{`
-        body > div > div.min-h-screen {
-          display: none !important;
-        }
-      `}</style>
-      
-      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       {/* Blurred city background */}
       <div 
         className="absolute inset-0 opacity-30"
