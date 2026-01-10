@@ -7,10 +7,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Heart, ShoppingCart, Eye, Star } from 'lucide-react';
+import { Heart, ShoppingCart, Eye, Star, Image as ImageIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCart } from '@/contexts/CartContext';
 import { useWishlist } from '@/contexts/WishlistContext';
+import { getImageUrl } from '@/lib/image-url';
 
 interface ProductVariant {
   id: string;
@@ -175,22 +176,29 @@ export function ProductCard({
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* Product Image Section */}
-      <div className="relative aspect-square overflow-hidden bg-muted">
-        <Link href={`/catalog/${product.slug}`} className="block h-full w-full">
-          <Image
-            src={product.images && product.images.length > 0 
-              ? (typeof product.images[currentImageIndex] === 'string' 
-                ? product.images[currentImageIndex] 
-                : product.images[currentImageIndex]?.url || '/placeholder-product.jpg')
-              : '/placeholder-product.jpg'}
-            alt={product.name}
-            fill
-            className="object-cover transition-transform duration-300 group-hover:scale-105"
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            priority={priority}
-            loading={priority ? undefined : "lazy"}
-          />
-        </Link>
+      <div className={cn("relative overflow-hidden", {
+        "aspect-square bg-muted p-2": !(product.images && product.images.length > 0)
+      })} style={{ aspectRatio: '5/6', minHeight: '350px', maxHeight: '450px' }}>
+        {product.images && product.images.length > 0 ? (
+          <Link href={`/catalog/${product.slug}`} className="block h-full w-full flex items-center justify-center">
+            <Image
+              src={typeof product.images[currentImageIndex] === 'string' 
+                ? product.images[currentImageIndex] as string
+                : getImageUrl(product.images[currentImageIndex]?.url)}
+              alt={product.name}
+              fill
+              className="object-contain transition-transform duration-300 group-hover:scale-105"
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              priority={priority}
+              loading={priority ? undefined : "lazy"}
+            />
+          </Link>
+        ) : (
+          <div className="flex flex-col items-center justify-center text-muted-foreground space-y-3 p-2 h-full">
+            <ImageIcon className="h-16 w-16 opacity-50" />
+            <p className="text-sm text-center px-4">Изображение еще не добавлено</p>
+          </div>
+        )}
 
         {/* Badges */}
         <div className="absolute top-2 left-2 flex flex-col gap-1 pointer-events-none">

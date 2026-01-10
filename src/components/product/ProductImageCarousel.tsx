@@ -3,8 +3,9 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, ZoomIn } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ZoomIn, Image as ImageIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getImageUrl } from '@/lib/image-url';
 
 interface ProductImageCarouselProps {
   images: string[];
@@ -30,8 +31,11 @@ export function ProductImageCarousel({ images, name, className }: ProductImageCa
 
   if (images.length === 0) {
     return (
-      <div className={cn("aspect-square bg-white border border-gray-200 rounded-lg flex items-center justify-center shadow-sm", className)}>
-        <p className="text-muted-foreground">Изображение недоступно</p>
+      <div className={cn("bg-muted rounded-lg flex items-center justify-center", className)} style={{ minHeight: '400px', aspectRatio: '4/3' }}>
+        <div className="flex flex-col items-center justify-center text-muted-foreground space-y-3">
+          <ImageIcon className="h-20 w-20 opacity-50" />
+          <p className="text-lg text-center px-4">Изображение еще не добавлено</p>
+        </div>
       </div>
     );
   }
@@ -41,7 +45,7 @@ export function ProductImageCarousel({ images, name, className }: ProductImageCa
       {/* Main Image */}
       <div className="relative bg-white border border-gray-200 rounded-lg overflow-hidden group shadow-sm" style={{ aspectRatio: '1', maxHeight: '600px' }}>
         <Image
-          src={images[currentIndex]}
+          src={getImageUrl(images[currentIndex])}
           alt={`${name} - изображение ${currentIndex + 1}`}
           fill
           className="object-contain transition-transform duration-300 group-hover:scale-105 bg-white"
@@ -104,7 +108,7 @@ export function ProductImageCarousel({ images, name, className }: ProductImageCa
               )}
             >
               <Image
-                src={image}
+                src={getImageUrl(image)}
                 alt={`${name} - миниатюра ${index + 1}`}
                 fill
                 className="object-cover"
@@ -123,7 +127,7 @@ export function ProductImageCarousel({ images, name, className }: ProductImageCa
         >
           <div className="relative max-w-4xl max-h-full">
             <Image
-              src={images[currentIndex]}
+              src={getImageUrl(images[currentIndex])}
               alt={`${name} - увеличенное изображение`}
               width={800}
               height={800}

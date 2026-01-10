@@ -13,7 +13,12 @@ export function getImageUrl(url: string | null | undefined): string {
   }
 
   // Если относительный путь, добавляем базовый URL
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+  let baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+  
+  // На клиенте, если NEXT_PUBLIC_BASE_URL не установлен, используем текущий origin
+  if (typeof window !== 'undefined' && !baseUrl.includes('localhost')) {
+    baseUrl = window.location.origin;
+  }
   
   // Убираем ведущий слеш, если есть, и добавляем к baseUrl
   const cleanUrl = url.startsWith('/') ? url : `/${url}`;
