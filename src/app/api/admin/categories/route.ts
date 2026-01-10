@@ -26,24 +26,66 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    const categories = await prisma.category.findMany({
-      include: {
-        _count: {
-          select: {
-            productCategories: true,
+    try {
+      const categories = await prisma.category.findMany({
+        include: {
+          _count: {
+            select: {
+              productCategories: true,
+            },
           },
         },
-      },
-      orderBy: {
-        name: 'asc',
-      },
-    });
+        orderBy: {
+          name: 'asc',
+        },
+      });
 
-    return NextResponse.json(categories);
+      // Если поле pageContent не существует в БД, добавляем null для всех категорий
+      const categoriesWithPageContent = categories.map(cat => ({
+        ...cat,
+        pageContent: (cat as any).pageContent || null,
+      }));
+
+      return NextResponse.json(categoriesWithPageContent);
+    } catch (dbError: any) {
+      // Если ошибка связана с отсутствующим полем pageContent, пробуем загрузить без него
+      if (dbError.message?.includes('pageContent') || dbError.code === 'P2009') {
+        console.warn('pageContent field not found in database, loading without it');
+        const categories = await prisma.$queryRaw`
+          SELECT 
+            id, name, slug, description, "parentId", image, "sortOrder", "isActive", 
+            "createdAt", "updatedAt"
+          FROM categories
+          ORDER BY name ASC
+        ` as any[];
+        
+        // Добавляем _count и pageContent: null
+        const categoriesWithCount = await Promise.all(
+          categories.map(async (cat) => {
+            const count = await prisma.productCategory.count({
+              where: { categoryId: cat.id },
+            });
+            return {
+              ...cat,
+              pageContent: null,
+              _count: {
+                productCategories: count,
+              },
+            };
+          })
+        );
+        
+        return NextResponse.json(categoriesWithCount);
+      }
+      throw dbError;
+    }
   } catch (error) {
     console.error('Categories API error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    console.error('Error details:', { errorMessage, errorStack });
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: errorMessage },
       { status: 500 }
     );
   }
@@ -74,7 +116,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, slug, description, isActive } = body;
+    const { name, slug, description, pageContent, isActive } = body;
 
     if (!name || !slug) {
       return NextResponse.json(
@@ -95,13 +137,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Prepare data object
+    const createData: any = {
+      name,
+      slug,
+      description: description ? description.trim() : null,
+      isActive: isActive ?? true,
+    };
+
+    // Handle pageContent - treat empty string as null
+    if (pageContent !== undefined && pageContent !== null) {
+      const trimmedContent = typeof pageContent === 'string' ? pageContent.trim() : '';
+      createData.pageContent = trimmedContent || null;
+    } else {
+      createData.pageContent = null;
+    }
+
     const category = await prisma.category.create({
-      data: {
-        name,
-        slug,
-        description: description || null,
-        isActive: isActive ?? true,
-      },
+      data: createData,
     });
 
     return NextResponse.json(category, { status: 201 });

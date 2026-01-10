@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getImageUrl } from '@/lib/image-url';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { slug: string } }
 ) {
-  // Кеширование настроено через заголовки Cache-Control
   try {
     const product = await prisma.product.findUnique({
       where: {
@@ -137,10 +135,6 @@ export async function GET(
       reviewCount: 0,
       price: Number(relatedProduct.price),
       comparePrice: relatedProduct.comparePrice ? Number(relatedProduct.comparePrice) : null,
-      images: (relatedProduct.images || []).map(img => ({
-        ...img,
-        url: getImageUrl(img.url),
-      })),
     }));
 
     // Compute seasonal discount and discounted price for the main product
@@ -148,7 +142,7 @@ export async function GET(
     const basePrice = Number(product.price);
     const discountedPrice = seasonal ? Math.max(0, Math.round(basePrice * (100 - seasonal.discount) / 100)) : basePrice;
 
-    const response = NextResponse.json({
+    return NextResponse.json({
       product: {
         ...product,
         averageRating: Math.round(averageRating * 10) / 10,
@@ -157,7 +151,7 @@ export async function GET(
         comparePrice: seasonal ? basePrice : (product.comparePrice ? Number(product.comparePrice) : null),
         seasonalDiscount: seasonal || null,
         images: product.images.map(img => ({
-          url: getImageUrl(img.url),
+          url: img.url,
           alt: img.alt,
           isPrimary: img.isPrimary,
         })),
@@ -182,13 +176,6 @@ export async function GET(
       },
       relatedProducts: relatedProductsWithRatings,
     });
-
-    // Заголовки кеширования для Vercel Edge
-    response.headers.set('Cache-Control', 'public, s-maxage=120, stale-while-revalidate=240');
-    response.headers.set('CDN-Cache-Control', 'public, s-maxage=120');
-    response.headers.set('Vercel-CDN-Cache-Control', 'public, s-maxage=120');
-
-    return response;
   } catch (error) {
     console.error('Product API error:', error);
     return NextResponse.json(

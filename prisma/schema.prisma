@@ -50,6 +50,7 @@ model Category {
   name                       String
   slug                       String                     @unique
   description                String?
+  pageContent                String?                    @db.Text // HTML контент страницы категории
   parentId                   String?
   image                      String?
   sortOrder                  Int                        @default(0)
@@ -98,14 +99,14 @@ model Product {
   weight            Decimal?                  @db.Decimal(8, 2)
   dimensions        String?
   // Импорт из Мой склад
-  myWarehouseCode   String?                   @unique  // Код Мой склад - главный ID для обновления
-  manufacturerSku   String?                   // Артикул производителя
-  productType       String?                   // Вид товара (для фильтра)
-  aromaDescription  String?                   // Описание аромата
-  topNotes          String?                   // Основные ноты
-  purpose           String?                   // Назначение (Для какого помещения)
-  country           String?                   // Страна
-  barcode           String?                   // Штрихкод
+  myWarehouseCode   String?                   @unique // Код Мой склад - главный ID для обновления
+  manufacturerSku   String? // Артикул производителя
+  productType       String? // Вид товара (для фильтра)
+  aromaDescription  String? // Описание аромата
+  topNotes          String? // Основные ноты
+  purpose           String? // Назначение (Для какого помещения)
+  country           String? // Страна
+  barcode           String? // Штрихкод
   createdAt         DateTime                  @default(now())
   updatedAt         DateTime                  @updatedAt
   brandId           String
@@ -118,22 +119,8 @@ model Product {
   seasonalDiscounts SeasonalDiscountProduct[]
   wishlist          WishlistItem[]
 
-  @@map("products")
   @@index([myWarehouseCode])
-  @@index([slug])
-  @@index([isActive])
-  @@index([brandId])
-  @@index([price])
-  @@index([isActive, brandId])
-  @@index([isActive, price])
-  @@index([productType])
-  @@index([volume])
-  @@index([purpose])
-  @@index([country])
-  @@index([isActive, productType])
-  @@index([isActive, volume])
-  @@index([isActive, purpose])
-  @@index([isActive, country])
+  @@map("products")
 }
 
 model ProductCategory {
@@ -364,15 +351,15 @@ model Settings {
 }
 
 model ChatSession {
-  id           String        @id @default(cuid())
-  userId       String?
-  userName     String
-  userEmail    String
-  isActive     Boolean       @default(true)
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  lastMessage  DateTime?
-  messages     ChatMessage[]
+  id          String        @id @default(cuid())
+  userId      String?
+  userName    String
+  userEmail   String
+  isActive    Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  lastMessage DateTime?
+  messages    ChatMessage[]
 
   @@map("chat_sessions")
 }
@@ -380,7 +367,7 @@ model ChatSession {
 model ChatMessage {
   id          String      @id @default(cuid())
   chatId      String
-  sender      String      // "user" or "admin"
+  sender      String // "user" or "admin"
   message     String
   isRead      Boolean     @default(false)
   createdAt   DateTime    @default(now())

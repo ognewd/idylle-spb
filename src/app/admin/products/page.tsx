@@ -89,64 +89,43 @@ export default function AdminProductsPage() {
       }
 
       const token = localStorage.getItem('admin_token');
-      if (!token) {
-        console.error('❌ No admin token found');
-        router.push('/admin/login');
-        return;
-      }
-
       const searchParam = searchQuery !== undefined ? searchQuery : searchTerm;
       const url = `/api/admin/products?page=${page}&limit=20${searchParam ? `&search=${encodeURIComponent(searchParam)}` : ''}`;
-      
-      console.log('🔍 Loading products from:', url);
-      
       const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
 
-      console.log('📡 Response status:', response.status, response.statusText);
-
       if (response.ok) {
         const data = await response.json();
-        console.log('Products API response:', { 
-          productsCount: data.products?.length || 0, 
-          total: data.pagination?.total || 0,
-          page: data.pagination?.page,
-          totalPages: data.pagination?.totalPages
-        });
         if (append) {
-          setProducts(prev => [...prev, ...(data.products || [])]);
+          setProducts(prev => [...prev, ...data.products]);
         } else {
-          setProducts(data.products || []);
-          setTotalProducts(data.pagination?.total || 0);
+          setProducts(data.products);
+          setTotalProducts(data.pagination.total);
         }
-        setHasMore((data.pagination?.page || 1) < (data.pagination?.totalPages || 1));
-      } else {
-        // Обработка ошибок API
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        console.error('API Error:', response.status, errorData);
-        if (response.status === 401) {
-          // Неавторизован - перенаправить на страницу входа
-          router.push('/admin/login');
-        } else {
-          // Другая ошибка - показать сообщение
-          setProducts([]);
-          setTotalProducts(0);
-        }
+        setHasMore(data.pagination.page < data.pagination.totalPages);
       }
     } catch (error) {
       console.error('Error loading products:', error);
-      setProducts([]);
-      setTotalProducts(0);
     } finally {
       setIsLoading(false);
       setIsLoadingMore(false);
     }
   }, [searchTerm]);
 
-  // Initial load on mount
+  // Debounce search and reload products
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setCurrentPage(1);
+      setHasMore(true);
+      loadProducts(1, false, searchTerm);
+    }, searchTerm ? 500 : 0); // 500ms debounce only if search term exists
+
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm]); // Separate effect for search to avoid conflicts
+
   useEffect(() => {
     const token = localStorage.getItem('admin_token');
     if (!token) {
@@ -158,28 +137,17 @@ export default function AdminProductsPage() {
     const categoryParam = searchParams.get('category');
     if (categoryParam) {
       setSelectedCategoryId(categoryParam);
+      // Load category name
       loadCategoryName(categoryParam);
     }
 
-    // Initial load of products
-    setCurrentPage(1);
-    setHasMore(true);
-    loadProducts(1, false);
-  }, []); // Only run once on mount
-
-  // Reload when search term changes (with debounce)
-  useEffect(() => {
-    // Skip initial load if searchTerm is empty (already handled above)
-    if (searchTerm === '') return;
-
-    const timeoutId = setTimeout(() => {
+    // Only load products if search is empty (search is handled by separate effect)
+    if (!searchTerm) {
       setCurrentPage(1);
       setHasMore(true);
-      loadProducts(1, false, searchTerm);
-    }, 500); // 500ms debounce
-
-    return () => clearTimeout(timeoutId);
-  }, [searchTerm, loadProducts]);
+      loadProducts(1, false);
+    }
+  }, [router, searchParams]); // Removed loadProducts and searchTerm to avoid conflicts
 
   // Load more products on scroll
   useEffect(() => {

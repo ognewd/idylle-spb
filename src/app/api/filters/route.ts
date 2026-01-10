@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-// Кэширование для фильтров (фильтры меняются редко)
-const revalidate = 300; // 5 минут
-
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -111,37 +108,31 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
-    // Получаем количество товаров для каждого значения фильтра используя groupBy (оптимизация)
-    const getFilterCounts = async (field: string) => {
-      const results = await prisma.product.groupBy({
-        by: [field as any],
-        where: {
-          ...baseWhere,
-          [field]: { not: null },
-        },
-        _count: {
-          id: true,
-        },
-      });
-      
+    // Получаем количество товаров для каждого значения фильтра
+    const getFilterCounts = async (field: string, values: (string | null)[]) => {
       const counts: Record<string, number> = {};
-      for (const result of results) {
-        const value = result[field as keyof typeof result] as string | null;
-        if (value) {
-          counts[value] = result._count.id;
-        }
+      
+      for (const value of values.filter(v => v !== null)) {
+        const count = await prisma.product.count({
+          where: {
+            ...baseWhere,
+            [field]: value as string,
+          },
+        });
+        counts[value as string] = count;
       }
+      
       return counts;
     };
 
     const [productTypeCounts, volumeCounts, purposeCounts, countryCounts] = await Promise.all([
-      getFilterCounts('productType'),
-      getFilterCounts('volume'),
-      getFilterCounts('purpose'),
-      getFilterCounts('country'),
+      getFilterCounts('productType', productTypes.map(p => p.productType)),
+      getFilterCounts('volume', volumes.map(v => v.volume)),
+      getFilterCounts('purpose', purposes.map(p => p.purpose)),
+      getFilterCounts('country', countries.map(c => c.country)),
     ]);
 
-    const responseData = {
+    return NextResponse.json({
       productType: productTypes
         .filter(p => p.productType)
         .map(p => ({
@@ -175,16 +166,6 @@ export async function GET(request: NextRequest) {
         name: b.name,
         count: b._count.products,
       })).filter(b => b.count > 0),
-    };
-
-    return new NextResponse(JSON.stringify(responseData), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': `public, s-maxage=${revalidate}, stale-while-revalidate=${revalidate * 2}`,
-        'CDN-Cache-Control': `public, s-maxage=${revalidate}`,
-        'Vercel-CDN-Cache-Control': `public, s-maxage=${revalidate}`,
-      },
     });
   } catch (error) {
     console.error('Filters API error:', error);

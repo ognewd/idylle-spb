@@ -50,113 +50,29 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    // Запрашиваем все товары, фильтруем без brand в коде после загрузки
-    // Это избегает ошибки Prisma при использовании include с null brand
-    let total = 0;
-    let products = [];
-    
-    try {
-      total = await prisma.product.count({ where });
-      console.log('Total products count:', total);
-    } catch (countError) {
-      console.error('Error counting products:', countError);
-      throw countError;
-    }
+    // Get total count with search
+    const total = await prisma.product.count({ where });
 
-    try {
-      // Запрашиваем товары БЕЗ brand в select, чтобы избежать ошибки
-      // Затем загрузим brand отдельно для товаров, у которых он есть
-      const productsRaw = await prisma.product.findMany({
-        where,
-        skip,
-        take: limit * 2, // Запрашиваем больше, чтобы после фильтрации осталось достаточно
-        select: {
-          id: true,
-          name: true,
-          slug: true,
-          description: true,
-          shortDescription: true,
-          price: true,
-          comparePrice: true,
-          sku: true,
-          volume: true,
-          gender: true,
-          aromaFamily: true,
-          ingredients: true,
-          stock: true,
-          weight: true,
-          dimensions: true,
-          myWarehouseCode: true,
-          manufacturerSku: true,
-          productType: true,
-          purpose: true,
-          country: true,
-          barcode: true,
-          isActive: true,
-          isFeatured: true,
-          createdAt: true,
-          updatedAt: true,
-          brandId: true,
-          productCategories: {
-            select: {
-              category: {
-                select: {
-                  id: true,
-                  name: true,
-                  slug: true,
-                },
-              },
-            },
-          },
-          images: {
-            select: {
-              id: true,
-              url: true,
-              alt: true,
-              sortOrder: true,
-              isPrimary: true,
-            },
-            orderBy: { sortOrder: 'asc' },
-          },
-          variants: {
-            select: {
-              id: true,
-              name: true,
-              value: true,
-              price: true,
-              comparePrice: true,
-              stock: true,
-              sku: true,
-              isDefault: true,
-              sortOrder: true,
-            },
-            orderBy: { sortOrder: 'asc' },
+    const products = await prisma.product.findMany({
+      where,
+      skip,
+      take: limit,
+      include: {
+        brand: true,
+        productCategories: {
+          include: {
+            category: true,
           },
         },
-        orderBy: { createdAt: 'desc' },
-      });
-
-      // Загружаем все бренды заранее для оптимизации
-      const allBrands = await prisma.brand.findMany({
-        select: { id: true, name: true, slug: true },
-      });
-      const brandMap = new Map(allBrands.map(b => [b.id, b]));
-
-      // Добавляем brand к товарам и фильтруем те, у которых brand существует
-      const productsWithBrand = productsRaw
-        .filter((p: any) => p.brandId && brandMap.has(p.brandId))
-        .slice(0, limit)
-        .map((p: any) => ({
-          ...p,
-          brand: brandMap.get(p.brandId)!,
-        }));
-
-      products = productsWithBrand;
-      console.log('Products fetched:', products.length, '(filtered from', productsRaw.length, ')');
-    } catch (fetchError) {
-      console.error('Error fetching products:', fetchError);
-      throw fetchError;
-    }
+        images: {
+          orderBy: { sortOrder: 'asc' },
+        },
+        variants: {
+          orderBy: { sortOrder: 'asc' },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
 
     return NextResponse.json({
       products,
@@ -169,25 +85,8 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Admin products error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    const errorStack = error instanceof Error ? error.stack : undefined;
-    
-    // Логируем детальную информацию об ошибке для отладки
-    console.error('Error details:', {
-      message: errorMessage,
-      stack: errorStack,
-      name: error instanceof Error ? error.name : undefined,
-    });
-    
     return NextResponse.json(
-      { 
-        error: 'Internal server error',
-        // В продакшене не показываем детали ошибки
-        ...(process.env.NODE_ENV !== 'production' && { 
-          details: errorMessage,
-          stack: errorStack 
-        })
-      },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

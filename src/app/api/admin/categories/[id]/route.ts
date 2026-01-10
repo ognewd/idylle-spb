@@ -82,7 +82,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { name, slug, description, isActive } = body;
+    const { name, slug, description, pageContent, isActive } = body;
 
     if (!name || !slug) {
       return NextResponse.json(
@@ -103,21 +103,40 @@ export async function PUT(
       );
     }
 
+    // Prepare data object
+    const updateData: any = {
+      name,
+      slug,
+      description: description ? description.trim() : null,
+      isActive: isActive ?? true,
+    };
+
+    // Handle pageContent - treat empty string as null
+    if (pageContent !== undefined && pageContent !== null) {
+      const trimmedContent = typeof pageContent === 'string' ? pageContent.trim() : '';
+      updateData.pageContent = trimmedContent || null;
+    } else {
+      updateData.pageContent = null;
+    }
+
+    console.log('Updating category:', params.id, 'with data:', {
+      ...updateData,
+      pageContent: updateData.pageContent ? `${updateData.pageContent.substring(0, 50)}...` : null,
+    });
+
     const category = await prisma.category.update({
       where: { id: params.id },
-      data: {
-        name,
-        slug,
-        description: description || null,
-        isActive: isActive ?? true,
-      },
+      data: updateData,
     });
 
     return NextResponse.json(category);
   } catch (error) {
     console.error('Update category error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    console.error('Error details:', { errorMessage, errorStack });
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: errorMessage },
       { status: 500 }
     );
   }

@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Plus, 
   Edit, 
@@ -20,12 +21,14 @@ import {
   Check
 } from 'lucide-react';
 import { generateSlug } from '@/lib/transliterate';
+import { CategoryContentEditor } from '@/components/admin/CategoryContentEditor';
 
 interface Category {
   id: string;
   name: string;
   slug: string;
   description: string | null;
+  pageContent: string | null;
   isActive: boolean;
   _count: {
     productCategories: number;
@@ -41,6 +44,7 @@ export default function AdminCategoriesPage() {
     name: '',
     slug: '',
     description: '',
+    pageContent: '',
     isActive: true,
   });
   const router = useRouter();
@@ -58,18 +62,32 @@ export default function AdminCategoriesPage() {
   const loadCategories = async () => {
     try {
       const token = localStorage.getItem('admin_token');
+      if (!token) {
+        console.error('No admin token found');
+        setIsLoading(false);
+        return;
+      }
+
       const response = await fetch('/api/admin/categories', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
 
+      console.log('Categories response status:', response.status);
+
       if (response.ok) {
         const data = await response.json();
-        setCategories(data);
+        console.log('Categories loaded:', data.length, 'categories');
+        setCategories(data || []);
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('Failed to load categories:', errorData);
+        alert(`Ошибка загрузки категорий: ${errorData.error || 'Неизвестная ошибка'}`);
       }
     } catch (error) {
       console.error('Error loading categories:', error);
+      alert('Ошибка при загрузке категорий. Проверьте консоль браузера.');
     } finally {
       setIsLoading(false);
     }
@@ -77,11 +95,14 @@ export default function AdminCategoriesPage() {
 
   const handleOpenModal = (category?: Category) => {
     if (category) {
+      console.log('Loading category:', category);
+      console.log('pageContent:', category.pageContent);
       setEditingCategory(category);
       setFormData({
         name: category.name,
         slug: category.slug,
         description: category.description || '',
+        pageContent: category.pageContent || '',
         isActive: category.isActive,
       });
     } else {
@@ -90,6 +111,7 @@ export default function AdminCategoriesPage() {
         name: '',
         slug: '',
         description: '',
+        pageContent: '',
         isActive: true,
       });
     }
@@ -103,6 +125,7 @@ export default function AdminCategoriesPage() {
       name: '',
       slug: '',
       description: '',
+      pageContent: '',
       isActive: true,
     });
   };
@@ -113,6 +136,21 @@ export default function AdminCategoriesPage() {
       name,
       slug: generateSlug(name),
     });
+  };
+
+  // Функция для очистки HTML от лишних пробелов
+  const cleanHtml = (html: string): string => {
+    if (!html) return '';
+    
+    return html
+      .replace(/<\/p>\s*<br\s*\/?>\s*<p>/gi, '</p><p>')
+      .replace(/<p>\s*<br\s*\/?>\s*<\/p>/gi, '')
+      .replace(/(<br\s*\/?>)\s*(<br\s*\/?>)+/gi, '<br>')
+      .replace(/>\s{2,}</g, '> <')
+      .replace(/<p>\s*<\/p>/gi, '')
+      .replace(/<p>\s+/g, '<p>')
+      .replace(/\s+<\/p>/g, '</p>')
+      .trim();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -126,13 +164,19 @@ export default function AdminCategoriesPage() {
       
       const method = editingCategory ? 'PUT' : 'POST';
 
+      // Очищаем pageContent от лишних пробелов перед отправкой
+      const cleanedData = {
+        ...formData,
+        pageContent: formData.pageContent ? cleanHtml(formData.pageContent) : null,
+      };
+
       const response = await fetch(url, {
         method,
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(cleanedData),
       });
 
       if (response.ok) {
@@ -140,7 +184,8 @@ export default function AdminCategoriesPage() {
         handleCloseModal();
       } else {
         const error = await response.json();
-        alert(error.error || 'Ошибка при сохранении категории');
+        console.error('Save error:', error);
+        alert(error.details || error.error || 'Ошибка при сохранении категории');
       }
     } catch (error) {
       console.error('Error saving category:', error);
@@ -237,8 +282,19 @@ export default function AdminCategoriesPage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Categories Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {categories.map((category) => (
+        {categories.length === 0 && !isLoading ? (
+          <div className="text-center py-12">
+            <FolderOpen className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Категории не найдены</h3>
+            <p className="text-gray-600 mb-6">Создайте первую категорию, чтобы начать работу</p>
+            <Button onClick={() => handleOpenModal()}>
+              <Plus className="h-4 w-4 mr-2" />
+              Создать категорию
+            </Button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {categories.map((category) => (
             <Card key={category.id} className="hover:shadow-lg transition-shadow">
               <CardHeader>
                 <div className="flex justify-between items-start">
@@ -312,13 +368,14 @@ export default function AdminCategoriesPage() {
               </CardContent>
             </Card>
           ))}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <Card className="w-full max-w-6xl max-h-[95vh] overflow-y-auto">
             <CardHeader>
               <div className="flex justify-between items-start">
                 <div>
@@ -362,13 +419,21 @@ export default function AdminCategoriesPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="description">Описание</Label>
+                  <Label htmlFor="description">Краткое описание</Label>
                   <Textarea
                     id="description"
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     placeholder="Краткое описание категории..."
                     rows={3}
+                  />
+                </div>
+
+                <div>
+                  <CategoryContentEditor
+                    value={formData.pageContent}
+                    onChange={(value) => setFormData({ ...formData, pageContent: value })}
+                    label="Контент страницы категории"
                   />
                 </div>
 

@@ -1,77 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getImageUrl } from '@/lib/image-url';
-
-// Конфигурация кеширования для Next.js App Router
-// export const revalidate = 60; // Не работает для API routes в Next.js App Router
-export const dynamic = 'force-dynamic'; // API routes всегда dynamic
-
-// Кеширование для сезонных скидок (1 минута)
-let cachedDiscounts: {
-  data: any[];
-  productIdMap: Map<string, { id: string; name: string; discount: number }>;
-  categoryIdMap: Map<string, { id: string; name: string; discount: number }[]>;
-  timestamp: number;
-} | null = null;
-
-const DISCOUNT_CACHE_TTL = 60 * 1000; // 1 минута
-
-async function getCachedDiscounts() {
-  const now = Date.now();
-  if (cachedDiscounts && (now - cachedDiscounts.timestamp) < DISCOUNT_CACHE_TTL) {
-    return cachedDiscounts;
-  }
-
-  try {
-    const nowDate = new Date();
-    const activeDiscounts = await prisma.seasonalDiscount.findMany({
-      where: {
-        isActive: true,
-        startDate: { lte: nowDate },
-        endDate: { gte: nowDate },
-      },
-      include: {
-        products: true,
-        categories: true,
-      },
-    });
-
-    const productIdMap = new Map<string, { id: string; name: string; discount: number }>();
-    const categoryIdMap = new Map<string, { id: string; name: string; discount: number }[]>();
-
-    for (const d of activeDiscounts) {
-      for (const p of d.products) {
-        productIdMap.set(p.productId, { id: d.id, name: d.name, discount: d.discount });
-      }
-      for (const c of d.categories) {
-        const arr = categoryIdMap.get(c.categoryId) || [];
-        arr.push({ id: d.id, name: d.name, discount: d.discount });
-        categoryIdMap.set(c.categoryId, arr);
-      }
-    }
-
-    cachedDiscounts = {
-      data: activeDiscounts,
-      productIdMap,
-      categoryIdMap,
-      timestamp: now,
-    };
-
-    return cachedDiscounts;
-  } catch (error) {
-    console.warn('⚠️ Failed to load seasonal discounts:', error);
-    // Return empty cache on error
-    return {
-      data: [],
-      productIdMap: new Map(),
-      categoryIdMap: new Map(),
-      timestamp: Date.now(),
-    };
-  }
-}
 
 export async function GET(request: NextRequest) {
-  // Кеширование настроено через export const revalidate выше
   try {
     const { searchParams } = new URL(request.url);
     
@@ -202,22 +132,13 @@ export async function GET(request: NextRequest) {
     }
 
     if (search) {
-      // Для поиска по бренду сначала найдем бренды по имени, затем используем brandId
-      const matchingBrands = await prisma.brand.findMany({
-        where: {
-          name: { contains: search, mode: 'insensitive' },
-        },
-        select: { id: true },
-      });
-      const matchingBrandIds = matchingBrands.map(b => b.id);
-
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
         { description: { contains: search, mode: 'insensitive' } },
         { manufacturerSku: { contains: search, mode: 'insensitive' } },
         { aromaDescription: { contains: search, mode: 'insensitive' } },
         { topNotes: { contains: search, mode: 'insensitive' } },
-        ...(matchingBrandIds.length > 0 ? [{ brandId: { in: matchingBrandIds } }] : []),
+        { brand: { name: { contains: search, mode: 'insensitive' } } },
       ];
     }
 
@@ -243,201 +164,118 @@ export async function GET(request: NextRequest) {
         orderBy = { createdAt: 'desc' };
     }
 
-    // Параллельно получаем count и продукты для лучшей производительности
-    // Используем select вместо include для brand, чтобы избежать ошибки при null brandId
-    const [total, productsRaw] = await Promise.all([
-      prisma.product.count({ where }),
-      prisma.product.findMany({
-        where,
-        select: {
-          id: true,
-          name: true,
-          slug: true,
-          description: true,
-          shortDescription: true,
-          price: true,
-          comparePrice: true,
-          sku: true,
-          isActive: true,
-          isFeatured: true,
-          stock: true,
-          createdAt: true,
-          brandId: true, // Включаем brandId для ручного сопоставления
-          productCategories: {
-            select: {
-              category: {
-                select: {
-                  id: true,
-                  name: true,
-                  slug: true,
-                },
-              },
-            },
-          },
-          images: {
-            select: {
-              url: true,
-              alt: true,
-              isPrimary: true,
-            },
-            orderBy: [
-              { isPrimary: 'desc' },
-              { sortOrder: 'asc' },
-            ],
-            take: 3, // Ограничиваем количество изображений для списка
-          },
-          variants: {
-            select: {
-              id: true,
-              name: true,
-              value: true,
-              price: true,
-              comparePrice: true,
-              stock: true,
-              sku: true,
-              isDefault: true,
-            },
-            orderBy: [
-              { isDefault: 'desc' },
-              { sortOrder: 'asc' },
-            ],
-            take: 3, // Ограничиваем количество вариантов для списка
+    // Get total count for pagination
+    const total = await prisma.product.count({ where });
+
+    // Get products with pagination
+    const products = await prisma.product.findMany({
+      where,
+      include: {
+        brand: true,
+        productCategories: {
+          include: {
+            category: true,
           },
         },
-        orderBy,
-        skip: (page - 1) * limit,
-        take: limit,
-      }),
-    ]);
-
-    // Загружаем все бренды заранее и сопоставляем их с продуктами
-    const allBrands = await prisma.brand.findMany({
-      select: { id: true, name: true, slug: true },
+        images: {
+          orderBy: [
+            { isPrimary: 'desc' },
+            { sortOrder: 'asc' },
+          ],
+        },
+        variants: {
+          orderBy: [
+            { isDefault: 'desc' },
+            { sortOrder: 'asc' },
+          ],
+        },
+      },
+      orderBy,
+      skip: (page - 1) * limit,
+      take: limit,
     });
-    const brandMap = new Map(allBrands.map(brand => [brand.id, brand]));
 
-    // Сопоставляем бренды и фильтруем товары без бренда
-    const products = productsRaw
-      .map(p => ({
-        ...p,
-        brand: p.brandId ? brandMap.get(p.brandId) : null,
-      }))
-      .filter(p => p.brand !== null); // Фильтруем товары, у которых brand не найден
+    // Load active seasonal discounts
+    const now = new Date();
+    const activeDiscounts = await prisma.seasonalDiscount.findMany({
+      where: {
+        isActive: true,
+        startDate: { lte: now },
+        endDate: { gte: now },
+      },
+      include: {
+        products: true,
+        categories: true,
+      },
+    });
 
-    // Получаем кешированные скидки
-    const discountCache = await getCachedDiscounts();
-    const productIdToDiscount = discountCache.productIdMap;
-    const categoryIdToDiscounts = discountCache.categoryIdMap;
-
-    // Calculate average ratings and apply seasonal discounts to price
-    // Wrap in try-catch for production safety
-    const isProduction = process.env.NODE_ENV === 'production';
-    let productsWithRatings: any[];
-    try {
-      productsWithRatings = products.map(product => {
-        try {
-          // Пока нет отзывов, устанавливаем рейтинг 0
-          const averageRating = 0;
-          const reviewCount = 0;
-          // Determine seasonal discount (product-specific has priority, otherwise by category, take max)
-          let seasonal: { id: string; name: string; discount: number } | null =
-            productIdToDiscount.get(product.id) || null;
-          if (!seasonal) {
-            let maxCat: { id: string; name: string; discount: number } | null = null;
-            for (const pc of product.productCategories || []) {
-              // Исправлено: при использовании select структура меняется
-              const categoryId = pc.category?.id;
-              if (categoryId) {
-                const arr = categoryIdToDiscounts.get(categoryId);
-                if (arr && arr.length > 0) {
-                  for (const s of arr) {
-                    if (!maxCat || s.discount > maxCat.discount) maxCat = s;
-                  }
-                }
-              }
-            }
-            seasonal = maxCat;
-          }
-          // Apply discount to numeric price for display
-          const basePrice = Number(product.price) || 0;
-          const discountedPrice = seasonal ? Math.max(0, Math.round(basePrice * (100 - seasonal.discount) / 100)) : basePrice;
-
-          return {
-            ...product,
-            averageRating: averageRating,
-            reviewCount: reviewCount,
-            price: discountedPrice,
-            comparePrice: seasonal ? basePrice : (product.comparePrice ? Number(product.comparePrice) : null),
-            seasonalDiscount: seasonal || null,
-            images: (product.images || []).map((img: any) => ({
-              url: getImageUrl(img.url),
-              alt: img.alt || '',
-              isPrimary: img.isPrimary || false,
-            })),
-            variants: (product.variants || []).map((v: any) => ({
-              id: v.id,
-              name: v.name || '',
-              value: v.value || '',
-              price: Number(v.price) || 0,
-              comparePrice: v.comparePrice ? Number(v.comparePrice) : null,
-              stock: v.stock || 0,
-              sku: v.sku || '',
-              isDefault: v.isDefault || false,
-            })),
-          };
-        } catch (productError) {
-          // In production, return a simplified version of the product
-          // In development, throw to catch issues
-          if (isProduction) {
-            console.warn(`⚠️ Error processing product ${product.id}, using fallback:`, productError);
-            return {
-              ...product,
-              averageRating: 0,
-              reviewCount: 0,
-              price: Number(product.price) || 0,
-              comparePrice: product.comparePrice ? Number(product.comparePrice) : null,
-              seasonalDiscount: null,
-              images: [],
-              variants: [],
-            };
-          } else {
-            throw productError;
-          }
-        }
-      });
-    } catch (processingError) {
-      // Final fallback: return products without discounts
-      if (isProduction) {
-        console.warn('⚠️ Error processing products, using fallback without discounts:', processingError);
-        productsWithRatings = products.map(product => ({
-          ...product,
-          averageRating: 0,
-          reviewCount: 0,
-          price: Number(product.price) || 0,
-          comparePrice: product.comparePrice ? Number(product.comparePrice) : null,
-          seasonalDiscount: null,
-          images: (product.images || []).map((img: any) => ({
-            url: getImageUrl(img.url),
-            alt: img.alt || '',
-            isPrimary: img.isPrimary || false,
-          })),
-          variants: (product.variants || []).map((v: any) => ({
-            id: v.id,
-            name: v.name || '',
-            value: v.value || '',
-            price: Number(v.price) || 0,
-            comparePrice: v.comparePrice ? Number(v.comparePrice) : null,
-            stock: v.stock || 0,
-            sku: v.sku || '',
-            isDefault: v.isDefault || false,
-          })),
-        }));
-      } else {
-        throw processingError;
+    // Build productId -> discount map
+    const productIdToDiscount = new Map<string, { id: string; name: string; discount: number }>();
+    for (const d of activeDiscounts) {
+      for (const p of d.products) {
+        productIdToDiscount.set(p.productId, { id: d.id, name: d.name, discount: d.discount });
+      }
+    }
+    // Also map categories
+    const categoryIdToDiscounts = new Map<string, { id: string; name: string; discount: number }[]>();
+    for (const d of activeDiscounts) {
+      for (const c of d.categories) {
+        const arr = categoryIdToDiscounts.get(c.categoryId) || [];
+        arr.push({ id: d.id, name: d.name, discount: d.discount });
+        categoryIdToDiscounts.set(c.categoryId, arr);
       }
     }
 
-    const response = NextResponse.json({
+    // Calculate average ratings and apply seasonal discounts to price
+    const productsWithRatings = products.map(product => {
+      // Пока нет отзывов, устанавливаем рейтинг 0
+      const averageRating = 0;
+      const reviewCount = 0;
+      // Determine seasonal discount (product-specific has priority, otherwise by category, take max)
+      let seasonal: { id: string; name: string; discount: number } | null =
+        productIdToDiscount.get(product.id) || null;
+      if (!seasonal) {
+        let maxCat: { id: string; name: string; discount: number } | null = null;
+        for (const pc of product.productCategories) {
+          const arr = categoryIdToDiscounts.get(pc.categoryId);
+          if (arr && arr.length > 0) {
+            for (const s of arr) {
+              if (!maxCat || s.discount > maxCat.discount) maxCat = s;
+            }
+          }
+        }
+        seasonal = maxCat;
+      }
+      // Apply discount to numeric price for display
+      const basePrice = Number(product.price);
+      const discountedPrice = seasonal ? Math.max(0, Math.round(basePrice * (100 - seasonal.discount) / 100)) : basePrice;
+
+      return {
+        ...product,
+        averageRating: averageRating,
+        reviewCount: reviewCount,
+        price: discountedPrice,
+        comparePrice: seasonal ? basePrice : (product.comparePrice ? Number(product.comparePrice) : null),
+        seasonalDiscount: seasonal || null,
+        images: product.images.map(img => ({
+          url: img.url,
+          alt: img.alt,
+          isPrimary: img.isPrimary,
+        })),
+        variants: product.variants.map(v => ({
+          id: v.id,
+          name: v.name,
+          value: v.value,
+          price: Number(v.price),
+          comparePrice: v.comparePrice ? Number(v.comparePrice) : null,
+          stock: v.stock,
+          sku: v.sku,
+          isDefault: v.isDefault,
+        })),
+      };
+    });
+
+    return NextResponse.json({
       products: productsWithRatings,
       pagination: {
         page,
@@ -446,30 +284,10 @@ export async function GET(request: NextRequest) {
         totalPages: Math.ceil(total / limit),
       },
     });
-
-    // Заголовки кеширования для Vercel Edge
-    response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=120');
-    response.headers.set('CDN-Cache-Control', 'public, s-maxage=60');
-    response.headers.set('Vercel-CDN-Cache-Control', 'public, s-maxage=60');
-
-    return response;
   } catch (error) {
     console.error('Products API error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    const errorStack = error instanceof Error ? error.stack : undefined;
-    
-    // In production, provide more helpful error info
-    // In development, show full error details
-    if (process.env.NODE_ENV === 'production') {
-      console.error('Full error details:', { message: errorMessage, stack: errorStack });
-    }
-    
     return NextResponse.json(
-      { 
-        error: 'Internal server error',
-        // Only include details in development
-        ...(process.env.NODE_ENV !== 'production' && { details: errorMessage })
-      },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

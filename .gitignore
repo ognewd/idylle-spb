@@ -18,11 +18,3 @@ public/uploads/
 # Build artifacts
 *.pack.gz
 .next/cache/
-
-# Supabase credentials
-.supabase_connection_string.txt
-.supabase_password
-
-# Ignore all .md files except README.md
-*.md
-!README.md

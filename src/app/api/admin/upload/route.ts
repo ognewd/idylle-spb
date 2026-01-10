@@ -51,11 +51,8 @@ export async function POST(request: NextRequest) {
     const extension = file.name.split('.').pop() || 'jpg';
     const filename = `${timestamp}-${randomString}.${extension}`;
 
-    // Determine uploads directory (use environment variable for production, fallback to public for dev)
-    const uploadsBaseDir = process.env.UPLOADS_DIR || join(process.cwd(), 'public', 'uploads');
-    const uploadsDir = join(uploadsBaseDir, 'products');
-    
     // Create uploads directory if it doesn't exist
+    const uploadsDir = join(process.cwd(), 'public', 'uploads', 'products');
     if (!existsSync(uploadsDir)) {
       await mkdir(uploadsDir, { recursive: true });
     }
@@ -66,9 +63,8 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(bytes);
     await writeFile(filePath, buffer);
 
-    // Return URL - use full URL for Next.js Image Optimization to work
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-    const url = `${baseUrl}/uploads/products/${filename}`;
+    // Return URL
+    const url = `/uploads/products/${filename}`;
     
     return NextResponse.json({ url });
   } catch (error) {
@@ -79,4 +75,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
 

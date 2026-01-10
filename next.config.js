@@ -13,15 +13,15 @@ const nextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'images.unsplash.com',
+        hostname: 'idylle-spb.vercel.app',
       },
       {
         protocol: 'https',
-        hostname: 'aromarussia.ru',
+        hostname: '*.vercel.app',
       },
       {
-        protocol: 'http',
-        hostname: 'aromarussia.ru',
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
       },
     ],
   },
