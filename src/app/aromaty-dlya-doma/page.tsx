@@ -101,18 +101,13 @@ function HomeAromasContent() {
     })
       .then(res => res.json())
       .then(data => {
-        console.log('Category data loaded:', data);
         if (data && data.length > 0) {
           const category = data.find((c: any) => c.slug === 'aromaty-dlya-doma') || data[0];
           if (category) {
-            console.log('Category found:', category.name);
-            console.log('Page content:', category.pageContent ? `${category.pageContent.substring(0, 100)}...` : 'null');
             setCategoryName(category.name || 'Ароматы для дома');
             setCategoryDescription(category.description || null);
             setCategoryContent(category.pageContent || null);
           }
-        } else {
-          console.warn('No category data found');
         }
       })
       .catch(err => console.error('Error loading category:', err));

@@ -176,31 +176,34 @@ export function ProductCard({
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* Product Image Section */}
-      <div className={cn("relative overflow-hidden bg-white", {
+      <div className={cn("relative overflow-hidden bg-white flex items-center justify-center", {
         "bg-muted p-2": !(product.images && product.images.length > 0)
       })} style={{ aspectRatio: '5/6', minHeight: '350px', maxHeight: '450px' }}>
         {product.images && product.images.length > 0 ? (
-          <Link href={`/catalog/${product.slug}`} className="absolute inset-0 p-4 block">
-            <div className="relative w-full h-full flex items-center justify-center">
-              <div className="relative w-full h-full max-w-full max-h-full">
-                <Image
-                  src={getImageUrl(
-                    typeof product.images[currentImageIndex] === 'string' 
-                      ? product.images[currentImageIndex] as string
-                      : product.images[currentImageIndex]?.url
-                  )}
-                  alt={product.name}
-                  fill
-                  className="object-contain transition-transform duration-300 group-hover:scale-105"
-                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                  priority={priority}
-                  loading={priority ? undefined : "lazy"}
-                  style={{ 
-                    objectPosition: 'center'
-                  }}
-                />
-              </div>
-            </div>
+          <Link href={`/catalog/${product.slug}`} className="relative block w-full h-full p-4 flex items-center justify-center">
+            <Image
+              src={getImageUrl(
+                typeof product.images[currentImageIndex] === 'string' 
+                  ? product.images[currentImageIndex] as string
+                  : product.images[currentImageIndex]?.url
+              )}
+              alt={product.name}
+              width={400}
+              height={480}
+              className="object-contain transition-transform duration-300 group-hover:scale-105"
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              priority={priority}
+              loading={priority ? undefined : "lazy"}
+              style={{ 
+                objectPosition: 'center',
+                width: 'auto',
+                height: 'auto',
+                maxWidth: '100%',
+                maxHeight: '100%',
+                display: 'block',
+                margin: '0 auto'
+              }}
+            />
           </Link>
         ) : (
           <div className="flex flex-col items-center justify-center text-muted-foreground space-y-3 p-2 h-full">
