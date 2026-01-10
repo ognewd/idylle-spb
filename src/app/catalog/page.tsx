@@ -91,24 +91,10 @@ function CatalogContent() {
 
         // Fetch products
         const productsResponse = await fetch(`/api/products?${queryParams.toString()}`);
-        
-        if (!productsResponse.ok) {
-          throw new Error(`API returned ${productsResponse.status}: ${productsResponse.statusText}`);
-        }
-        
         const productsData: ApiResponse = await productsResponse.json();
         
-        if (!productsData.products || !productsData.pagination) {
-          throw new Error('Invalid API response structure');
-        }
-        
-        setProducts(productsData.products || []);
-        setPagination(productsData.pagination || {
-          page: 1,
-          limit: 24,
-          total: 0,
-          totalPages: 0,
-        });
+        setProducts(productsData.products);
+        setPagination(productsData.pagination);
 
         // Fetch filters (categories, brands, and other filters)
         const [categoriesResponse, filtersResponse] = await Promise.all([
@@ -116,18 +102,8 @@ function CatalogContent() {
           fetch('/api/filters'),
         ]);
         
-        if (!categoriesResponse.ok) {
-          console.warn('Categories API error:', categoriesResponse.status);
-        }
-        if (!filtersResponse.ok) {
-          console.warn('Filters API error:', filtersResponse.status);
-        }
-        
-        const categoriesData = categoriesResponse.ok ? await categoriesResponse.json() : [];
-        const filtersData = filtersResponse.ok ? await filtersResponse.json() : {};
-        
-        // Убеждаемся, что categories - массив
-        const categories = Array.isArray(categoriesData) ? categoriesData : [];
+        const categories = await categoriesResponse.json();
+        const filtersData = await filtersResponse.json();
 
         // Build filters array
         const filtersDataArray: Filter[] = [
@@ -135,13 +111,11 @@ function CatalogContent() {
             id: 'category',
             name: 'Категория',
             type: 'checkbox',
-            options: categories
-              .filter((cat: any) => cat && cat.slug) // Фильтруем undefined/null значения
-              .map((cat: any) => ({
-                id: cat.slug,
-                name: cat.name || '',
-                count: cat.productCount || 0,
-              })),
+            options: categories.map((cat: any) => ({
+              id: cat.slug,
+              name: cat.name,
+              count: cat.productCount,
+            })),
           },
           {
             id: 'productType',
@@ -296,9 +270,42 @@ function CatalogContent() {
     };
   }, [pagination.page, pagination.totalPages, pagination.total, loadingMore, loading, loadMore]);
 
+  const [selectedCategory, setSelectedCategory] = useState<any>(null);
+  const [categoryContent, setCategoryContent] = useState<string | null>(null);
+
+  // Load category content when category is selected
+  useEffect(() => {
+    const categorySlug = searchParams.get('category');
+    if (categorySlug) {
+      // Добавляем timestamp для предотвращения кэширования
+      const timestamp = Date.now();
+      fetch(`/api/categories?slug=${categorySlug}&_t=${timestamp}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+        },
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.length > 0) {
+            const cat = data.find((c: any) => c.slug === categorySlug);
+            if (cat) {
+              setSelectedCategory(cat);
+              setCategoryContent(cat.pageContent || null);
+            }
+          }
+        })
+        .catch(err => console.error('Error loading category:', err));
+    } else {
+      setSelectedCategory(null);
+      setCategoryContent(null);
+    }
+  }, [searchParams]);
+
   const breadcrumbItems = [
     { label: 'Главная', href: '/' },
     { label: 'Каталог', href: '/catalog' },
+    ...(selectedCategory ? [{ label: selectedCategory.name, href: `/catalog?category=${selectedCategory.slug}` }] : []),
   ];
 
   if (loading && isInitialLoad) {
@@ -346,6 +353,18 @@ function CatalogContent() {
     <div className="container mx-auto px-4 py-8">
       <Breadcrumbs items={breadcrumbItems} />
       
+      {/* Category Content */}
+      {categoryContent && selectedCategory && (
+        <div className="mt-6 mb-8">
+          <article className="bg-white rounded-lg border p-6 shadow-sm">
+            <div 
+              dangerouslySetInnerHTML={{ __html: categoryContent }} 
+              className="category-content prose prose-lg max-w-none prose-headings:font-bold prose-p:text-gray-700 prose-p:mb-4 prose-p:last:mb-0 prose-ul:list-disc prose-ol:list-decimal prose-a:text-primary prose-a:underline hover:prose-a:text-primary/80 prose-img:rounded-lg prose-img:shadow-sm"
+            />
+          </article>
+        </div>
+      )}
+      
       <div className="flex flex-col lg:flex-row gap-8 mt-6">
         {/* Filters Sidebar */}
         <aside className="lg:w-64 flex-shrink-0 lg:sticky lg:top-24 lg:self-start lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto lg:bg-white lg:rounded-lg lg:shadow-sm lg:p-2 lg:-mr-2">
@@ -356,13 +375,15 @@ function CatalogContent() {
         <main className="flex-1">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
             <div>
-              <h1 className="text-2xl font-bold">Каталог товаров</h1>
+              <h1 className="text-2xl font-bold">
+                {selectedCategory ? selectedCategory.name : 'Каталог товаров'}
+              </h1>
               <p className="text-muted-foreground mt-1">
                 Найдено товаров: {pagination.total}
               </p>
             </div>
             
-            <SortSelector currentSort={searchParams.get('sort') || 'newest'} />
+            <SortSelector currentSort="newest" />
           </div>
 
           <div

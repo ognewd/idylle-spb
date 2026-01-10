@@ -72,6 +72,8 @@ function HomeAromasContent() {
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [categoryContent, setCategoryContent] = useState<string | null>(null);
+  const [categoryName, setCategoryName] = useState<string>('Ароматы для дома');
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 24,
@@ -83,6 +85,36 @@ function HomeAromasContent() {
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  // Load category content
+  useEffect(() => {
+    if (!isMounted) return;
+    
+    // Добавляем timestamp для предотвращения кэширования
+    const timestamp = Date.now();
+    fetch(`/api/categories?slug=aromaty-dlya-doma&_t=${timestamp}`, {
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-cache',
+      },
+    })
+      .then(res => res.json())
+      .then(data => {
+        console.log('Category data loaded:', data);
+        if (data && data.length > 0) {
+          const category = data.find((c: any) => c.slug === 'aromaty-dlya-doma') || data[0];
+          if (category) {
+            console.log('Category found:', category.name);
+            console.log('Page content:', category.pageContent ? `${category.pageContent.substring(0, 100)}...` : 'null');
+            setCategoryName(category.name || 'Ароматы для дома');
+            setCategoryContent(category.pageContent || null);
+          }
+        } else {
+          console.warn('No category data found');
+        }
+      })
+      .catch(err => console.error('Error loading category:', err));
+  }, [isMounted]);
 
   // Fetch products and filters
   useEffect(() => {
@@ -105,15 +137,9 @@ function HomeAromasContent() {
         });
         
         // Fetch products and filters
-        // Фильтры запрашиваем только при первой загрузке или если они не были загружены
-        const productsPromise = fetch(`/api/products?${queryParams.toString()}`);
-        const filtersPromise = filters.length === 0 
-          ? fetch('/api/filters?category=aromaty-dlya-doma')
-          : Promise.resolve(null);
-        
         const [productsResponse, filtersResponse] = await Promise.all([
-          productsPromise,
-          filtersPromise,
+          fetch(`/api/products?${queryParams.toString()}`),
+          fetch('/api/filters?category=aromaty-dlya-doma'),
         ]);
         
         if (!productsResponse.ok) {
@@ -121,7 +147,7 @@ function HomeAromasContent() {
         }
         
         const productsData: ApiResponse = await productsResponse.json();
-        const filtersData = filtersResponse ? await filtersResponse.json() : null;
+        const filtersData = await filtersResponse.json();
         
         // Ensure products is an array
         const products = Array.isArray(productsData?.products) ? productsData.products : [];
@@ -137,62 +163,59 @@ function HomeAromasContent() {
         const maxPrice = prices.length > 0 ? Math.ceil(Math.max(...prices) / 1000) * 1000 : 50000;
 
         // Build filters array (используем все опции из API, не фильтруем по загруженным товарам)
-        // Обновляем фильтры только если получили новые данные
-        if (filtersData) {
-          const newFilters: Filter[] = [];
+        const newFilters: Filter[] = [];
 
-          // Вид товара
-          if (filtersData.productType && filtersData.productType.length > 0) {
-            newFilters.push({
-              id: 'productType',
-              name: 'Вид товара',
-              type: 'checkbox',
-              options: filtersData.productType,
-            });
-          }
-
-          // Назначение
-          if (filtersData.purpose && filtersData.purpose.length > 0) {
-            newFilters.push({
-              id: 'purpose',
-              name: 'Назначение',
-              type: 'checkbox',
-              options: filtersData.purpose,
-            });
-          }
-
-          // Бренд
-          if (filtersData.brand && filtersData.brand.length > 0) {
-            newFilters.push({
-              id: 'brand',
-              name: 'Бренд',
-              type: 'checkbox',
-              options: filtersData.brand,
-            });
-          }
-
-          // Страна
-          if (filtersData.country && filtersData.country.length > 0) {
-            newFilters.push({
-              id: 'country',
-              name: 'Страна',
-              type: 'checkbox',
-              options: filtersData.country,
-            });
-          }
-
-          // Цена (всегда добавляем)
+        // Вид товара
+        if (filtersData.productType && filtersData.productType.length > 0) {
           newFilters.push({
-            id: 'price',
-            name: 'Цена',
-            type: 'range',
-            min: minPrice,
-            max: maxPrice,
-            step: 1000,
+            id: 'productType',
+            name: 'Вид товара',
+            type: 'checkbox',
+            options: filtersData.productType,
           });
-
-          setFilters(newFilters);
         }
+
+        // Назначение
+        if (filtersData.purpose && filtersData.purpose.length > 0) {
+          newFilters.push({
+            id: 'purpose',
+            name: 'Назначение',
+            type: 'checkbox',
+            options: filtersData.purpose,
+          });
+        }
+
+        // Бренд
+        if (filtersData.brand && filtersData.brand.length > 0) {
+          newFilters.push({
+            id: 'brand',
+            name: 'Бренд',
+            type: 'checkbox',
+            options: filtersData.brand,
+          });
+        }
+
+        // Страна
+        if (filtersData.country && filtersData.country.length > 0) {
+          newFilters.push({
+            id: 'country',
+            name: 'Страна',
+            type: 'checkbox',
+            options: filtersData.country,
+          });
+        }
+
+        // Цена (всегда добавляем)
+        newFilters.push({
+          id: 'price',
+          name: 'Цена',
+          type: 'range',
+          min: minPrice,
+          max: maxPrice,
+          step: 1000,
+        });
+
+        setFilters(newFilters);
       } catch (error) {
         console.error('Error fetching data:', error);
         // Set empty arrays on error to prevent undefined issues
@@ -306,7 +329,7 @@ function HomeAromasContent() {
             </div>
             
             <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
-              Ароматы для дома
+              {categoryName}
             </h1>
             
             <p className="text-lg md:text-xl text-gray-100 mb-8 max-w-xl">
@@ -344,46 +367,56 @@ function HomeAromasContent() {
 
             <Card className="bg-card/90 backdrop-blur-md border-primary/20 shadow-xl">
               <CardContent className="p-6">
-                <div className={`space-y-4 text-muted-foreground ${!isDescriptionExpanded ? 'line-clamp-3' : ''}`}>
-                  <p className="leading-relaxed">
-                    У каждого из нас свой дом… И исторически так сложилось, что с первого шага, как только мы открываем дверь, 
-                    мы слышим запах дома, и потом видим обстановку, детали интерьера. Если аромат приятный, нам хочется им дышать, 
-                    чувствовать его. Мы просыпаемся в хорошем настроении, благодаря аромату, испытываем полное пробуждение или 
-                    расслабление в ванной комнате, видим атмосферу гостиной и уют на кухне.
-                  </p>
+                {categoryContent ? (
+                  <>
+                    <div 
+                      className={`prose prose-lg max-w-none prose-headings:font-bold prose-p:text-muted-foreground prose-p:leading-relaxed prose-p:mb-4 prose-p:last:mb-0 prose-ul:list-disc prose-ol:list-decimal prose-a:text-primary prose-a:underline hover:prose-a:text-primary/80 prose-img:rounded-lg prose-img:shadow-sm ${!isDescriptionExpanded && categoryContent.length > 300 ? 'line-clamp-3' : ''}`}
+                      dangerouslySetInnerHTML={{ __html: categoryContent }}
+                    />
+                    {categoryContent.length > 300 && (
+                      <Button
+                        variant="ghost"
+                        className="w-full mt-4"
+                        onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
+                      >
+                        {isDescriptionExpanded ? (
+                          <>
+                            Свернуть <ChevronUp className="ml-2 h-4 w-4" />
+                          </>
+                        ) : (
+                          <>
+                            Читать далее <ChevronDown className="ml-2 h-4 w-4" />
+                          </>
+                        )}
+                      </Button>
+                    )}
+                  </>
+                ) : (
+                  <div className={`space-y-4 text-muted-foreground ${!isDescriptionExpanded ? 'line-clamp-3' : ''}`}>
+                    <p className="leading-relaxed">
+                      У каждого из нас свой дом… И исторически так сложилось, что с первого шага, как только мы открываем дверь, 
+                      мы слышим запах дома, и потом видим обстановку, детали интерьера. Если аромат приятный, нам хочется им дышать, 
+                      чувствовать его. Мы просыпаемся в хорошем настроении, благодаря аромату, испытываем полное пробуждение или 
+                      расслабление в ванной комнате, видим атмосферу гостиной и уют на кухне.
+                    </p>
 
-                  <p className="font-medium text-foreground">
-                    Мы даем Вам верные советы, чтобы аромат звучал в Вашем доме именно так – чувственно и проникновенно, 
-                    чтобы было приятно всем членам семьи и гостям.
-                  </p>
+                    <p className="font-medium text-foreground">
+                      Мы даем Вам верные советы, чтобы аромат звучал в Вашем доме именно так – чувственно и проникновенно, 
+                      чтобы было приятно всем членам семьи и гостям.
+                    </p>
 
-                  <p>
-                    Выбирайте предметы ароматизации в соответствие с площадью комнат, регулируйте интенсивность аромата, 
-                    с ним должно быть комфортно.
-                  </p>
+                    <p>
+                      Выбирайте предметы ароматизации в соответствие с площадью комнат, регулируйте интенсивность аромата, 
+                      с ним должно быть комфортно.
+                    </p>
 
-                  <p className="font-medium text-foreground">
-                    AROMA BOUTIQUE IDYLLE выбирает для Вас лучшие марки Франции, Италии, Португалии. Мы работаем только 
-                    с достойными производителями. Качество продукции обеспечивается международными стандартами. 
-                    Со своей стороны мы дарим лучший сервис.
-                  </p>
-                </div>
-
-                <Button
-                  variant="ghost"
-                  className="w-full mt-4"
-                  onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
-                >
-                  {isDescriptionExpanded ? (
-                    <>
-                      Свернуть <ChevronUp className="ml-2 h-4 w-4" />
-                    </>
-                  ) : (
-                    <>
-                      Читать далее <ChevronDown className="ml-2 h-4 w-4" />
-                    </>
-                  )}
-                </Button>
+                    <p className="font-medium text-foreground">
+                      AROMA BOUTIQUE IDYLLE выбирает для Вас лучшие марки Франции, Италии, Португалии. Мы работаем только 
+                      с достойными производителями. Качество продукции обеспечивается международными стандартами. 
+                      Со своей стороны мы дарим лучший сервис.
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

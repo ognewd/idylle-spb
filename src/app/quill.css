@@ -1,0 +1,62 @@
+/* Quill Editor Styles */
+.ql-container {
+  font-family: inherit;
+  font-size: 14px;
+  min-height: 300px;
+}
+
+.ql-editor {
+  min-height: 300px;
+  /* Убираем лишние отступы между параграфами в редакторе */
+  padding: 12px 15px;
+}
+
+/* Убираем лишние отступы между параграфами в Quill редакторе */
+.ql-editor p {
+  margin: 0 0 1em 0;
+  line-height: 1.6;
+}
+
+.ql-editor p:last-child {
+  margin-bottom: 0;
+}
+
+/* Убираем отступы от <br> в редакторе */
+.ql-editor br {
+  line-height: 0;
+}
+
+.ql-editor.ql-blank::before {
+  font-style: normal;
+  color: #9ca3af;
+}
+
+.ql-toolbar {
+  border-top: 1px solid #e5e7eb;
+  border-left: 1px solid #e5e7eb;
+  border-right: 1px solid #e5e7eb;
+  border-bottom: none;
+  border-radius: 0.5rem 0.5rem 0 0;
+  background: #f9fafb;
+}
+
+.ql-container {
+  border-bottom: 1px solid #e5e7eb;
+  border-left: 1px solid #e5e7eb;
+  border-right: 1px solid #e5e7eb;
+  border-top: none;
+  border-radius: 0 0 0.5rem 0.5rem;
+}
+
+.ql-snow .ql-stroke {
+  stroke: #374151;
+}
+
+.ql-snow .ql-fill {
+  fill: #374151;
+}
+
+.ql-snow .ql-picker-label {
+  color: #374151;
+}
+
