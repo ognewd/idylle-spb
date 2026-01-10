@@ -5,19 +5,19 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
+        hostname: 'aromarussia.ru',
+      },
+      {
+        protocol: 'http',
+        hostname: 'aromarussia.ru',
+      },
+      {
+        protocol: 'https',
         hostname: 'idylle.spb.ru',
       },
       {
         protocol: 'http',
         hostname: 'localhost',
-      },
-      {
-        protocol: 'https',
-        hostname: 'idylle-spb.vercel.app',
-      },
-      {
-        protocol: 'https',
-        hostname: '*.vercel.app',
       },
       {
         protocol: 'https',

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getImageUrl } from '@/lib/image-url';
 
 export async function GET(request: NextRequest) {
   try {
@@ -258,7 +259,7 @@ export async function GET(request: NextRequest) {
         comparePrice: seasonal ? basePrice : (product.comparePrice ? Number(product.comparePrice) : null),
         seasonalDiscount: seasonal || null,
         images: product.images.map(img => ({
-          url: img.url,
+          url: getImageUrl(img.url),
           alt: img.alt,
           isPrimary: img.isPrimary,
         })),
