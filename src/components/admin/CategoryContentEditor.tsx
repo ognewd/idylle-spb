@@ -9,7 +9,10 @@ import { Eye, Edit, Code } from 'lucide-react';
 
 // Динамически загружаем ReactQuill только на клиенте
 // @ts-ignore - react-quill не имеет типов в @types
-const ReactQuill = dynamic(() => import('react-quill'), { ssr: false });
+const ReactQuill = dynamic(() => import('react-quill'), { 
+  ssr: false,
+  loading: () => <div className="p-4 border rounded-lg">Загрузка редактора...</div>,
+});
 import 'react-quill/dist/quill.snow.css';
 import '@/app/quill.css';
 
