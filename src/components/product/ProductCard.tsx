@@ -176,11 +176,11 @@ export function ProductCard({
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* Product Image Section */}
-      <div className={cn("relative overflow-hidden flex items-center justify-center", {
+      <div className={cn("relative overflow-hidden", {
         "bg-muted p-2": !(product.images && product.images.length > 0)
       })} style={{ aspectRatio: '5/6', minHeight: '350px', maxHeight: '450px' }}>
         {product.images && product.images.length > 0 ? (
-          <Link href={`/catalog/${product.slug}`} className="relative block h-full w-full flex items-center justify-center">
+          <Link href={`/catalog/${product.slug}`} className="relative block h-full w-full" style={{ padding: '8px' }}>
             <Image
               src={getImageUrl(
                 typeof product.images[currentImageIndex] === 'string' 
