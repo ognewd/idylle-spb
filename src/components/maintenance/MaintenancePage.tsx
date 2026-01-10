@@ -72,7 +72,7 @@ export function MaintenancePage() {
               Планируемое открытие
             </p>
             <p className="text-2xl sm:text-3xl font-semibold text-white">
-              14 февраля 2025 года
+              14 февраля 2026 года
             </p>
           </div>
           
