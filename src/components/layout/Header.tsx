@@ -152,7 +152,7 @@ export function Header() {
               <div className="relative">
                 <Input
                   type="text"
-                  placeholder="Поиск парфюмов..."
+                  placeholder="Поиск ароматов"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onFocus={() => searchQuery.length >= 2 && setShowSearchResults(true)}
@@ -378,7 +378,7 @@ export function Header() {
               <div className="relative">
                 <Input
                   type="text"
-                  placeholder="Поиск парфюмов..."
+                  placeholder="Поиск ароматов"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onFocus={() => searchQuery.length >= 2 && setShowSearchResults(true)}
