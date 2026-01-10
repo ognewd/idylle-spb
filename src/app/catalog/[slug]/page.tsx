@@ -67,11 +67,7 @@ interface ProductPageProps {
 
 async function getProduct(slug: string): Promise<{ product: Product; relatedProducts: Product[] } | null> {
   try {
-    // In server components, we can call the API directly
-    // Use NEXT_PUBLIC_BASE_URL if set, otherwise construct from VERCEL_URL or default
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
-                    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
-                    (process.env.NODE_ENV === 'production' ? 'https://idylle-spb.vercel.app' : 'http://localhost:3000');
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
     
     const response = await fetch(`${baseUrl}/api/products/${slug}`, {
       cache: 'no-store', // Ensure fresh data
@@ -81,7 +77,6 @@ async function getProduct(slug: string): Promise<{ product: Product; relatedProd
     });
     
     if (!response.ok) {
-      console.error(`Failed to fetch product: ${response.status} ${response.statusText}`);
       return null;
     }
     
@@ -112,12 +107,13 @@ export default async function ProductPage({ params }: ProductPageProps) {
   ];
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <Breadcrumbs items={breadcrumbItems} />
-      
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 mt-6">
+    <div className="min-h-screen bg-white">
+      <div className="container mx-auto px-4 py-8">
+        <Breadcrumbs items={breadcrumbItems} />
+        
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 mt-6">
         {/* Product Images */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className="space-y-4 lg:col-span-2">
           <ProductImageCarousel 
             images={product.images.map(img => img.url)} 
             name={product.name} 
@@ -125,7 +121,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
         </div>
 
         {/* Product Info */}
-        <div className="lg:col-span-3 space-y-6">
+        <div className="space-y-6 lg:col-span-3">
           <ProductInfo product={product} />
         </div>
       </div>
@@ -136,6 +132,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
           <RelatedProducts products={relatedProducts} />
         </div>
       )}
+      </div>
     </div>
   );
 }

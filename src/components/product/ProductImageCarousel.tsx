@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, ZoomIn, Image as ImageIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ZoomIn } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ProductImageCarouselProps {
@@ -30,11 +30,8 @@ export function ProductImageCarousel({ images, name, className }: ProductImageCa
 
   if (images.length === 0) {
     return (
-      <div className={cn("bg-muted rounded-lg flex items-center justify-center", className)} style={{ minHeight: '400px', aspectRatio: '4/3' }}>
-        <div className="flex flex-col items-center justify-center text-muted-foreground space-y-3">
-          <ImageIcon className="h-20 w-20 opacity-50" />
-          <p className="text-lg text-center px-4">Изображение еще не добавлено</p>
-        </div>
+      <div className={cn("aspect-square bg-white border border-gray-200 rounded-lg flex items-center justify-center shadow-sm", className)}>
+        <p className="text-muted-foreground">Изображение недоступно</p>
       </div>
     );
   }
@@ -42,13 +39,13 @@ export function ProductImageCarousel({ images, name, className }: ProductImageCa
   return (
     <div className={cn("space-y-4", className)}>
       {/* Main Image */}
-      <div className="relative bg-muted rounded-lg overflow-hidden group" style={{ maxHeight: '600px', aspectRatio: '4/3' }}>
+      <div className="relative bg-white border border-gray-200 rounded-lg overflow-hidden group shadow-sm" style={{ aspectRatio: '1', maxHeight: '600px' }}>
         <Image
           src={images[currentIndex]}
           alt={`${name} - изображение ${currentIndex + 1}`}
           fill
-          className="object-contain transition-transform duration-300 group-hover:scale-105"
-          sizes="(max-width: 768px) 100vw, 40vw"
+          className="object-contain transition-transform duration-300 group-hover:scale-105 bg-white"
+          sizes="(max-width: 768px) 100vw, 50vw"
           priority
         />
 
