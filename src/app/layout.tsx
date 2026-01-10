@@ -8,6 +8,7 @@ import { CartProvider } from '@/contexts/CartContext';
 import { WishlistProvider } from '@/contexts/WishlistContext';
 import { ChatWidget } from '@/components/chat/ChatWidget';
 import { SessionProvider } from '@/components/providers/SessionProvider';
+import { MaintenancePage } from '@/components/maintenance/MaintenancePage';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -28,6 +29,10 @@ export default function RootLayout({
         <SessionProvider>
           <WishlistProvider>
             <CartProvider>
+              {/* Maintenance Page - показывается только для не-админов */}
+              <MaintenancePage />
+              
+              {/* Основной контент - показывается для админов или скрывается заглушкой */}
               <div className="min-h-screen flex flex-col">
                 <AdminToolbar />
                 <Header />
