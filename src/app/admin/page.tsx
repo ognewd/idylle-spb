@@ -18,7 +18,8 @@ import {
   Tag,
   Mail,
   MessageCircle,
-  Shield
+  Shield,
+  FileText
 } from 'lucide-react';
 import { hasAccessToSection } from '@/lib/admin-permissions';
 
@@ -171,6 +172,14 @@ export default function AdminDashboard() {
       icon: Shield,
       href: '/admin/oauth',
       color: 'bg-gradient-to-br from-blue-500 to-purple-600',
+      section: 'products' as const,
+    },
+    {
+      title: 'Страницы',
+      description: 'Управление внутренними страницами сайта',
+      icon: FileText,
+      href: '/admin/pages',
+      color: 'bg-amber-500',
       section: 'products' as const,
     },
   ];
