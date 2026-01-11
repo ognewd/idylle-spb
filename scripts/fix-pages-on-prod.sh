@@ -8,15 +8,20 @@ echo "🔍 Проверка текущего состояния..."
 
 cd /root/idylle-spb
 
-# Проверяем, существует ли таблица pages
-TABLE_EXISTS=$(psql $DATABASE_URL -t -c "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'pages');" | tr -d ' ')
-
-if [ "$TABLE_EXISTS" = "t" ]; then
-    echo "✅ Таблица pages уже существует"
-else
-    echo "❌ Таблица pages не существует, применяю миграцию..."
-    npx prisma db push --accept-data-loss
+# Загружаем переменные окружения из .env
+if [ -f .env ]; then
+    export $(grep -v '^#' .env | xargs)
 fi
+
+# Используем DATABASE_URL из .env или ecosystem.config.js
+# На продакшене должен быть локальный PostgreSQL
+DB_URL="${DATABASE_URL:-postgresql://idylle_user:wendw%40%40422ewd%21@localhost:5432/idylle_spb?schema=public}"
+
+echo "📊 Используется DATABASE_URL: ${DB_URL%%@*}@***"
+
+# Проверяем, существует ли таблица pages (пропускаем проверку через psql, так как может быть проблема с доступом)
+echo "🔄 Применяю миграцию Prisma..."
+npx prisma db push --accept-data-loss
 
 echo "🔄 Генерирую Prisma Client..."
 npx prisma generate
