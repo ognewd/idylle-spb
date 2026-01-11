@@ -51,8 +51,10 @@ export async function POST(request: NextRequest) {
     const extension = file.name.split('.').pop() || 'jpg';
     const filename = `${timestamp}-${randomString}.${extension}`;
 
-    // Create uploads directory if it doesn't exist
-    const uploadsDir = join(process.cwd(), 'public', 'uploads', 'products');
+    // Use UPLOADS_DIR from environment if set (for production), otherwise use public/uploads
+    const baseUploadsDir = process.env.UPLOADS_DIR || join(process.cwd(), 'public', 'uploads');
+    const uploadsDir = join(baseUploadsDir, 'products');
+    
     if (!existsSync(uploadsDir)) {
       await mkdir(uploadsDir, { recursive: true });
     }
@@ -63,7 +65,7 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(bytes);
     await writeFile(filePath, buffer);
 
-    // Return URL
+    // Return URL (always relative path, Nginx will serve it)
     const url = `/uploads/products/${filename}`;
     
     return NextResponse.json({ url });
