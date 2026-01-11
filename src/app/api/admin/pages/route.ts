@@ -3,29 +3,36 @@ import { prisma } from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
 
 // Helper to verify admin token
-function verifyAdminToken(request: NextRequest) {
+async function verifyAdminToken(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return null;
+    return { error: 'Unauthorized', status: 401 };
   }
 
   const token = authHeader.substring(7);
   try {
     const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET || 'fallback-secret') as any;
-    return decoded;
-  } catch (error) {
-    return null;
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+    });
+
+    if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
+      return { error: 'Unauthorized', status: 401 };
+    }
+    return { user };
+  } catch (jwtError) {
+    return { error: 'Invalid token', status: 401 };
   }
 }
 
 export async function GET(request: NextRequest) {
   try {
-    const admin = verifyAdminToken(request);
-
-    if (!admin) {
+    const authResult = await verifyAdminToken(request);
+    
+    if ('error' in authResult) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
+        { error: authResult.error },
+        { status: authResult.status }
       );
     }
 
@@ -59,12 +66,12 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const admin = verifyAdminToken(request);
-
-    if (!admin) {
+    const authResult = await verifyAdminToken(request);
+    
+    if ('error' in authResult) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
+        { error: authResult.error },
+        { status: authResult.status }
       );
     }
 
