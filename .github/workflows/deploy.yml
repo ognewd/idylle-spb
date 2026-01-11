@@ -45,6 +45,9 @@ jobs:
             npx prisma db push --accept-data-loss || true
             npx prisma generate
             
+            # Создать страницы по умолчанию (если их еще нет)
+            npx tsx scripts/seed-pages.ts || true
+            
             # Очистить старые build файлы перед новой сборкой
             rm -rf .next
             rm -rf node_modules/.cache
