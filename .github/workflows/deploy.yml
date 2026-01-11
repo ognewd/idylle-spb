@@ -41,12 +41,12 @@ jobs:
             # Установить зависимости
             npm install
             
-            # Применить миграции Prisma
-            npx prisma db push --accept-data-loss || true
+            # Применить миграции Prisma (без || true, чтобы видеть ошибки)
+            npx prisma db push --accept-data-loss
             npx prisma generate
             
             # Создать страницы по умолчанию (если их еще нет)
-            npx tsx scripts/seed-pages.ts || true
+            npx tsx scripts/seed-pages.ts || echo "⚠️  Предупреждение при создании страниц"
             
             # Очистить старые build файлы перед новой сборкой
             rm -rf .next
