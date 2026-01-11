@@ -350,6 +350,21 @@ model Settings {
   @@map("settings")
 }
 
+model Page {
+  id            String   @id @default(cuid())
+  slug          String   @unique
+  title         String
+  content       String?  @db.Text // HTML контент или JSON для блоков
+  metaTitle     String?
+  metaDescription String? @db.Text
+  isActive      Boolean  @default(true)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("pages")
+}
+
 model ChatSession {
   id          String        @id @default(cuid())
   userId      String?
