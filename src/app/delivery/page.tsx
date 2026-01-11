@@ -1,6 +1,10 @@
 import { Metadata } from 'next';
 import { prisma } from '@/lib/prisma';
 
+// Отключаем статическую генерацию - страница должна рендериться динамически
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 async function getPageContent() {
   try {
     const page = await prisma.page.findUnique({
