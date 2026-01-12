@@ -51,6 +51,7 @@ export function ProductImageCarousel({ images, name, className }: ProductImageCa
             className="w-full h-auto max-w-full"
             style={{ objectFit: 'contain' }}
           />
+        </div>
 
         {/* Navigation Arrows */}
         {images.length > 1 && (
