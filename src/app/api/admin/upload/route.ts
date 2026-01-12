@@ -55,8 +55,26 @@ export async function POST(request: NextRequest) {
     const baseUploadsDir = process.env.UPLOADS_DIR || join(process.cwd(), 'public', 'uploads');
     const uploadsDir = join(baseUploadsDir, 'products');
     
+    // Validate that uploads directory is accessible
+    if (!baseUploadsDir) {
+      console.error('UPLOADS_DIR is not set in environment variables');
+      return NextResponse.json(
+        { error: 'Upload directory not configured' },
+        { status: 500 }
+      );
+    }
+    
     if (!existsSync(uploadsDir)) {
-      await mkdir(uploadsDir, { recursive: true });
+      try {
+        await mkdir(uploadsDir, { recursive: true });
+        console.log(`Created uploads directory: ${uploadsDir}`);
+      } catch (error) {
+        console.error(`Failed to create uploads directory: ${uploadsDir}`, error);
+        return NextResponse.json(
+          { error: 'Failed to create upload directory' },
+          { status: 500 }
+        );
+      }
     }
 
     // Save file
