@@ -130,14 +130,11 @@ export function QuickView({ product, isOpen, onClose, onAddToCart }: QuickViewPr
             <div className="relative bg-muted overflow-visible flex items-center justify-center" style={{ minHeight: '300px' }}>
               {product.images && product.images.length > 0 ? (
                 <div className="relative w-full max-w-full">
-                  <Image
+                  <img
                     src={product.images[currentImageIndex]?.url || '/placeholder-product.jpg'}
                     alt={product.name}
-                    width={400}
-                    height={400}
-                    className="w-full h-auto"
+                    className="w-full h-auto max-w-full"
                     style={{ objectFit: 'contain' }}
-                    sizes="(max-width: 768px) 100vw, 50vw"
                   />
                 </div>
               ) : (
