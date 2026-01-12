@@ -43,15 +43,14 @@ export function ProductImageCarousel({ images, name, className }: ProductImageCa
   return (
     <div className={cn("space-y-4", className)}>
       {/* Main Image */}
-      <div className="relative bg-white border border-gray-200 rounded-lg overflow-hidden group shadow-sm" style={{ aspectRatio: '1', maxHeight: '600px' }}>
-        <Image
-          src={getImageUrl(images[currentIndex])}
-          alt={`${name} - изображение ${currentIndex + 1}`}
-          fill
-          className="object-contain transition-transform duration-300 group-hover:scale-105 bg-white"
-          sizes="(max-width: 768px) 100vw, 50vw"
-          priority
-        />
+      <div className="relative bg-white overflow-visible group flex items-center justify-center" style={{ minHeight: '400px' }}>
+        <div className="relative w-full max-w-full">
+          <img
+            src={getImageUrl(images[currentIndex])}
+            alt={`${name} - изображение ${currentIndex + 1}`}
+            className="w-full h-auto max-w-full"
+            style={{ objectFit: 'contain' }}
+          />
 
         {/* Navigation Arrows */}
         {images.length > 1 && (
@@ -101,18 +100,17 @@ export function ProductImageCarousel({ images, name, className }: ProductImageCa
               key={index}
               onClick={() => goToImage(index)}
               className={cn(
-                "relative flex-shrink-0 w-16 h-16 rounded-md overflow-hidden border-2 transition-colors",
+                "relative flex-shrink-0 w-16 h-16 overflow-visible transition-opacity",
                 index === currentIndex
-                  ? "border-primary"
-                  : "border-transparent hover:border-muted-foreground"
+                  ? "opacity-100"
+                  : "opacity-70 hover:opacity-100"
               )}
             >
-              <Image
+              <img
                 src={getImageUrl(image)}
                 alt={`${name} - миниатюра ${index + 1}`}
-                fill
-                className="object-cover"
-                sizes="64px"
+                className="w-full h-full"
+                style={{ objectFit: 'contain' }}
               />
             </button>
           ))}

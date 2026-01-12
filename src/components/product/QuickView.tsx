@@ -127,15 +127,19 @@ export function QuickView({ product, isOpen, onClose, onAddToCart }: QuickViewPr
           {/* Images */}
           <div className="space-y-4">
             {/* Main Image */}
-            <div className="relative aspect-square bg-muted rounded-lg overflow-hidden">
+            <div className="relative bg-muted overflow-visible flex items-center justify-center" style={{ minHeight: '300px' }}>
               {product.images && product.images.length > 0 ? (
-                <Image
-                  src={product.images[currentImageIndex]?.url || '/placeholder-product.jpg'}
-                  alt={product.name}
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 768px) 100vw, 50vw"
-                />
+                <div className="relative w-full max-w-full">
+                  <Image
+                    src={product.images[currentImageIndex]?.url || '/placeholder-product.jpg'}
+                    alt={product.name}
+                    width={400}
+                    height={400}
+                    className="w-full h-auto"
+                    style={{ objectFit: 'contain' }}
+                    sizes="(max-width: 768px) 100vw, 50vw"
+                  />
+                </div>
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-muted-foreground">
                   Нет изображения
@@ -150,17 +154,16 @@ export function QuickView({ product, isOpen, onClose, onAddToCart }: QuickViewPr
                   <button
                     key={index}
                     className={cn(
-                      "relative aspect-square bg-muted rounded-lg overflow-hidden border-2 transition-colors",
-                      index === currentImageIndex ? "border-primary" : "border-transparent"
+                      "relative bg-muted overflow-visible transition-opacity",
+                      index === currentImageIndex ? "opacity-100" : "opacity-70 hover:opacity-100"
                     )}
                     onClick={() => setCurrentImageIndex(index)}
                   >
-                    <Image
+                    <img
                       src={image.url}
                       alt={image.alt || product.name}
-                      fill
-                      className="object-cover"
-                      sizes="(max-width: 768px) 25vw, 12.5vw"
+                      className="w-full h-full"
+                      style={{ objectFit: 'contain' }}
                     />
                   </button>
                 ))}

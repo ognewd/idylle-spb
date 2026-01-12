@@ -169,35 +169,29 @@ export function ProductCard({
   return (
     <Card
       className={cn(
-        "group relative overflow-hidden transition-all duration-300 hover:shadow-lg",
+        "group relative overflow-visible transition-all duration-300",
         className
       )}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* Product Image Section */}
-      <div className={cn("relative overflow-hidden bg-white", {
-        "bg-muted p-2": !(product.images && product.images.length > 0)
-      })} style={{ minHeight: '350px', maxHeight: '450px' }}>
+      <div className={cn("relative bg-white flex items-center justify-center", {
+        "bg-muted p-2 min-h-[300px]": !(product.images && product.images.length > 0)
+      })}>
         {product.images && product.images.length > 0 ? (
-          <Link href={`/catalog/${product.slug}`} className="absolute inset-0 flex items-center justify-center p-4">
-            <div className="relative w-full h-full flex items-center justify-center">
-              <div className="relative" style={{ width: '100%', maxWidth: '100%', height: '100%', maxHeight: '100%', aspectRatio: '5/6' }}>
-                <Image
+          <Link href={`/catalog/${product.slug}`} className="block w-full py-4">
+            <div className="relative w-full flex items-center justify-center" style={{ minHeight: '300px' }}>
+              <div className="relative w-full" style={{ aspectRatio: 'auto', height: 'auto' }}>
+                <img
                   src={getImageUrl(
                     typeof product.images[currentImageIndex] === 'string' 
                       ? product.images[currentImageIndex] as string
                       : product.images[currentImageIndex]?.url
                   )}
                   alt={product.name}
-                  fill
-                  className="object-contain transition-transform duration-300 group-hover:scale-105"
-                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                  priority={priority}
-                  loading={priority ? undefined : "lazy"}
-                  style={{ 
-                    objectPosition: 'center'
-                  }}
+                  className="w-full h-auto max-w-full"
+                  style={{ objectFit: 'contain' }}
                 />
               </div>
             </div>

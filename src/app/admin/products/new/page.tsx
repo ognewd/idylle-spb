@@ -870,11 +870,12 @@ export default function NewProductPage() {
               {formData.images.map((image, index) => (
                 <div key={index} className="flex space-x-4 p-4 border rounded-lg">
                   {image.url && (
-                    <div className="w-24 h-24 flex-shrink-0 border rounded overflow-hidden">
+                    <div className="w-24 h-24 flex-shrink-0 overflow-visible flex items-center justify-center bg-white">
                       <img 
                         src={image.url} 
                         alt={image.alt || `Preview ${index + 1}`}
-                        className="w-full h-full object-cover"
+                        className="max-w-full max-h-full w-auto h-auto"
+                        style={{ objectFit: 'contain' }}
                       />
                     </div>
                   )}
