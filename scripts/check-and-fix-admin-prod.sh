@@ -9,7 +9,28 @@ echo "🔍 Проверяем подключение к базе данных и
 cd /root/idylle-spb
 
 # Принудительно используем локальный PostgreSQL
-export DATABASE_URL="postgresql://idylle_user:wendw%40%40422ewd%21@localhost:5432/idylle_spb?schema=public"
+LOCAL_DB_URL="postgresql://idylle_user:wendw%40%40422ewd%21@localhost:5432/idylle_spb?schema=public"
+export DATABASE_URL="$LOCAL_DB_URL"
+
+echo "📊 Используется DATABASE_URL: ${DATABASE_URL%%@*}@***"
+
+# Проверяем и обновляем .env файл если нужно
+if [ -f .env ]; then
+    CURRENT_DB_URL=$(grep "^DATABASE_URL=" .env | cut -d'=' -f2- | tr -d '"' || echo "")
+    if [[ "$CURRENT_DB_URL" != *"localhost"* ]] && [[ "$CURRENT_DB_URL" != *"127.0.0.1"* ]]; then
+        echo "⚠️  Обнаружен DATABASE_URL, указывающий на внешнюю базу (не localhost)"
+        echo "🔄 Обновляем .env файл для использования локального PostgreSQL..."
+        # Создаем резервную копию
+        cp .env .env.backup.$(date +%Y%m%d_%H%M%S)
+        # Обновляем DATABASE_URL
+        if grep -q "^DATABASE_URL=" .env; then
+            sed -i "s|^DATABASE_URL=.*|DATABASE_URL=\"$LOCAL_DB_URL\"|" .env
+        else
+            echo "DATABASE_URL=\"$LOCAL_DB_URL\"" >> .env
+        fi
+        echo "✅ .env файл обновлен"
+    fi
+fi
 
 echo "📊 Проверяем подключение к БД..."
 
