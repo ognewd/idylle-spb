@@ -72,6 +72,8 @@ export default function TaskDetailPage() {
   const [isSending, setIsSending] = useState(false);
   const [status, setStatus] = useState<'new' | 'in_progress' | 'done'>('new');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const shouldScrollRef = useRef(true);
   const router = useRouter();
   const params = useParams();
   const taskId = params.id as string;
@@ -92,9 +94,26 @@ export default function TaskDetailPage() {
     return () => clearInterval(interval);
   }, [router, taskId]);
 
+  // Проверяем, находится ли пользователь внизу чата
+  const isNearBottom = () => {
+    if (!messagesContainerRef.current) return false;
+    const container = messagesContainerRef.current;
+    const threshold = 100; // пикселей от низа
+    return container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
+  };
+
+  // Скроллим только если пользователь уже внизу или при первой загрузке
   useEffect(() => {
-    scrollToBottom();
-  }, [task?.messages]);
+    if (task?.messages && task.messages.length > 0) {
+      // При первой загрузке или если пользователь внизу - скроллим
+      if (shouldScrollRef.current || isNearBottom()) {
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+          shouldScrollRef.current = false;
+        }, 100);
+      }
+    }
+  }, [task?.messages?.length]); // Только при изменении количества сообщений
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -319,7 +338,14 @@ export default function TaskDetailPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4 mb-4 max-h-96 overflow-y-auto">
+                <div 
+                  ref={messagesContainerRef}
+                  className="space-y-4 mb-4 max-h-96 overflow-y-auto"
+                  onScroll={() => {
+                    // Обновляем флаг при скролле пользователя
+                    shouldScrollRef.current = isNearBottom();
+                  }}
+                >
                   {task.messages.length === 0 ? (
                     <p className="text-center text-muted-foreground py-8">
                       Пока нет сообщений. Начните обсуждение!
