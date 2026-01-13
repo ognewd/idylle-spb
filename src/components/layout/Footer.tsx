@@ -18,9 +18,9 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* Company Info */}
           <div className="space-y-4">
-            <div className="text-2xl font-bold text-primary">Idylle</div>
+            <div className="text-2xl font-bold text-primary">AROMA BOUTIQUE IDYLLE</div>
             <p className="text-sm text-muted-foreground">
-              Эксклюзивные парфюмы и товары для дома от ведущих мировых брендов. 
+              Эксклюзивные ароматы и товары для дома от ведущих мировых брендов. 
               Мы создаем атмосферу роскоши и уюта в вашем доме.
             </p>
             <div className="flex space-x-4">
