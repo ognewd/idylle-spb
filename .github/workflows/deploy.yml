@@ -116,4 +116,17 @@ jobs:
             echo "📋 Проверка логов..."
             pm2 logs idylle-spb --lines 10 --nostream | grep -i "error\|fatal\|cannot" && echo "⚠️  Обнаружены ошибки в логах" || echo "✅ Логи выглядят нормально"
             
+            # Финальная проверка здоровья приложения
+            echo ""
+            echo "🏥 Финальная проверка здоровья приложения..."
+            chmod +x scripts/health-check.sh
+            if ./scripts/health-check.sh; then
+                echo "✅ Все проверки здоровья пройдены!"
+            else
+                echo "❌ Проверка здоровья выявила проблемы!"
+                echo "📋 Последние логи PM2:"
+                pm2 logs idylle-spb --lines 30 --nostream || true
+                exit 1
+            fi
+            
             echo "✅ Деплой завершен успешно!"
