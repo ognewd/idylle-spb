@@ -195,7 +195,7 @@ export default function HomePage() {
           <div className="text-center space-y-4 mb-12">
             <h2 className="text-3xl font-bold">Популярные категории</h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              Откройте для себя наши самые популярные коллекции парфюмов и товаров для дома
+              Откройте для себя наши самые популярные коллекции ароматов и товаров для дома
             </p>
           </div>
           
