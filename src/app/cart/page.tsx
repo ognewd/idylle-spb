@@ -158,7 +158,7 @@ export default function CartPage() {
                 </Button>
 
                 <div className="mt-6 pt-6 border-t space-y-2 text-sm text-muted-foreground">
-                  <p>✓ Бесплатная доставка от 5000 ₽</p>
+                  <p>✓ Бесплатная доставка от 15000 ₽</p>
                   <p>✓ Гарантия подлинности товаров</p>
                   <p>✓ Возврат в течение 14 дней</p>
                 </div>

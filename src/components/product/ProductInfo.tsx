@@ -404,7 +404,7 @@ export function ProductInfo({ product, className }: ProductInfoProps) {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
         <div className="flex items-center space-x-2">
           <Truck className="h-4 w-4 text-muted-foreground" />
-          <span>Бесплатная доставка от 5000₽</span>
+          <span>Бесплатная доставка от 15000₽</span>
         </div>
         <div className="flex items-center space-x-2">
           <Shield className="h-4 w-4 text-muted-foreground" />

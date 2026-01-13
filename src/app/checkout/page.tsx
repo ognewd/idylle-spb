@@ -174,7 +174,7 @@ Email: info@idylle.spb.ru
     URL.revokeObjectURL(url);
   };
 
-  const deliveryPrice = deliveryMethod === 'delivery' && totalPrice < 5000 ? 500 : 0;
+  const deliveryPrice = deliveryMethod === 'delivery' && totalPrice < 15000 ? 500 : 0;
   const finalPrice = totalPrice + deliveryPrice;
 
   return (
@@ -206,7 +206,7 @@ Email: info@idylle.spb.ru
                       <Label htmlFor="delivery" className="flex-1 cursor-pointer">
                         <div className="font-medium">Доставка курьером</div>
                         <div className="text-sm text-muted-foreground">
-                          По Санкт-Петербургу {totalPrice >= 5000 ? '— бесплатно' : '— 500 ₽'}
+                          По Санкт-Петербургу {totalPrice >= 15000 ? '— бесплатно' : '— 500 ₽'}
                         </div>
                       </Label>
                     </div>

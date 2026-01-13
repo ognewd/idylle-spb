@@ -164,7 +164,7 @@ export default function HomePage() {
               </div>
               <h3 className="text-xl font-semibold">Бесплатная доставка</h3>
               <p className="text-muted-foreground">
-                Доставляем заказы по Санкт-Петербургу бесплатно при покупке от 5000₽
+                Доставляем заказы по Санкт-Петербургу бесплатно при покупке от 15000₽
               </p>
             </div>
             <div className="text-center space-y-4">
