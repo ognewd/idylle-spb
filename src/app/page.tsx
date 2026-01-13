@@ -205,8 +205,8 @@ export default function HomePage() {
                 <div className="aspect-[4/3] bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center">
                   <div className="text-center space-y-4">
                     <div className="text-6xl">💎</div>
-                    <h3 className="text-xl font-semibold">Парфюмы</h3>
-                    <p className="text-muted-foreground">Эксклюзивные ароматы</p>
+                    <h3 className="text-xl font-semibold">Ароматы</h3>
+                    <p className="text-muted-foreground">Уникальная атмосфера</p>
                   </div>
                 </div>
               </Link>
