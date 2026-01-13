@@ -5,10 +5,11 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Начинаем заполнение базы данных на продакшене...');
-  console.log('DATABASE_URL:', process.env.DATABASE_URL ? `${process.env.DATABASE_URL.split('@')[0]}@***` : 'не установлен');
+  try {
+    console.log('🌱 Начинаем заполнение базы данных на продакшене...');
+    console.log('DATABASE_URL:', process.env.DATABASE_URL ? `${process.env.DATABASE_URL.split('@')[0]}@***` : 'не установлен');
 
-  // Создаем/обновляем админа (если он уже есть, обновим права)
+    // Создаем/обновляем админа (если он уже есть, обновим права)
   const hashedPassword = await bcrypt.hash('admin123', 12);
   
   const admin = await prisma.user.upsert({
