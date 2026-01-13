@@ -73,7 +73,8 @@ export default function TaskDetailPage() {
   const [status, setStatus] = useState<'new' | 'in_progress' | 'done'>('new');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
-  const shouldScrollRef = useRef(true);
+  const shouldScrollRef = useRef(false); // Не скроллим при первой загрузке
+  const isInitialLoadRef = useRef(true);
   const router = useRouter();
   const params = useParams();
   const taskId = params.id as string;
@@ -102,10 +103,16 @@ export default function TaskDetailPage() {
     return container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
   };
 
-  // Скроллим только если пользователь уже внизу или при первой загрузке
+  // Скроллим только если пользователь уже внизу или при отправке сообщения
   useEffect(() => {
     if (task?.messages && task.messages.length > 0) {
-      // При первой загрузке или если пользователь внизу - скроллим
+      // Пропускаем первую загрузку - не скроллим
+      if (isInitialLoadRef.current) {
+        isInitialLoadRef.current = false;
+        return;
+      }
+      
+      // Скроллим только если пользователь внизу или явно запрошено
       if (shouldScrollRef.current || isNearBottom()) {
         setTimeout(() => {
           messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
