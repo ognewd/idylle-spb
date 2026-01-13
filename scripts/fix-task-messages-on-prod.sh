@@ -16,7 +16,8 @@ echo "📊 Используется DATABASE_URL: ${DB_URL%%@*}@***"
 
 # Сначала добавляем колонки через SQL, если их нет
 echo "🔧 Добавляю колонки через SQL (если их нет)..."
-psql "$DB_URL" <<EOF
+# psql не поддерживает ?schema= в URI, используем отдельные параметры
+psql -h localhost -p 5432 -U idylle_user -d idylle_spb <<EOF
 -- Добавляем updatedAt с default значением
 ALTER TABLE task_messages ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
 
