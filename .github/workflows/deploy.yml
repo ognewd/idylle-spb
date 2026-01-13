@@ -10,6 +10,7 @@ jobs:
   deploy:
     name: Deploy to VPS
     runs-on: ubuntu-latest
+    timeout-minutes: 15 # Таймаут 15 минут
     
     steps:
       - name: Checkout code
@@ -23,26 +24,32 @@ jobs:
       
       - name: Deploy to server
         uses: appleboy/ssh-action@v0.1.7
+        timeout-minutes: 10
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
           script: |
+            set -e  # Выходим при первой ошибке
+            
             cd /root/idylle-spb
+            
+            echo "🔄 Начало деплоя..."
             
             # Удалить конфликтующие файлы (если есть)
             rm -f idylle_spb_backup.sql idylle_spb_data_only.sql 2>/dev/null || true
             
             # Получить последние изменения
-            git fetch origin
+            echo "📥 Получение изменений из Git..."
+            git fetch origin --prune
             git reset --hard origin/main || git pull origin main
             
             # Установить зависимости
-            npm install
+            echo "📦 Установка зависимостей..."
+            npm ci --prefer-offline --no-audit
             
-            # Применить миграции Prisma
-            # Убеждаемся, что используем правильный DATABASE_URL (локальный PostgreSQL, не Supabase)
+            # Убеждаемся, что используем правильный DATABASE_URL
             if [ -f .env ]; then
                 export $(grep -v '^#' .env | xargs)
             fi
@@ -54,34 +61,45 @@ jobs:
             fi
             
             echo "📊 Применяю миграции Prisma с DATABASE_URL: ${DATABASE_URL%%@*}@***"
-            npx prisma db push --accept-data-loss
+            
+            # Применяем миграции (без --accept-data-loss, если возможно)
+            # Используем migrate deploy если есть миграции, иначе db push
+            if [ -d "prisma/migrations" ] && [ "$(ls -A prisma/migrations 2>/dev/null)" ]; then
+                echo "🔄 Используем миграции..."
+                npx prisma migrate deploy || npx prisma db push
+            else
+                echo "🔄 Используем db push (миграций нет)..."
+                npx prisma db push
+            fi
+            
             npx prisma generate
             
-            # Проверяем, что таблица tasks создана
-            echo "🔍 Проверка таблицы tasks..."
-            npx prisma db execute --stdin <<< "SELECT COUNT(*) FROM tasks;" || echo "⚠️  Предупреждение: не удалось проверить таблицу tasks"
-            
             # Создать страницы по умолчанию (если их еще нет)
+            echo "📄 Создание страниц..."
             npx tsx scripts/seed-pages.ts || echo "⚠️  Предупреждение при создании страниц"
             
             # Очистить старые build файлы перед новой сборкой
+            echo "🧹 Очистка старых файлов сборки..."
             rm -rf .next
             rm -rf node_modules/.cache
             
             # Собрать приложение
+            echo "🔨 Сборка приложения..."
             npm run build
             
             # Перезапустить PM2
-            pm2 restart idylle-spb || pm2 start ecosystem.config.js || true
+            echo "🔄 Перезапуск приложения..."
+            pm2 restart idylle-spb --update-env || pm2 start ecosystem.config.js || true
             
             # Проверить статус
+            echo "📊 Статус PM2:"
             pm2 status
             
             # Небольшая задержка для проверки, что приложение запустилось
             sleep 3
             
             # Проверить логи на критические ошибки
+            echo "📋 Проверка логов..."
             pm2 logs idylle-spb --lines 10 --nostream | grep -i "error\|fatal\|cannot" && echo "⚠️  Обнаружены ошибки в логах" || echo "✅ Логи выглядят нормально"
             
             echo "✅ Деплой завершен успешно!"
-
