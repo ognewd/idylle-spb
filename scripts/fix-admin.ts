@@ -21,14 +21,23 @@ async function fixAdmin() {
     // Хешируем пароль
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Создаем нового админа
+    // Создаем нового админа с полными правами
     const admin = await prisma.user.create({
       data: {
         email,
         password: hashedPassword,
         name,
-        role: 'admin',
+        role: 'super_admin', // Даем роль super_admin для полного доступа
         isActive: true,
+        allowedAdminSections: [
+          'products',
+          'categories',
+          'seasonal-discounts',
+          'filters',
+          'users',
+          'orders',
+          'administrators',
+        ],
       },
     });
 
@@ -36,6 +45,7 @@ async function fixAdmin() {
     console.log(`🔑 Email: ${email}`);
     console.log(`🔑 Пароль: ${password}`);
     console.log(`👤 ID: ${admin.id}`);
+    console.log(`🔐 Роль: ${admin.role} (полный доступ ко всем разделам)`);
 
     // Проверяем, что пароль работает
     const testPassword = await bcrypt.compare(password, hashedPassword);
