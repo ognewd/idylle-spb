@@ -4,8 +4,7 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
-// Создаем новый экземпляр Prisma Client, если его еще нет
-// или если модель Task недоступна (нужен перезапуск после миграции)
+// Создаем новый экземпляр Prisma Client
 const createPrismaClient = () => {
   return new PrismaClient({
     datasources: {
@@ -18,12 +17,22 @@ const createPrismaClient = () => {
 };
 
 // Проверяем, есть ли модель Task в существующем клиенте
-if (globalForPrisma.prisma && !('task' in globalForPrisma.prisma)) {
-  // Старый клиент не знает о Task - создаем новый
-  console.warn('Prisma Client missing Task model, recreating...');
-  globalForPrisma.prisma = undefined;
+// Если нет - принудительно пересоздаем клиент
+let prismaInstance = globalForPrisma.prisma;
+if (!prismaInstance || !('task' in prismaInstance)) {
+  if (prismaInstance) {
+    // Закрываем старое соединение
+    try {
+      prismaInstance.$disconnect();
+    } catch (e) {
+      // Игнорируем ошибки при закрытии
+    }
+  }
+  // Создаем новый клиент
+  prismaInstance = createPrismaClient();
+  globalForPrisma.prisma = prismaInstance;
 }
 
-export const prisma = globalForPrisma.prisma ?? createPrismaClient();
+export const prisma = prismaInstance;
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
