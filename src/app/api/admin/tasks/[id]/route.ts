@@ -16,7 +16,7 @@ export async function GET(
       );
     }
 
-    const task = await (prisma as any).task.findUnique({
+    const task = await prisma.task.findUnique({
       where: { id: params.id },
       include: {
         createdBy: {
@@ -85,7 +85,7 @@ export async function PUT(
     const body = await request.json();
     const { title, description, status, priority, fileUrl, fileName } = body;
 
-    const updatedTask = await (prisma as any).task.update({
+    const updatedTask = await prisma.task.update({
       where: { id: params.id },
       data: {
         ...(title && { title }),
@@ -138,7 +138,7 @@ export async function DELETE(
       );
     }
 
-    await (prisma as any).task.delete({
+    await prisma.task.delete({
       where: { id: params.id },
     });
 

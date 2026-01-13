@@ -16,7 +16,7 @@ export async function GET(
       );
     }
 
-    const messages = await (prisma as any).taskMessage.findMany({
+    const messages = await prisma.taskMessage.findMany({
       where: { taskId: params.id },
       include: {
         user: {
@@ -75,7 +75,7 @@ export async function POST(
     }
 
     // Проверяем, существует ли задача
-    const task = await (prisma as any).task.findUnique({
+    const task = await prisma.task.findUnique({
       where: { id: params.id },
     });
 
@@ -86,7 +86,7 @@ export async function POST(
       );
     }
 
-    const taskMessage = await (prisma as any).taskMessage.create({
+    const taskMessage = await prisma.taskMessage.create({
       data: {
         taskId: params.id,
         userId: authResult.user.id,

@@ -13,19 +13,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Проверяем доступность модели Task
-    if (!('task' in prisma)) {
-      console.error('Task model not found in Prisma Client. Run: npx prisma generate && npx prisma db push');
-      return NextResponse.json(
-        { 
-          error: 'Task model not available', 
-          details: 'Please run: npx prisma generate && npx prisma db push' 
-        },
-        { status: 500 }
-      );
-    }
-
-    const tasks = await (prisma as any).task.findMany({
+    const tasks = await prisma.task.findMany({
       include: {
         createdBy: {
           select: {
@@ -98,7 +86,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-      const task = await (prisma as any).task.create({
+      const task = await prisma.task.create({
       data: {
         title,
         description: description || null,
