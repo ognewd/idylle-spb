@@ -41,9 +41,25 @@ jobs:
             # Установить зависимости
             npm install
             
-            # Применить миграции Prisma (без || true, чтобы видеть ошибки)
+            # Применить миграции Prisma
+            # Убеждаемся, что используем правильный DATABASE_URL (локальный PostgreSQL, не Supabase)
+            if [ -f .env ]; then
+                export $(grep -v '^#' .env | xargs)
+            fi
+            
+            # Проверяем, что DATABASE_URL указывает на локальный PostgreSQL
+            if echo "$DATABASE_URL" | grep -q "supabase\|aws-1-us-east-1"; then
+                echo "⚠️  Предупреждение: DATABASE_URL указывает на Supabase, используем локальный fallback"
+                export DATABASE_URL="postgresql://idylle_user:wendw%40%40422ewd%21@localhost:5432/idylle_spb?schema=public"
+            fi
+            
+            echo "📊 Применяю миграции Prisma с DATABASE_URL: ${DATABASE_URL%%@*}@***"
             npx prisma db push --accept-data-loss
             npx prisma generate
+            
+            # Проверяем, что таблица tasks создана
+            echo "🔍 Проверка таблицы tasks..."
+            npx prisma db execute --stdin <<< "SELECT COUNT(*) FROM tasks;" || echo "⚠️  Предупреждение: не удалось проверить таблицу tasks"
             
             # Создать страницы по умолчанию (если их еще нет)
             npx tsx scripts/seed-pages.ts || echo "⚠️  Предупреждение при создании страниц"
