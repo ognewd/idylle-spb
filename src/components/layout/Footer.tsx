@@ -118,7 +118,7 @@ export function Footer() {
         <div className="mt-12 pt-8 border-t">
           <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
             <div className="text-sm text-muted-foreground">
-              © 2024 Idylle. Все права защищены.
+              © 2026 AROMA BOUTIQUE IDYLLE. Все права защищены.
             </div>
             <div className="flex space-x-6 text-sm">
               <Link href="/privacy" className="text-muted-foreground hover:text-primary transition-colors">
