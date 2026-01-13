@@ -19,7 +19,8 @@ import {
   Mail,
   MessageCircle,
   Shield,
-  FileText
+  FileText,
+  CheckSquare
 } from 'lucide-react';
 import { hasAccessToSection } from '@/lib/admin-permissions';
 
@@ -180,6 +181,14 @@ export default function AdminDashboard() {
       icon: FileText,
       href: '/admin/pages',
       color: 'bg-amber-500',
+      section: 'products' as const,
+    },
+    {
+      title: 'Задачи для Димы',
+      description: 'Постановка и отслеживание задач',
+      icon: CheckSquare,
+      href: '/admin/tasks',
+      color: 'bg-violet-500',
       section: 'products' as const,
     },
   ];

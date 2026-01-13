@@ -24,6 +24,8 @@ model User {
   orders               Order[]
   reviews              Review[]
   wishlist             WishlistItem[]
+  createdTasks         Task[]           @relation("TaskCreator")
+  taskMessages          TaskMessage[]    @relation("TaskMessageAuthor")
 
   @@map("users")
 }
@@ -389,4 +391,33 @@ model ChatMessage {
   chatSession ChatSession @relation(fields: [chatId], references: [id], onDelete: Cascade)
 
   @@map("chat_messages")
+}
+
+model Task {
+  id          String        @id @default(cuid())
+  title       String
+  description String?        @db.Text
+  status      String        @default("new") // "new", "in_progress", "done"
+  priority    String        @default("normal") // "urgent", "normal", "someday"
+  fileUrl     String?
+  fileName    String?
+  createdById String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  createdBy   User          @relation("TaskCreator", fields: [createdById], references: [id])
+  messages    TaskMessage[]
+
+  @@map("tasks")
+}
+
+model TaskMessage {
+  id        String   @id @default(cuid())
+  taskId    String
+  userId    String
+  message   String   @db.Text
+  createdAt DateTime @default(now())
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user      User     @relation("TaskMessageAuthor", fields: [userId], references: [id])
+
+  @@map("task_messages")
 }
