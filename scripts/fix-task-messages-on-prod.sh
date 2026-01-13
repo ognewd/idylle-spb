@@ -8,13 +8,9 @@ echo "🔍 Проверка текущего состояния..."
 
 cd /root/idylle-spb
 
-# Загружаем переменные окружения из .env
-if [ -f .env ]; then
-    export $(grep -v '^#' .env | xargs)
-fi
-
-# Используем DATABASE_URL из .env или fallback
-DB_URL="${DATABASE_URL:-postgresql://idylle_user:wendw%40%40422ewd%21@localhost:5432/idylle_spb?schema=public}"
+# ПРИНУДИТЕЛЬНО используем локальный PostgreSQL
+# Игнорируем DATABASE_URL из .env, если он указывает на Supabase
+DB_URL="postgresql://idylle_user:wendw%40%40422ewd%21@localhost:5432/idylle_spb?schema=public"
 
 echo "📊 Используется DATABASE_URL: ${DB_URL%%@*}@***"
 
