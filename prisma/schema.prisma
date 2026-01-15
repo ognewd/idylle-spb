@@ -15,6 +15,9 @@ model User {
   password             String
   role                 String         @default("user")
   isActive             Boolean        @default(true)
+  unsubscribed         Boolean        @default(false) // Отписка от маркетинговых писем
+  marketingConsent     String?        // "granted" | "denied" | null
+  marketingConsentAt   DateTime?
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
   termsAcceptedAt      DateTime?
@@ -84,7 +87,8 @@ model Brand {
 
 model Product {
   id                String                    @id @default(cuid())
-  name              String
+  name              String                    // Полное название
+  shortName         String?                   // Краткое название (для H1)
   slug              String                    @unique
   description       String?
   shortDescription  String?
@@ -107,8 +111,11 @@ model Product {
   aromaDescription  String? // Описание аромата
   topNotes          String? // Основные ноты
   purpose           String? // Назначение (Для какого помещения)
-  country           String? // Страна
+  usageInstructions String? @db.Text // Способ применения
+  brandCountry      String? // Страна происхождения бренда
+  manufactureCountry String? // Страна производства
   barcode           String? // Штрихкод
+  warehouseLocation String? // Место товара (только для админки, не показывать на фронте)
   createdAt         DateTime                  @default(now())
   updatedAt         DateTime                  @updatedAt
   brandId           String
@@ -423,4 +430,76 @@ model TaskMessage {
   user      User     @relation("TaskMessageAuthor", fields: [userId], references: [id])
 
   @@map("task_messages")
+}
+
+// Email Marketing Models
+model EmailTemplate {
+  id            String          @id @default(cuid())
+  type          String          // "SERVICE" | "MARKETING"
+  name          String
+  subjectDefault String?
+  designJson    Json?           // Структура конструктора (блоки)
+  html          String?         @db.Text // Кэшированный HTML
+  status        String          @default("draft") // "draft" | "active" | "archived"
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  campaigns     EmailCampaign[]
+
+  @@index([type, status])
+  @@map("email_templates")
+}
+
+model EmailCampaign {
+  id          String                   @id @default(cuid())
+  name        String
+  templateId  String
+  subject     String
+  preheader   String?
+  status      String                   @default("draft") // "draft" | "scheduled" | "sending" | "sent" | "failed" | "canceled"
+  scheduledAt DateTime?
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  statsTotal  Int                      @default(0)
+  statsSent   Int                      @default(0)
+  statsFailed Int                      @default(0)
+  statsOpened Int                      @default(0)
+  statsClicked Int                     @default(0)
+  filterJson  Json?                    // Фильтры получателей
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+  template    EmailTemplate            @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  recipients  EmailCampaignRecipient[]
+
+  @@index([status, scheduledAt])
+  @@map("email_campaigns")
+}
+
+model EmailCampaignRecipient {
+  id          String         @id @default(cuid())
+  campaignId  String
+  userId      String?
+  email       String
+  status      String         @default("pending") // "pending" | "sent" | "failed" | "skipped"
+  errorMessage String?       @db.Text
+  openedAt    DateTime?
+  clickedAt   DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  campaign    EmailCampaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId, status])
+  @@index([email])
+  @@map("email_campaign_recipients")
+}
+
+model EmailUnsubscribe {
+  id        String   @id @default(cuid())
+  email     String
+  userId    String?
+  reason    String?  @db.Text
+  token     String   @unique
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@map("email_unsubscribes")
 }
