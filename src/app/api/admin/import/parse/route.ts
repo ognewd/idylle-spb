@@ -137,8 +137,10 @@ export async function POST(request: NextRequest) {
           columnMap.myWarehouseCode = index;
         } else if (normalized.includes('артикул производителя')) {
           columnMap.manufacturerSku = index;
-        } else if (normalized.includes('наименование')) {
+        } else if (normalized.includes('полное название') || (normalized.includes('наименование') && !normalized.includes('краткое'))) {
           columnMap.name = index;
+        } else if (normalized.includes('краткое название')) {
+          columnMap.shortName = index;
         } else if (normalized.includes('для фильтра')) {
           columnMap.productType = index;
         } else if (normalized.includes('категория')) {
@@ -155,10 +157,19 @@ export async function POST(request: NextRequest) {
           columnMap.volume = index;
         } else if (normalized.includes('назначение')) {
           columnMap.purpose = index;
+        } else if (normalized.includes('способ применения')) {
+          columnMap.usageInstructions = index;
         } else if (normalized.includes('бренд')) {
           columnMap.brand = index;
-        } else if (normalized.includes('страна')) {
+        } else if (normalized.includes('страна происхождения бренда') || (normalized.includes('страна') && normalized.includes('бренд'))) {
+          columnMap.brandCountry = index;
+        } else if (normalized.includes('страна производства')) {
+          columnMap.manufactureCountry = index;
+        } else if (normalized.includes('страна') && !normalized.includes('бренд') && !normalized.includes('производства')) {
+          // Старое поле "Страна" - можно использовать для brandCountry или manufactureCountry
           columnMap.country = index;
+        } else if (normalized.includes('место товара') || normalized.includes('место на складе')) {
+          columnMap.warehouseLocation = index;
         } else if (normalized.includes('штрихкод') || normalized.includes('штрих код')) {
           columnMap.barcode = index;
         }
@@ -271,6 +282,9 @@ export async function POST(request: NextRequest) {
         const product: any = {
           rowNum,
           name,
+          shortName: columnMap.shortName !== undefined 
+            ? String(row[columnMap.shortName] || '').trim() || null 
+            : null,
           myWarehouseCode,
           manufacturerSku: columnMap.manufacturerSku !== undefined 
             ? String(row[columnMap.manufacturerSku] || '').trim() || null 
@@ -292,10 +306,19 @@ export async function POST(request: NextRequest) {
           purpose: columnMap.purpose !== undefined 
             ? String(row[columnMap.purpose] || '').trim() || null 
             : null,
+          usageInstructions: columnMap.usageInstructions !== undefined 
+            ? String(row[columnMap.usageInstructions] || '').trim() || null 
+            : null,
           brandName: brand.name,
           brandId: brand.id,
-          country: columnMap.country !== undefined 
-            ? String(row[columnMap.country] || '').trim() || null 
+          brandCountry: columnMap.brandCountry !== undefined 
+            ? String(row[columnMap.brandCountry] || '').trim() || null 
+            : (columnMap.country !== undefined ? String(row[columnMap.country] || '').trim() || null : null),
+          manufactureCountry: columnMap.manufactureCountry !== undefined 
+            ? String(row[columnMap.manufactureCountry] || '').trim() || null 
+            : null,
+          warehouseLocation: columnMap.warehouseLocation !== undefined 
+            ? String(row[columnMap.warehouseLocation] || '').trim() || null 
             : null,
           barcode: columnMap.barcode !== undefined 
             ? String(row[columnMap.barcode] || '').trim() || null 

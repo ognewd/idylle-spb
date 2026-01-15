@@ -34,7 +34,8 @@ interface ProductReview {
 
 interface Product {
   id: string;
-  name: string;
+  name: string; // Полное название
+  shortName?: string; // Краткое название (для H1)
   slug: string;
   description?: string;
   shortDescription?: string;
@@ -46,6 +47,15 @@ interface Product {
   aromaFamily?: string;
   ingredients?: string;
   stock: number;
+  weight?: number;
+  dimensions?: string;
+  productType?: string; // Вид товара
+  topNotes?: string; // Основные ноты
+  purpose?: string; // Назначение (Для какого помещения)
+  usageInstructions?: string; // Способ применения
+  brandCountry?: string; // Страна происхождения бренда
+  manufactureCountry?: string; // Страна производства
+  barcode?: string; // Штрихкод
   isActive: boolean;
   isFeatured: boolean;
   brand: {
@@ -146,8 +156,8 @@ export function ProductInfo({ product, className }: ProductInfoProps) {
         {product.brand.name}
       </Link>
 
-      {/* Product Name */}
-      <h1 className="text-3xl font-bold">{product.name}</h1>
+      {/* Product Name - используем shortName если есть, иначе name */}
+      <h1 className="text-3xl font-bold">{product.shortName || product.name}</h1>
 
       {/* Rating and Reviews */}
       {reviewCount > 0 && (
@@ -194,36 +204,187 @@ export function ProductInfo({ product, className }: ProductInfoProps) {
         </div>
       )}
 
-      {/* Product Details */}
-      <div className="space-y-2 text-sm">
-        {product.volume && (
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Объем:</span>
-            <span>{product.volume}</span>
+      {/* Парсинг нот аромата */}
+      {(() => {
+        if (!product.topNotes || !product.topNotes.trim() || product.topNotes.trim() === '-') {
+          return null;
+        }
+
+        const notesText = product.topNotes;
+        
+        // Ищем все три части - более точный парсинг
+        // Используем позитивный lookahead для поиска следующего заголовка
+        const topNotesMatch = notesText.match(/Верхние ноты:\s*([^]*?)(?=\s*Сердце аромата:|Ноты шлейфа:|$)/i);
+        const heartNotesMatch = notesText.match(/Сердце аромата:\s*([^]*?)(?=\s*Ноты шлейфа:|$)/i);
+        const baseNotesMatch = notesText.match(/Ноты шлейфа:\s*([^]*?)(?=\s*Верхние ноты:|Сердце аромата:|$)/i);
+
+        const hasStructuredNotes = topNotesMatch || heartNotesMatch || baseNotesMatch;
+
+        if (!hasStructuredNotes) {
+          return null;
+        }
+
+        const topNotes = topNotesMatch ? topNotesMatch[1].trim().replace(/\s+/g, ' ') : null;
+        const heartNotes = heartNotesMatch ? heartNotesMatch[1].trim().replace(/\s+/g, ' ') : null;
+        const baseNotes = baseNotesMatch ? baseNotesMatch[1].trim().replace(/\s+/g, ' ') : null;
+
+        return (
+          <div className="space-y-2 flex flex-col items-start">
+            {topNotes && (
+              <div className="py-2 px-4 rounded-md max-w-md" style={{ backgroundColor: '#FEF3C7' }}>
+                <span className="font-medium text-amber-900">Верхние ноты: </span>
+                <span className="text-sm text-amber-800">{topNotes}</span>
+              </div>
+            )}
+            {heartNotes && (
+              <div className="py-2 px-4 rounded-md max-w-lg" style={{ backgroundColor: '#FCE7F3' }}>
+                <span className="font-medium text-rose-900">Сердце аромата: </span>
+                <span className="text-sm text-rose-800">{heartNotes}</span>
+              </div>
+            )}
+            {baseNotes && (
+              <div className="py-2 px-4 rounded-md max-w-xl" style={{ backgroundColor: '#FED7AA' }}>
+                <span className="font-medium text-orange-900">Ноты шлейфа: </span>
+                <span className="text-sm text-orange-800">{baseNotes}</span>
+              </div>
+            )}
           </div>
-        )}
-        {product.aromaFamily && (
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Ароматическая семья:</span>
-            <span>{product.aromaFamily}</span>
+        );
+      })()}
+
+      {/* Характеристики товара */}
+      {(() => {
+        // Проверяем, есть ли структурированные ноты (если да, не показываем topNotes в таблице)
+        const hasStructuredNotes = product.topNotes && 
+          product.topNotes.match(/Верхние ноты:|Сердце аромата:|Ноты шлейфа:/i);
+        
+        const showTopNotesInTable = product.topNotes && 
+          product.topNotes.trim() && 
+          product.topNotes.trim() !== '-' && 
+          !hasStructuredNotes;
+        
+        return (product.productCategories && product.productCategories.length > 0) ||
+         (product.productType && product.productType.trim() && product.productType.trim() !== '-') ||
+         showTopNotesInTable ||
+         (product.volume && product.volume.trim() && product.volume.trim() !== '-') ||
+         (product.weight && product.weight > 0) ||
+         (product.dimensions && product.dimensions.trim() && product.dimensions.trim() !== '-') ||
+         (product.purpose && product.purpose.trim() && product.purpose.trim() !== '-') ||
+         (product.brandCountry && product.brandCountry.trim() && product.brandCountry.trim() !== '-') ||
+         (product.manufactureCountry && product.manufactureCountry.trim() && product.manufactureCountry.trim() !== '-') ||
+         (product.barcode && product.barcode.trim() && product.barcode.trim() !== '-');
+      })() ? (
+        <div className="border rounded-lg p-4 bg-gray-50">
+          <h2 className="text-lg font-semibold mb-4">Характеристики</h2>
+          <div className="space-y-2 text-sm">
+            {/* Бренд - всегда показываем */}
+            <div className="flex justify-between py-1 border-b border-gray-200">
+              <span className="text-muted-foreground font-medium">Бренд:</span>
+              <span>{product.brand.name}</span>
+            </div>
+            
+            {/* Категория */}
+            {product.productCategories && product.productCategories.length > 0 && (
+              <div className="flex justify-between py-1 border-b border-gray-200">
+                <span className="text-muted-foreground font-medium">Категория:</span>
+                <span>{product.productCategories[0]?.category.name}</span>
+              </div>
+            )}
+            
+            {/* Вид товара */}
+            {product.productType && product.productType.trim() && product.productType.trim() !== '-' && (
+              <div className="flex justify-between py-1 border-b border-gray-200">
+                <span className="text-muted-foreground font-medium">Вид товара:</span>
+                <span>{product.productType}</span>
+              </div>
+            )}
+            
+            {/* Основные ноты (только если нет структурированных нот) */}
+            {(() => {
+              const hasStructuredNotes = product.topNotes && 
+                product.topNotes.match(/Верхние ноты:|Сердце аромата:|Ноты шлейфа:/i);
+              
+              if (!product.topNotes || !product.topNotes.trim() || product.topNotes.trim() === '-' || hasStructuredNotes) {
+                return null;
+              }
+              
+              return (
+                <div className="flex justify-between py-1 border-b border-gray-200">
+                  <span className="text-muted-foreground font-medium">Основные ноты:</span>
+                  <span>{product.topNotes}</span>
+                </div>
+              );
+            })()}
+            
+            {/* Объем */}
+            {product.volume && product.volume.trim() && product.volume.trim() !== '-' && (
+              <div className="flex justify-between py-1 border-b border-gray-200">
+                <span className="text-muted-foreground font-medium">Объем:</span>
+                <span>{product.volume}</span>
+              </div>
+            )}
+            
+            {/* Вес */}
+            {product.weight && product.weight > 0 && (
+              <div className="flex justify-between py-1 border-b border-gray-200">
+                <span className="text-muted-foreground font-medium">Вес:</span>
+                <span>{product.weight} г</span>
+              </div>
+            )}
+            
+            {/* Размеры */}
+            {product.dimensions && product.dimensions.trim() && product.dimensions.trim() !== '-' && (
+              <div className="flex justify-between py-1 border-b border-gray-200">
+                <span className="text-muted-foreground font-medium">Размеры:</span>
+                <span>{product.dimensions}</span>
+              </div>
+            )}
+            
+            {/* Назначение (помещение) */}
+            {product.purpose && product.purpose.trim() && product.purpose.trim() !== '-' && (
+              <div className="flex justify-between py-1 border-b border-gray-200">
+                <span className="text-muted-foreground font-medium">Назначение:</span>
+                <span>{product.purpose}</span>
+              </div>
+            )}
+            
+            {/* Страна происхождения бренда */}
+            {product.brandCountry && product.brandCountry.trim() && product.brandCountry.trim() !== '-' && (
+              <div className="flex justify-between py-1 border-b border-gray-200">
+                <span className="text-muted-foreground font-medium">Страна происхождения бренда:</span>
+                <span>{product.brandCountry}</span>
+              </div>
+            )}
+            
+            {/* Страна производства */}
+            {product.manufactureCountry && product.manufactureCountry.trim() && product.manufactureCountry.trim() !== '-' && (
+              <div className="flex justify-between py-1 border-b border-gray-200">
+                <span className="text-muted-foreground font-medium">Страна производства:</span>
+                <span>{product.manufactureCountry}</span>
+              </div>
+            )}
+            
+            {/* Штрихкод */}
+            {product.barcode && product.barcode.trim() && product.barcode.trim() !== '-' && (
+              <div className="flex justify-between py-1 border-b border-gray-200">
+                <span className="text-muted-foreground font-medium">Штрихкод:</span>
+                <span className="font-mono">{product.barcode}</span>
+              </div>
+            )}
           </div>
-        )}
-        {product.gender && (
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Пол:</span>
-            <span>
-              {product.gender === 'men' ? 'Мужской' : 
-               product.gender === 'women' ? 'Женский' : 'Унисекс'}
-            </span>
+        </div>
+      ) : (
+        // Если нет характеристик, показываем только бренд
+        <div className="border rounded-lg p-4 bg-gray-50">
+          <h2 className="text-lg font-semibold mb-4">Характеристики</h2>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between py-1 border-b border-gray-200">
+              <span className="text-muted-foreground font-medium">Бренд:</span>
+              <span>{product.brand.name}</span>
+            </div>
           </div>
-        )}
-        {product.sku && (
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Артикул:</span>
-            <span className="font-mono">{product.sku}</span>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Variants */}
       {product.variants && product.variants.length > 0 && (
@@ -398,35 +559,53 @@ export function ProductInfo({ product, className }: ProductInfoProps) {
         </div>
       )}
 
-      <Separator />
-
-      {/* Features */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
-        <div className="flex items-center space-x-2">
-          <Truck className="h-4 w-4 text-muted-foreground" />
-          <span>Бесплатная доставка от 15000₽ по СПБ</span>
+      {/* Features - Modern Design */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6">
+        <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 p-4 border border-blue-100 hover:border-blue-200 transition-all hover:shadow-md">
+          <div className="flex items-start space-x-3">
+            <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-blue-100 group-hover:bg-blue-200 flex items-center justify-center transition-colors">
+              <Truck className="h-5 w-5 text-blue-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-semibold text-blue-600 uppercase tracking-wide mb-1">Доставка</div>
+              <div className="text-sm font-medium text-gray-900 leading-tight">Бесплатная от 15000₽ по СПБ</div>
+            </div>
+          </div>
         </div>
-        <div className="flex items-center space-x-2">
-          <Shield className="h-4 w-4 text-muted-foreground" />
-          <span>Гарантия качества</span>
+        
+        <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 p-4 border border-emerald-100 hover:border-emerald-200 transition-all hover:shadow-md">
+          <div className="flex items-start space-x-3">
+            <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-emerald-100 group-hover:bg-emerald-200 flex items-center justify-center transition-colors">
+              <Shield className="h-5 w-5 text-emerald-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-semibold text-emerald-600 uppercase tracking-wide mb-1">Гарантия</div>
+              <div className="text-sm font-medium text-gray-900 leading-tight">Качество гарантировано</div>
+            </div>
+          </div>
         </div>
-        <div className="flex items-center space-x-2">
-          <RotateCcw className="h-4 w-4 text-muted-foreground" />
-          <span>Возврат в течение 14 дней</span>
+        
+        <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 p-4 border border-amber-100 hover:border-amber-200 transition-all hover:shadow-md">
+          <div className="flex items-start space-x-3">
+            <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-amber-100 group-hover:bg-amber-200 flex items-center justify-center transition-colors">
+              <RotateCcw className="h-5 w-5 text-amber-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-semibold text-amber-600 uppercase tracking-wide mb-1">Возврат</div>
+              <div className="text-sm font-medium text-gray-900 leading-tight">В течение 14 дней</div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <Separator />
-
       {/* Product Details Tabs */}
       <Tabs defaultValue="description" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="description">Описание</TabsTrigger>
-          <TabsTrigger value="ingredients">Состав</TabsTrigger>
           <TabsTrigger value="reviews">Отзывы ({reviewCount})</TabsTrigger>
         </TabsList>
         
-        <TabsContent value="description" className="mt-4">
+        <TabsContent value="description" className="mt-4 space-y-6">
           <div className="prose prose-sm max-w-none">
             {product.description ? (
               <div dangerouslySetInnerHTML={{ __html: product.description }} />
@@ -434,16 +613,16 @@ export function ProductInfo({ product, className }: ProductInfoProps) {
               <p className="text-muted-foreground">Описание товара отсутствует</p>
             )}
           </div>
-        </TabsContent>
-        
-        <TabsContent value="ingredients" className="mt-4">
-          <div className="prose prose-sm max-w-none">
-            {product.ingredients ? (
-              <div dangerouslySetInnerHTML={{ __html: product.ingredients }} />
-            ) : (
-              <p className="text-muted-foreground">Состав не указан</p>
-            )}
-          </div>
+          
+          {/* Способ применения */}
+          {product.usageInstructions && (
+            <div className="mt-6 pt-6 border-t">
+              <h3 className="font-semibold text-lg mb-3">Способ применения</h3>
+              <div className="text-sm text-muted-foreground whitespace-pre-line">
+                {product.usageInstructions}
+              </div>
+            </div>
+          )}
         </TabsContent>
         
         <TabsContent value="reviews" className="mt-4">

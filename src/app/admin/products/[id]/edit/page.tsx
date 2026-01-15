@@ -37,7 +37,8 @@ interface ProductVariant {
 }
 
 interface ProductFormData {
-  name: string;
+  name: string; // Полное название
+  shortName: string; // Краткое название (для H1)
   slug: string;
   description: string;
   shortDescription: string;
@@ -54,8 +55,12 @@ interface ProductFormData {
   myWarehouseCode: string;
   manufacturerSku: string;
   productType: string;
+  topNotes: string; // Основные ноты
   purpose: string;
-  country: string;
+  usageInstructions: string; // Способ применения
+  brandCountry: string; // Страна происхождения бренда
+  manufactureCountry: string; // Страна производства
+  warehouseLocation: string; // Место товара (только для админки)
   barcode: string;
   isActive: boolean;
   isFeatured: boolean;
@@ -74,6 +79,7 @@ interface ProductFormData {
 export default function EditProductPage({ params }: { params: { id: string } }) {
   const [formData, setFormData] = useState<ProductFormData>({
     name: '',
+    shortName: '',
     slug: '',
     description: '',
     shortDescription: '',
@@ -90,8 +96,12 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
     myWarehouseCode: '',
     manufacturerSku: '',
     productType: '',
+    topNotes: '',
     purpose: '',
-    country: '',
+    usageInstructions: '',
+    brandCountry: '',
+    manufactureCountry: '',
+    warehouseLocation: '',
     barcode: '',
     isActive: true,
     isFeatured: false,
@@ -116,21 +126,59 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
       return;
     }
 
+    // Проверяем, что params.id существует
+    if (!params?.id) {
+      console.error('Product ID is missing from params');
+      setError('ID товара не найден');
+      setIsLoadingData(false);
+      return;
+    }
+
     loadProductData();
     loadCategoriesAndBrands();
   }, [params.id]);
 
   const loadProductData = async () => {
     try {
+      setIsLoadingData(true);
+      setError('');
+      
+      if (!params?.id) {
+        setError('ID товара не найден');
+        setIsLoadingData(false);
+        return;
+      }
+      
       const token = localStorage.getItem('admin_token');
+      if (!token) {
+        setError('Токен авторизации отсутствует. Пожалуйста, войдите снова.');
+        router.push('/admin/login');
+        setIsLoadingData(false);
+        return;
+      }
+
+      console.log('Loading product with ID:', params.id);
+      console.log('Token exists:', !!token);
+      console.log('Token length:', token ? token.length : 0);
+      console.log('Token preview:', token ? token.substring(0, 50) + '...' : 'null');
+      
       const response = await fetch(`/api/admin/products/${params.id}`, {
-        headers: { 'Authorization': `Bearer ${token}` },
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        cache: 'no-store',
       });
+
+      console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
 
       if (response.ok) {
         const product = await response.json();
+        console.log('Product loaded:', product.name);
         setFormData({
           name: product.name || '',
+          shortName: product.shortName || '',
           slug: product.slug || '',
           description: product.description || '',
           shortDescription: product.shortDescription || '',
@@ -147,8 +195,12 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
           myWarehouseCode: product.myWarehouseCode || '',
           manufacturerSku: product.manufacturerSku || '',
           productType: product.productType || '',
+          topNotes: product.topNotes || '',
           purpose: product.purpose || '',
-          country: product.country || '',
+          usageInstructions: product.usageInstructions || '',
+          brandCountry: product.brandCountry || '',
+          manufactureCountry: product.manufactureCountry || '',
+          warehouseLocation: product.warehouseLocation || '',
           barcode: product.barcode || '',
           isActive: product.isActive ?? true,
           isFeatured: product.isFeatured ?? false,
@@ -172,11 +224,22 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
           })) || [],
         });
       } else {
-        setError('Не удалось загрузить данные товара');
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('Error response:', errorData);
+        
+        if (response.status === 401) {
+          setError('Сессия истекла. Пожалуйста, войдите снова.');
+          localStorage.removeItem('admin_token');
+          setTimeout(() => router.push('/admin/login'), 2000);
+        } else if (response.status === 404) {
+          setError('Товар не найден');
+        } else {
+          setError(`Не удалось загрузить данные товара: ${errorData.error || 'Неизвестная ошибка'}`);
+        }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading product:', error);
-      setError('Ошибка загрузки данных');
+      setError(`Ошибка загрузки данных: ${error.message || 'Неизвестная ошибка'}`);
     } finally {
       setIsLoadingData(false);
     }
@@ -469,12 +532,22 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Название товара *</Label>
+                  <Label htmlFor="name">Полное название товара *</Label>
                   <Input
                     id="name"
                     value={formData.name}
                     onChange={(e) => handleInputChange('name', e.target.value)}
                     required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="shortName">Краткое название (для заголовка H1)</Label>
+                  <Input
+                    id="shortName"
+                    value={formData.shortName}
+                    onChange={(e) => handleInputChange('shortName', e.target.value)}
+                    placeholder="Например: Ароматическая свеча ESPERYDIO 210 гр"
                   />
                 </div>
 
@@ -864,6 +937,17 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
                 </div>
 
                 <div className="space-y-2">
+                  <Label htmlFor="topNotes">Основные ноты</Label>
+                  <Textarea
+                    id="topNotes"
+                    value={formData.topNotes}
+                    onChange={(e) => handleInputChange('topNotes', e.target.value)}
+                    placeholder="Например: Бергамот, лимон, лаванда"
+                    rows={2}
+                  />
+                </div>
+
+                <div className="space-y-2">
                   <Label htmlFor="purpose">Назначение (для какого помещения)</Label>
                   <Input
                     id="purpose"
@@ -873,13 +957,34 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
                   />
                 </div>
 
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="usageInstructions">Способ применения</Label>
+                  <Textarea
+                    id="usageInstructions"
+                    value={formData.usageInstructions}
+                    onChange={(e) => handleInputChange('usageInstructions', e.target.value)}
+                    placeholder="Инструкция по применению товара"
+                    rows={3}
+                  />
+                </div>
+
                 <div className="space-y-2">
-                  <Label htmlFor="country">Страна</Label>
+                  <Label htmlFor="brandCountry">Страна происхождения бренда</Label>
                   <Input
-                    id="country"
-                    value={formData.country}
-                    onChange={(e) => handleInputChange('country', e.target.value)}
+                    id="brandCountry"
+                    value={formData.brandCountry}
+                    onChange={(e) => handleInputChange('brandCountry', e.target.value)}
                     placeholder="Например: Франция"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="manufactureCountry">Страна производства</Label>
+                  <Input
+                    id="manufactureCountry"
+                    value={formData.manufactureCountry}
+                    onChange={(e) => handleInputChange('manufactureCountry', e.target.value)}
+                    placeholder="Например: Италия"
                   />
                 </div>
 
@@ -891,6 +996,17 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
                     onChange={(e) => handleInputChange('barcode', e.target.value)}
                     placeholder="Штрихкод товара"
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="warehouseLocation">Место товара (только для админки)</Label>
+                  <Input
+                    id="warehouseLocation"
+                    value={formData.warehouseLocation}
+                    onChange={(e) => handleInputChange('warehouseLocation', e.target.value)}
+                    placeholder="Место на складе"
+                  />
+                  <p className="text-xs text-muted-foreground">Не отображается пользователям</p>
                 </div>
               </div>
             </CardContent>
