@@ -66,10 +66,10 @@ jobs:
             # Используем migrate deploy если есть миграции, иначе db push
             if [ -d "prisma/migrations" ] && [ "$(ls -A prisma/migrations 2>/dev/null)" ]; then
                 echo "🔄 Используем миграции..."
-                npx prisma migrate deploy || npx prisma db push
+                npx prisma migrate deploy || npx prisma db push --accept-data-loss
             else
                 echo "🔄 Используем db push (миграций нет)..."
-                npx prisma db push
+                npx prisma db push --accept-data-loss
             fi
             
             npx prisma generate
