@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Получаем уникальные значения для фильтров
-    const [productTypes, volumes, purposes, countries, brands] = await Promise.all([
+    const [productTypes, volumes, purposes, _, brands] = await Promise.all([
       // Вид товара (productType)
       prisma.product.findMany({
         where: {
@@ -60,17 +60,8 @@ export async function GET(request: NextRequest) {
         distinct: ['purpose'],
       }),
       
-      // Страна (country)
-      prisma.product.findMany({
-        where: {
-          ...baseWhere,
-          country: { not: null },
-        },
-        select: {
-          country: true,
-        },
-        distinct: ['country'],
-      }),
+      // Страна - убрано, используем brandCountry и manufactureCountry вместо country
+      Promise.resolve([]),
       
       // Бренды
       prisma.brand.findMany({
@@ -125,11 +116,10 @@ export async function GET(request: NextRequest) {
       return counts;
     };
 
-    const [productTypeCounts, volumeCounts, purposeCounts, countryCounts] = await Promise.all([
+    const [productTypeCounts, volumeCounts, purposeCounts] = await Promise.all([
       getFilterCounts('productType', productTypes.map(p => p.productType)),
       getFilterCounts('volume', volumes.map(v => v.volume)),
       getFilterCounts('purpose', purposes.map(p => p.purpose)),
-      getFilterCounts('country', countries.map(c => c.country)),
     ]);
 
     return NextResponse.json({
@@ -154,13 +144,7 @@ export async function GET(request: NextRequest) {
           name: p.purpose!,
           count: purposeCounts[p.purpose!] || 0,
         })),
-      country: countries
-        .filter(c => c.country)
-        .map(c => ({
-          id: c.country!,
-          name: c.country!,
-          count: countryCounts[c.country!] || 0,
-        })),
+      country: [], // Убрано, используется brandCountry и manufactureCountry
       brand: brands.map(b => ({
         id: b.slug,
         name: b.name,
