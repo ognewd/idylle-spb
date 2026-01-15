@@ -53,6 +53,7 @@ export async function POST(request: NextRequest) {
       try {
         const {
           name,
+          shortName,
           slug,
           myWarehouseCode,
           manufacturerSku,
@@ -65,9 +66,12 @@ export async function POST(request: NextRequest) {
           topNotes,
           volume,
           purpose,
+          usageInstructions,
           brandName,
           brandId,
-          country,
+          brandCountry,
+          manufactureCountry,
+          warehouseLocation,
           barcode,
           isUpdate,
           existingProductId,
@@ -151,6 +155,7 @@ export async function POST(request: NextRequest) {
           // Обновляем существующий товар
           const updateData: any = {
             name,
+            shortName: shortName || undefined,
             price: price || 0,
             stock: stock || 0,
             brandId: brand.id,
@@ -161,7 +166,10 @@ export async function POST(request: NextRequest) {
             topNotes: topNotes || undefined,
             volume: volume || undefined,
             purpose: purpose || undefined,
-            country: country || undefined,
+            usageInstructions: usageInstructions || undefined,
+            brandCountry: brandCountry || undefined,
+            manufactureCountry: manufactureCountry || undefined,
+            warehouseLocation: warehouseLocation || undefined,
             barcode: barcode || undefined,
           };
 
@@ -192,6 +200,7 @@ export async function POST(request: NextRequest) {
           const product = await prisma.product.create({
             data: {
               name,
+              shortName: shortName || undefined,
               slug: slug || generateSlug(name),
               price: price || 0,
               stock: stock || 0,
@@ -203,7 +212,10 @@ export async function POST(request: NextRequest) {
               topNotes: topNotes || undefined,
               volume: volume || undefined,
               purpose: purpose || undefined,
-              country: country || undefined,
+              usageInstructions: usageInstructions || undefined,
+              brandCountry: brandCountry || undefined,
+              manufactureCountry: manufactureCountry || undefined,
+              warehouseLocation: warehouseLocation || undefined,
               barcode: barcode || undefined,
               isActive: true,
               productCategories: categoryIdFinal ? {
