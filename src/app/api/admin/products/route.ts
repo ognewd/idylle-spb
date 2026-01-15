@@ -118,6 +118,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const {
       name,
+      shortName,
       slug,
       description,
       shortDescription,
@@ -134,8 +135,12 @@ export async function POST(request: NextRequest) {
       myWarehouseCode,
       manufacturerSku,
       productType,
+      topNotes,
       purpose,
-      country,
+      usageInstructions,
+      brandCountry,
+      manufactureCountry,
+      warehouseLocation,
       barcode,
       isActive,
       isFeatured,
@@ -177,6 +182,7 @@ export async function POST(request: NextRequest) {
     const product = await prisma.product.create({
       data: {
         name,
+        shortName: shortName || null,
         slug,
         description,
         shortDescription,
@@ -193,8 +199,12 @@ export async function POST(request: NextRequest) {
         myWarehouseCode: myWarehouseCode || null,
         manufacturerSku: manufacturerSku || null,
         productType: productType || null,
+        topNotes: topNotes || null,
         purpose: purpose || null,
-        country: country || null,
+        usageInstructions: usageInstructions || null,
+        brandCountry: brandCountry || null,
+        manufactureCountry: manufactureCountry || null,
+        warehouseLocation: warehouseLocation || null,
         barcode: barcode || null,
         isActive: isActive ?? true,
         isFeatured: isFeatured ?? false,

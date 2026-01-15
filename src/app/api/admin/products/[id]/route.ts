@@ -1,35 +1,57 @@
 import { NextRequest, NextResponse } from 'next/server';
-import jwt from 'jsonwebtoken';
 import { prisma } from '@/lib/prisma';
+import jwt from 'jsonwebtoken';
 
+// GET /api/admin/products/[id] - Получить товар по ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
-    const authHeader = request.headers.get('authorization');
+    // Поддержка как синхронных, так и асинхронных params (Next.js 15+)
+    const resolvedParams = await Promise.resolve(params);
+    const productId = resolvedParams.id;
+    
+    console.log('[GET /api/admin/products/[id]] Request received, productId:', productId);
+    
+    const authHeader = request.headers.get('authorization') || request.headers.get('Authorization');
+    console.log('[GET /api/admin/products/[id]] Auth header present:', !!authHeader);
+    
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      console.error('[GET /api/admin/products/[id]] No valid auth header');
+      return NextResponse.json({ error: 'Unauthorized: No token provided' }, { status: 401 });
     }
 
     const token = authHeader.substring(7);
+    console.log('[GET /api/admin/products/[id]] Token length:', token.length);
     
     try {
-      const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET || 'fallback-secret') as any;
+      const secret = process.env.NEXTAUTH_SECRET || 'fallback-secret';
+      const decoded = jwt.verify(token, secret) as any;
+      console.log('[GET /api/admin/products/[id]] Token decoded, userId:', decoded.userId);
       
       const user = await prisma.user.findUnique({
         where: { id: decoded.userId },
       });
 
-      if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      if (!user) {
+        console.error('[GET /api/admin/products/[id]] User not found:', decoded.userId);
+        return NextResponse.json({ error: 'Unauthorized: User not found' }, { status: 401 });
       }
-    } catch (jwtError) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+
+      if (user.role !== 'admin' && user.role !== 'super_admin') {
+        console.error('[GET /api/admin/products/[id]] User role not admin:', user.role);
+        return NextResponse.json({ error: 'Unauthorized: Insufficient permissions' }, { status: 401 });
+      }
+      
+      console.log('[GET /api/admin/products/[id]] User authenticated:', user.email);
+    } catch (jwtError: any) {
+      console.error('[GET /api/admin/products/[id]] JWT error:', jwtError.message);
+      return NextResponse.json({ error: 'Unauthorized: Invalid token', details: jwtError.message }, { status: 401 });
     }
 
     const product = await prisma.product.findUnique({
-      where: { id: params.id },
+      where: { id: productId },
       include: {
         brand: true,
         productCategories: {
@@ -37,35 +59,49 @@ export async function GET(
             category: true,
           },
         },
-        images: true,
+        images: {
+          orderBy: [
+            { isPrimary: 'desc' },
+            { sortOrder: 'asc' },
+          ],
+        },
         variants: {
-          orderBy: {
-            sortOrder: 'asc',
-          },
+          orderBy: [
+            { isDefault: 'desc' },
+            { sortOrder: 'asc' },
+          ],
         },
       },
     });
 
     if (!product) {
-      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Product not found' },
+        { status: 404 }
+      );
     }
 
     return NextResponse.json(product);
-  } catch (error) {
-    console.error('Get product error:', error);
+  } catch (error: any) {
+    console.error('Error fetching product:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: error.message },
       { status: 500 }
     );
   }
 }
 
+// PUT /api/admin/products/[id] - Обновить товар
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
-    const authHeader = request.headers.get('authorization');
+    // Поддержка как синхронных, так и асинхронных params (Next.js 15+)
+    const resolvedParams = await Promise.resolve(params);
+    const productId = resolvedParams.id;
+    
+    const authHeader = request.headers.get('authorization') || request.headers.get('Authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -89,6 +125,7 @@ export async function PUT(
     const body = await request.json();
     const {
       name,
+      shortName,
       slug,
       description,
       shortDescription,
@@ -105,8 +142,12 @@ export async function PUT(
       myWarehouseCode,
       manufacturerSku,
       productType,
+      topNotes,
       purpose,
-      country,
+      usageInstructions,
+      brandCountry,
+      manufactureCountry,
+      warehouseLocation,
       barcode,
       isActive,
       isFeatured,
@@ -116,88 +157,38 @@ export async function PUT(
       variants,
     } = body;
 
-    // Validate required fields
-    if (!name || !slug || !brandId || !categoryIds || categoryIds.length === 0) {
-      return NextResponse.json(
-        { error: 'Name, slug, brand, and at least one category are required' },
-        { status: 400 }
-      );
-    }
-
-    const hasVariants = variants && variants.length > 0;
-
-    // If no variants, price and stock are required
-    if (!hasVariants && (!price || stock === undefined || stock === null)) {
-      return NextResponse.json(
-        { error: 'Price and stock are required when no variants are provided' },
-        { status: 400 }
-      );
-    }
-
-    // Delete existing variants and categories
-    await prisma.productVariant.deleteMany({
-      where: { productId: params.id },
-    });
-
-    await prisma.productCategory.deleteMany({
-      where: { productId: params.id },
-    });
-
-    await prisma.productImage.deleteMany({
-      where: { productId: params.id },
-    });
-
-    // Update product
+    // Обновляем товар
     const product = await prisma.product.update({
-      where: { id: params.id },
+      where: { id: productId },
       data: {
         name,
+        shortName: shortName || null,
         slug,
         description: description || null,
         shortDescription: shortDescription || null,
-        price: hasVariants ? 0 : parseFloat(price),
-        comparePrice: hasVariants || !comparePrice ? null : parseFloat(comparePrice),
-        sku: hasVariants || !sku ? null : sku,
-        volume: hasVariants || !volume ? null : volume,
+        price: parseFloat(price) || 0,
+        comparePrice: comparePrice ? parseFloat(comparePrice) : null,
+        sku: sku || null,
+        volume: volume || null,
         gender: gender || null,
         aromaFamily: aromaFamily || null,
         ingredients: ingredients || null,
-        stock: hasVariants ? 0 : parseInt(stock),
+        stock: parseInt(stock) || 0,
         weight: weight ? parseFloat(weight) : null,
         dimensions: dimensions || null,
         myWarehouseCode: myWarehouseCode || null,
         manufacturerSku: manufacturerSku || null,
         productType: productType || null,
+        topNotes: topNotes || null,
         purpose: purpose || null,
-        country: country || null,
+        usageInstructions: usageInstructions || null,
+        brandCountry: brandCountry || null,
+        manufactureCountry: manufactureCountry || null,
+        warehouseLocation: warehouseLocation || null,
         barcode: barcode || null,
         isActive: isActive ?? true,
         isFeatured: isFeatured ?? false,
         brandId,
-        productCategories: {
-          create: categoryIds.map((categoryId: string) => ({
-            categoryId,
-          })),
-        },
-        images: images && images.length > 0 ? {
-          create: images.map((img: any, index: number) => ({
-            url: img.url,
-            alt: img.alt || '',
-            isPrimary: img.isPrimary || index === 0,
-          })),
-        } : undefined,
-        variants: hasVariants ? {
-          create: variants.map((variant: any, index: number) => ({
-            name: variant.name || 'Объём',
-            value: variant.value,
-            price: parseFloat(variant.price),
-            comparePrice: variant.comparePrice ? parseFloat(variant.comparePrice) : null,
-            stock: parseInt(variant.stock) || 0,
-            sku: variant.sku || null,
-            isDefault: variant.isDefault || index === 0,
-            sortOrder: index,
-          })),
-        } : undefined,
       },
       include: {
         brand: true,
@@ -211,104 +202,64 @@ export async function PUT(
       },
     });
 
+    // Обновляем категории
+    if (categoryIds && Array.isArray(categoryIds)) {
+      await prisma.productCategory.deleteMany({
+        where: { productId: productId },
+      });
+      
+      await prisma.productCategory.createMany({
+        data: categoryIds.map((categoryId: string, index: number) => ({
+          productId: productId,
+          categoryId,
+          isPrimary: index === 0,
+        })),
+      });
+    }
+
+    // Обновляем изображения
+    if (images && Array.isArray(images)) {
+      await prisma.productImage.deleteMany({
+        where: { productId: productId },
+      });
+      
+      await prisma.productImage.createMany({
+        data: images.map((img: any, index: number) => ({
+          productId: productId,
+          url: img.url,
+          alt: img.alt || name,
+          sortOrder: index,
+          isPrimary: img.isPrimary || index === 0,
+        })),
+      });
+    }
+
+    // Обновляем варианты
+    if (variants && Array.isArray(variants)) {
+      await prisma.productVariant.deleteMany({
+        where: { productId: productId },
+      });
+      
+      await prisma.productVariant.createMany({
+        data: variants.map((variant: any, index: number) => ({
+          productId: productId,
+          name: variant.name || 'Объём',
+          value: variant.value,
+          price: parseFloat(variant.price),
+          comparePrice: variant.comparePrice ? parseFloat(variant.comparePrice) : null,
+          stock: parseInt(variant.stock) || 0,
+          sku: variant.sku || null,
+          isDefault: variant.isDefault || index === 0,
+          sortOrder: index,
+        })),
+      });
+    }
+
     return NextResponse.json(product);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Update product error:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
-  }
-}
-
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const token = authHeader.substring(7);
-    
-    try {
-      const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET || 'fallback-secret') as any;
-      
-      const user = await prisma.user.findUnique({
-        where: { id: decoded.userId },
-      });
-
-      if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-      }
-    } catch (jwtError) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-    }
-
-    const body = await request.json();
-    const { isActive } = body;
-
-    const product = await prisma.product.update({
-      where: { id: params.id },
-      data: { isActive },
-      include: {
-        brand: true,
-        productCategories: {
-          include: {
-            category: true,
-          },
-        },
-        images: true,
-      },
-    });
-
-    return NextResponse.json(product);
-  } catch (error) {
-    console.error('Update product error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
-  }
-}
-
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const token = authHeader.substring(7);
-    
-    try {
-      const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET || 'fallback-secret') as any;
-      
-      const user = await prisma.user.findUnique({
-        where: { id: decoded.userId },
-      });
-
-      if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-      }
-    } catch (jwtError) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-    }
-
-    await prisma.product.delete({
-      where: { id: params.id },
-    });
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error('Delete product error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: error.message },
       { status: 500 }
     );
   }
