@@ -157,13 +157,44 @@ export async function PUT(
       variants,
     } = body;
 
+    // Проверяем, изменился ли slug и уникален ли он
+    const existingProduct = await prisma.product.findUnique({
+      where: { id: productId },
+      select: { slug: true },
+    });
+
+    let finalSlug = slug;
+    if (existingProduct && slug !== existingProduct.slug) {
+      // Slug изменился - проверяем уникальность
+      const slugExists = await prisma.product.findUnique({
+        where: { slug },
+      });
+      if (slugExists) {
+        return NextResponse.json(
+          { error: 'Товар с таким slug уже существует' },
+          { status: 400 }
+        );
+      }
+    } else if (slug && slug !== existingProduct?.slug) {
+      // Slug не был в существующем товаре, но новый передан - проверяем уникальность
+      const slugExists = await prisma.product.findUnique({
+        where: { slug },
+      });
+      if (slugExists) {
+        return NextResponse.json(
+          { error: 'Товар с таким slug уже существует' },
+          { status: 400 }
+        );
+      }
+    }
+
     // Обновляем товар
     const product = await prisma.product.update({
       where: { id: productId },
       data: {
         name,
         shortName: shortName || null,
-        slug,
+        slug: finalSlug || existingProduct?.slug, // Используем существующий slug, если новый не передан
         description: description || null,
         shortDescription: shortDescription || null,
         price: parseFloat(price) || 0,
