@@ -494,7 +494,7 @@ export default function EditTemplatePage() {
                             setSelectedBlock(block.id);
                           }}
                           onDelete={handleDeleteBlock}
-                          onUpdate={handleUpdateBlock}
+                          onUpdate={(data) => handleUpdateBlock(block.id, data)}
                         />
                       ))
                     )}
