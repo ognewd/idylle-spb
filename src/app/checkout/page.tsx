@@ -112,13 +112,24 @@ export default function CheckoutPage() {
           phone: formData.phone,
           deliveryMethod,
           paymentMethod,
-          city: deliveryMethod === 'delivery' ? formData.city : null,
-          address: deliveryMethod === 'delivery' ? formData.address : null,
+          city: deliveryMethod === 'cdek' ? (cdekData?.city || formData.city) : (deliveryMethod === 'delivery' ? formData.city : null),
+          address: deliveryMethod === 'cdek' && cdekData?.deliveryType === 'door' 
+            ? formData.address 
+            : (deliveryMethod === 'delivery' ? formData.address : null),
           comment: formData.comment || null,
           companyName: paymentMethod === 'invoice' ? formData.companyName : null,
           inn: paymentMethod === 'invoice' ? formData.inn : null,
           kpp: paymentMethod === 'invoice' ? formData.kpp : null,
           companyAddress: paymentMethod === 'invoice' ? formData.companyAddress : null,
+          // Данные СДЕК
+          ...(deliveryMethod === 'cdek' && cdekData && {
+            cdekTariffCode: cdekData.tariff?.tariff_code,
+            cdekTariffName: cdekData.tariff?.tariff_name,
+            cdekDeliveryType: cdekData.deliveryType,
+            cdekPvzCode: cdekData.pvzCode,
+            cdekPvzAddress: cdekData.pvzAddress,
+            cdekDeliveryCost: cdekData.tariff?.delivery_sum,
+          }),
         }),
       });
 
@@ -252,18 +263,26 @@ Email: info@idylle.spb.ru
                   </CardHeader>
                   <CardContent>
                     <CdekDeliveryForm
+                      initialCity={formData.city || 'Москва'}
+                      initialAddress={formData.address}
                       onCalculate={(data) => {
                         // Сохраняем данные СДЕК для отправки с заказом
+                        setCdekData({
+                          tariff: data.tariff,
+                          pvzCode: data.pvzCode,
+                          pvzAddress: data.pvzAddress,
+                          city: data.city,
+                          deliveryType: data.deliveryType,
+                        });
                         setFormData(prev => ({
                           ...prev,
                           city: data.city,
                           address: data.deliveryType === 'door' ? prev.address : data.pvzAddress || '',
                         }));
-                        // TODO: сохранить данные тарифа и ПВЗ в state
                       }}
                       onError={(error) => {
                         console.error('CDEK error:', error);
-                        // TODO: показать toast с ошибкой
+                        alert(`Ошибка СДЕК: ${error}`);
                       }}
                     />
                   </CardContent>
