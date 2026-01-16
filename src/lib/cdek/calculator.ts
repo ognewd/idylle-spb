@@ -103,7 +103,8 @@ export async function calculateDelivery(params: SimpleCalculateParams): Promise<
         toCode = KNOWN_CITY_CODES[normalizedToCity];
       } else {
         // Пытаемся найти код через API
-        toCode = await getCityCode(params.toCity);
+        const cityCode2 = await getCityCode(params.toCity);
+        toCode = cityCode2 ?? undefined;
       }
       
       if (!toCode) {
