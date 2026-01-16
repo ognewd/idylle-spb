@@ -31,19 +31,35 @@ interface CdekDeliveryFormProps {
 }
 
 export function CdekDeliveryForm({ initialCity = '', initialAddress = '', onCalculate, onError }: CdekDeliveryFormProps) {
-  const [city, setCity] = useState(initialCity || 'Москва');
+  // Инициализируем с начальными значениями
+  const [city, setCity] = useState(() => initialCity || 'Москва');
   const [deliveryType, setDeliveryType] = useState<'door' | 'pvz'>('door');
-  const [address, setAddress] = useState(initialAddress || '');
+  const [address, setAddress] = useState(() => initialAddress || '');
   
-  // Обновляем состояние, если изменились начальные значения
+  // Обновляем состояние при изменении начальных значений
   useEffect(() => {
-    if (initialCity && initialCity !== city) {
-      setCity(initialCity);
+    if (initialCity && initialCity.trim()) {
+      setCity(initialCity.trim());
     }
-    if (initialAddress && initialAddress !== address && deliveryType === 'door') {
-      setAddress(initialAddress);
+  }, [initialCity]);
+  
+  // Обновляем адрес при изменении initialAddress и если выбран тип "до двери"
+  useEffect(() => {
+    if (deliveryType === 'door' && initialAddress) {
+      // Обновляем адрес, если initialAddress изменился
+      setAddress(prev => {
+        // Обновляем только если initialAddress действительно другой и не пустой
+        if (initialAddress.trim() && initialAddress.trim() !== prev) {
+          return initialAddress.trim();
+        }
+        // Если текущий адрес пустой, заполняем из initialAddress
+        if (!prev && initialAddress.trim()) {
+          return initialAddress.trim();
+        }
+        return prev;
+      });
     }
-  }, [initialCity, initialAddress]);
+  }, [initialAddress, deliveryType]);
   const [isCalculating, setIsCalculating] = useState(false);
   const [tariffs, setTariffs] = useState<CdekTariff[]>([]);
   const [selectedTariff, setSelectedTariff] = useState<CdekTariff | null>(null);
