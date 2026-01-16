@@ -52,11 +52,8 @@ export function CdekDeliveryForm({ initialCity = '', initialAddress = '', onCalc
   useEffect(() => {
     if (deliveryType === 'door') {
       const trimmedAddress = initialAddress?.trim() || '';
-      // Всегда обновляем адрес из initialAddress, если он изменился
-      // Сравниваем с текущим значением, чтобы избежать лишних обновлений
-      if (trimmedAddress !== address) {
-        setAddress(trimmedAddress);
-      }
+      // Всегда обновляем адрес из initialAddress
+      setAddress(trimmedAddress);
     }
   }, [initialAddress, deliveryType]);
   const [isCalculating, setIsCalculating] = useState(false);
