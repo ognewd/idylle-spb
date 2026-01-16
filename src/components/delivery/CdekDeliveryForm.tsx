@@ -68,8 +68,19 @@ export function CdekDeliveryForm({ initialCity = '', initialAddress = '', onCalc
 
   // Расчет стоимости доставки
   const handleCalculate = async () => {
-    if (!city.trim()) {
-      onError('Укажите город получателя');
+    const trimmedCity = city.trim();
+    
+    if (!trimmedCity) {
+      setTariffs([]);
+      setSelectedTariff(null);
+      return;
+    }
+    
+    // Проверяем минимальную длину названия города
+    if (trimmedCity.length < 3) {
+      // Не показываем ошибку для слишком коротких названий
+      setTariffs([]);
+      setSelectedTariff(null);
       return;
     }
 
@@ -82,7 +93,7 @@ export function CdekDeliveryForm({ initialCity = '', initialAddress = '', onCalc
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           fromCity: 'Санкт-Петербург',
-          toCity: city,
+          toCity: trimmedCity,
           weight,
           deliveryType,
         }),
@@ -90,7 +101,17 @@ export function CdekDeliveryForm({ initialCity = '', initialAddress = '', onCalc
 
       if (!calcResponse.ok) {
         const error = await calcResponse.json();
-        throw new Error(error.error || 'Ошибка расчета стоимости');
+        const errorMessage = error.error || 'Ошибка расчета стоимости';
+        
+        // Не показываем ошибку для слишком коротких названий городов
+        if (errorMessage.includes('минимум 3 символа') || trimmedCity.length < 3) {
+          setTariffs([]);
+          setSelectedTariff(null);
+          setIsCalculating(false);
+          return;
+        }
+        
+        throw new Error(errorMessage);
       }
 
       const data = await calcResponse.json();
@@ -104,7 +125,7 @@ export function CdekDeliveryForm({ initialCity = '', initialAddress = '', onCalc
 
       // Если выбран ПВЗ, получаем список ПВЗ
       if (deliveryType === 'pvz') {
-        const pvzResponse = await fetch(`/api/delivery/cdek/pvz?city=${encodeURIComponent(city)}`);
+        const pvzResponse = await fetch(`/api/delivery/cdek/pvz?city=${encodeURIComponent(trimmedCity)}`);
         if (pvzResponse.ok) {
           const pvzData = await pvzResponse.json();
           setPvzList(pvzData.pvz || []);
@@ -118,12 +139,19 @@ export function CdekDeliveryForm({ initialCity = '', initialAddress = '', onCalc
   };
 
   // Автоматический расчет при изменении города
+  // Только если город введен полностью (минимум 3 символа)
   useEffect(() => {
-    if (city.trim()) {
+    const trimmedCity = city.trim();
+    // Не запускаем расчет для слишком коротких названий (меньше 3 символов)
+    if (trimmedCity.length >= 3) {
       const timeoutId = setTimeout(() => {
         handleCalculate();
-      }, 500);
+      }, 800); // Увеличил задержку до 800мс для уменьшения количества запросов
       return () => clearTimeout(timeoutId);
+    } else {
+      // Очищаем тарифы, если город слишком короткий
+      setTariffs([]);
+      setSelectedTariff(null);
     }
   }, [city, deliveryType]);
 

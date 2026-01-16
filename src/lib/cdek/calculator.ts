@@ -106,7 +106,11 @@ export async function calculateDelivery(params: SimpleCalculateParams): Promise<
       }
       
       if (!toCode) {
-        throw new Error(`Не удалось найти код города получателя: "${params.toCity}"`);
+        // Проверяем, не слишком ли короткое название города
+        if (params.toCity.trim().length < 3) {
+          throw new Error(`Укажите полное название города (минимум 3 символа)`);
+        }
+        throw new Error(`Не удалось найти код города получателя: "${params.toCity}". Проверьте правильность написания.`);
       }
     }
     
