@@ -34,25 +34,31 @@ export async function POST(request: NextRequest) {
             // Фильтруем ПВЗ по адресу, содержащему запрос
             const filteredPvz = pvzList
               .filter(pvz => {
-                const addressFull = pvz.location?.address_full?.toLowerCase() || '';
-                const address = pvz.location?.address?.toLowerCase() || '';
+                // Собираем полный адрес из компонентов
+                const cityName = pvz.location?.city || '';
+                const address = pvz.location?.address || '';
+                const fullAddress = `${cityName}, ${address}`.toLowerCase();
                 const name = pvz.name?.toLowerCase() || '';
                 const queryLower = trimmedQuery.toLowerCase();
-                return addressFull.includes(queryLower) || address.includes(queryLower) || name.includes(queryLower);
+                return fullAddress.includes(queryLower) || address.includes(queryLower) || name.includes(queryLower);
               })
               .slice(0, 5);
 
             // Добавляем ПВЗ в подсказки
             filteredPvz.forEach(pvz => {
-              if (pvz.location?.address_full) {
+              if (pvz.location?.address) {
+                const cityName = pvz.location.city || '';
+                const address = pvz.location.address || '';
+                const fullAddress = `${cityName}, ${address}`;
+                
                 suggestions.push({
-                  value: pvz.location.address_full,
+                  value: fullAddress,
                   data: {
                     type: 'pvz',
                     code: pvz.code,
                     name: pvz.name,
-                    address: pvz.location.address_full,
-                    city: pvz.location.city_name,
+                    address: address,
+                    city: cityName,
                   },
                 });
               }
