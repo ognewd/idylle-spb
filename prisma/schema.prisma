@@ -16,7 +16,7 @@ model User {
   role                 String         @default("user")
   isActive             Boolean        @default(true)
   unsubscribed         Boolean        @default(false) // Отписка от маркетинговых писем
-  marketingConsent     String? // "granted" | "denied" | null
+  marketingConsent     String?        // "granted" | "denied" | null
   marketingConsentAt   DateTime?
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
@@ -27,8 +27,8 @@ model User {
   orders               Order[]
   reviews              Review[]
   wishlist             WishlistItem[]
-  createdTasks         Task[]         @relation("TaskCreator")
-  taskMessages         TaskMessage[]  @relation("TaskMessageAuthor")
+  createdTasks         Task[]           @relation("TaskCreator")
+  taskMessages          TaskMessage[]    @relation("TaskMessageAuthor")
 
   @@map("users")
 }
@@ -86,47 +86,47 @@ model Brand {
 }
 
 model Product {
-  id                 String                    @id @default(cuid())
-  name               String // Полное название
-  shortName          String? // Краткое название (для H1)
-  slug               String                    @unique
-  description        String?
-  shortDescription   String?
-  price              Decimal                   @db.Decimal(10, 2)
-  comparePrice       Decimal?                  @db.Decimal(10, 2)
-  sku                String?                   @unique
-  volume             String?
-  gender             String?
-  aromaFamily        String?
-  ingredients        String?
-  isActive           Boolean                   @default(true)
-  isFeatured         Boolean                   @default(false)
-  stock              Int                       @default(0)
-  weight             Decimal?                  @db.Decimal(8, 2)
-  dimensions         String?
+  id                String                    @id @default(cuid())
+  name              String                    // Полное название
+  shortName         String?                   // Краткое название (для H1)
+  slug              String                    @unique
+  description       String?
+  shortDescription  String?
+  price             Decimal                   @db.Decimal(10, 2)
+  comparePrice      Decimal?                  @db.Decimal(10, 2)
+  sku               String?                   @unique
+  volume            String?
+  gender            String?
+  aromaFamily       String?
+  ingredients       String?
+  isActive          Boolean                   @default(true)
+  isFeatured        Boolean                   @default(false)
+  stock             Int                       @default(0)
+  weight            Decimal?                  @db.Decimal(8, 2)
+  dimensions        String?
   // Импорт из Мой склад
-  myWarehouseCode    String?                   @unique // Код Мой склад - главный ID для обновления
-  manufacturerSku    String? // Артикул производителя
-  productType        String? // Вид товара (для фильтра)
-  aromaDescription   String? // Описание аромата
-  topNotes           String? // Основные ноты
-  purpose            String? // Назначение (Для какого помещения)
-  usageInstructions  String?                   @db.Text // Способ применения
-  brandCountry       String? // Страна происхождения бренда
+  myWarehouseCode   String?                   @unique // Код Мой склад - главный ID для обновления
+  manufacturerSku   String? // Артикул производителя
+  productType       String? // Вид товара (для фильтра)
+  aromaDescription  String? // Описание аромата
+  topNotes          String? // Основные ноты
+  purpose           String? // Назначение (Для какого помещения)
+  usageInstructions String? @db.Text // Способ применения
+  brandCountry      String? // Страна происхождения бренда
   manufactureCountry String? // Страна производства
-  barcode            String? // Штрихкод
-  warehouseLocation  String? // Место товара (только для админки, не показывать на фронте)
-  createdAt          DateTime                  @default(now())
-  updatedAt          DateTime                  @updatedAt
-  brandId            String
-  orderItems         OrderItem[]
-  productCategories  ProductCategory[]
-  images             ProductImage[]
-  variants           ProductVariant[]
-  brand              Brand                     @relation(fields: [brandId], references: [id])
-  reviews            Review[]
-  seasonalDiscounts  SeasonalDiscountProduct[]
-  wishlist           WishlistItem[]
+  barcode           String? // Штрихкод
+  warehouseLocation String? // Место товара (только для админки, не показывать на фронте)
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+  brandId           String
+  orderItems        OrderItem[]
+  productCategories ProductCategory[]
+  images            ProductImage[]
+  variants          ProductVariant[]
+  brand             Brand                     @relation(fields: [brandId], references: [id])
+  reviews           Review[]
+  seasonalDiscounts SeasonalDiscountProduct[]
+  wishlist          WishlistItem[]
 
   @@index([myWarehouseCode])
   @@map("products")
@@ -205,6 +205,20 @@ model Order {
   items           OrderItem[]
   address         Address?    @relation(fields: [addressId], references: [id])
   user            User?       @relation(fields: [userId], references: [id])
+  
+  // Поля СДЕК
+  cdekOrderUuid        String?   // UUID заказа в системе СДЕК
+  cdekOrderNumber      String?   // Номер заказа СДЕК
+  cdekTariffCode       Int?      // Код тарифа (139, 138 и т.д.)
+  cdekTariffName       String?   // Название тарифа
+  cdekDeliveryType     String?   // "door" | "pvz"
+  cdekPvzCode          String?   // Код ПВЗ (если выбрана доставка в ПВЗ)
+  cdekPvzAddress       String?   // Адрес ПВЗ
+  cdekDeliveryCost     Decimal?  @db.Decimal(10, 2) // Стоимость доставки
+  cdekDeliveryDateMin  DateTime? // Минимальная дата доставки
+  cdekDeliveryDateMax  DateTime? // Максимальная дата доставки
+  cdekStatus           String?   // Статус в системе СДЕК
+  cdekStatusUpdatedAt  DateTime? // Когда последний раз обновлялся статус
 
   @@map("orders")
 }
@@ -360,16 +374,16 @@ model Settings {
 }
 
 model Page {
-  id              String   @id @default(cuid())
-  slug            String   @unique
-  title           String
-  content         String?  @db.Text // HTML контент или JSON для блоков
-  metaTitle       String?
-  metaDescription String?  @db.Text
-  isActive        Boolean  @default(true)
-  sortOrder       Int      @default(0)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id            String   @id @default(cuid())
+  slug          String   @unique
+  title         String
+  content       String?  @db.Text // HTML контент или JSON для блоков
+  metaTitle     String?
+  metaDescription String? @db.Text
+  isActive      Boolean  @default(true)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@map("pages")
 }
@@ -403,7 +417,7 @@ model ChatMessage {
 model Task {
   id          String        @id @default(cuid())
   title       String
-  description String?       @db.Text
+  description String?        @db.Text
   status      String        @default("new") // "new", "in_progress", "done"
   priority    String        @default("normal") // "urgent", "normal", "someday"
   fileUrl     String?
@@ -434,58 +448,58 @@ model TaskMessage {
 
 // Email Marketing Models
 model EmailTemplate {
-  id             String          @id @default(cuid())
-  type           String // "SERVICE" | "MARKETING"
-  name           String
+  id            String          @id @default(cuid())
+  type          String          // "SERVICE" | "MARKETING"
+  name          String
   subjectDefault String?
-  designJson     Json? // Структура конструктора (блоки)
-  html           String?         @db.Text // Кэшированный HTML
-  status         String          @default("draft") // "draft" | "active" | "archived"
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  campaigns      EmailCampaign[]
+  designJson    Json?           // Структура конструктора (блоки)
+  html          String?         @db.Text // Кэшированный HTML
+  status        String          @default("draft") // "draft" | "active" | "archived"
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  campaigns     EmailCampaign[]
 
   @@index([type, status])
   @@map("email_templates")
 }
 
 model EmailCampaign {
-  id           String                   @id @default(cuid())
-  name         String
-  templateId   String
-  subject      String
-  preheader    String?
-  status       String                   @default("draft") // "draft" | "scheduled" | "sending" | "sent" | "failed" | "canceled"
-  scheduledAt  DateTime?
-  startedAt    DateTime?
-  finishedAt   DateTime?
-  statsTotal   Int                      @default(0)
-  statsSent    Int                      @default(0)
-  statsFailed  Int                      @default(0)
-  statsOpened  Int                      @default(0)
-  statsClicked Int                      @default(0)
-  filterJson   Json? // Фильтры получателей
-  createdAt    DateTime                 @default(now())
-  updatedAt    DateTime                 @updatedAt
-  template     EmailTemplate            @relation(fields: [templateId], references: [id], onDelete: Restrict)
-  recipients   EmailCampaignRecipient[]
+  id          String                   @id @default(cuid())
+  name        String
+  templateId  String
+  subject     String
+  preheader   String?
+  status      String                   @default("draft") // "draft" | "scheduled" | "sending" | "sent" | "failed" | "canceled"
+  scheduledAt DateTime?
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  statsTotal  Int                      @default(0)
+  statsSent   Int                      @default(0)
+  statsFailed Int                      @default(0)
+  statsOpened Int                      @default(0)
+  statsClicked Int                     @default(0)
+  filterJson  Json?                    // Фильтры получателей
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+  template    EmailTemplate            @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  recipients  EmailCampaignRecipient[]
 
   @@index([status, scheduledAt])
   @@map("email_campaigns")
 }
 
 model EmailCampaignRecipient {
-  id           String        @id @default(cuid())
-  campaignId   String
-  userId       String?
-  email        String
-  status       String        @default("pending") // "pending" | "sent" | "failed" | "skipped"
+  id          String         @id @default(cuid())
+  campaignId  String
+  userId      String?
+  email       String
+  status      String         @default("pending") // "pending" | "sent" | "failed" | "skipped"
   errorMessage String?       @db.Text
-  openedAt     DateTime?
-  clickedAt    DateTime?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  campaign     EmailCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  openedAt    DateTime?
+  clickedAt   DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  campaign    EmailCampaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
 
   @@index([campaignId, status])
   @@index([email])

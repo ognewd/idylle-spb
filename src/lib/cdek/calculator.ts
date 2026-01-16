@@ -80,7 +80,8 @@ export async function calculateDelivery(params: SimpleCalculateParams): Promise<
         fromCode = KNOWN_CITY_CODES[normalizedFromCity];
       } else {
         // Пытаемся найти код через API
-        fromCode = await getCityCode(params.fromCity);
+        const cityCode = await getCityCode(params.fromCity);
+        fromCode = cityCode || undefined;
       }
       
       // Если все равно не найден, используем код СПб по умолчанию
