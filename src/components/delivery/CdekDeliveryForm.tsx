@@ -18,6 +18,8 @@ interface CdekTariff {
 }
 
 interface CdekDeliveryFormProps {
+  initialCity?: string;
+  initialAddress?: string;
   onCalculate: (data: {
     city: string;
     deliveryType: 'door' | 'pvz';
@@ -28,10 +30,20 @@ interface CdekDeliveryFormProps {
   onError: (error: string) => void;
 }
 
-export function CdekDeliveryForm({ onCalculate, onError }: CdekDeliveryFormProps) {
-  const [city, setCity] = useState('Москва');
+export function CdekDeliveryForm({ initialCity = '', initialAddress = '', onCalculate, onError }: CdekDeliveryFormProps) {
+  const [city, setCity] = useState(initialCity || 'Москва');
   const [deliveryType, setDeliveryType] = useState<'door' | 'pvz'>('door');
-  const [address, setAddress] = useState('');
+  const [address, setAddress] = useState(initialAddress || '');
+  
+  // Обновляем состояние, если изменились начальные значения
+  useEffect(() => {
+    if (initialCity && initialCity !== city) {
+      setCity(initialCity);
+    }
+    if (initialAddress && initialAddress !== address && deliveryType === 'door') {
+      setAddress(initialAddress);
+    }
+  }, [initialCity, initialAddress]);
   const [isCalculating, setIsCalculating] = useState(false);
   const [tariffs, setTariffs] = useState<CdekTariff[]>([]);
   const [selectedTariff, setSelectedTariff] = useState<CdekTariff | null>(null);
