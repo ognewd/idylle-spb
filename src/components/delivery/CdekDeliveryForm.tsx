@@ -214,7 +214,10 @@ export function CdekDeliveryForm({ initialCity = '', initialAddress = '', onCalc
           <Input
             id="cdek-address"
             value={address}
-            onChange={(e) => setAddress(e.target.value)}
+            onChange={(e) => {
+              setHasUserTyped(true);
+              setAddress(e.target.value);
+            }}
             placeholder="Улица, дом, квартира"
           />
         </div>
