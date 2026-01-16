@@ -1,0 +1,233 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Button } from '@/components/ui/button';
+import { Loader2 } from 'lucide-react';
+
+interface CdekTariff {
+  tariff_code: number;
+  tariff_name: string;
+  delivery_sum: number;
+  period_min: number;
+  period_max: number;
+  delivery_mode?: number;
+}
+
+interface CdekDeliveryFormProps {
+  onCalculate: (data: {
+    city: string;
+    deliveryType: 'door' | 'pvz';
+    tariff?: CdekTariff;
+    pvzCode?: string;
+    pvzAddress?: string;
+  }) => void;
+  onError: (error: string) => void;
+}
+
+export function CdekDeliveryForm({ onCalculate, onError }: CdekDeliveryFormProps) {
+  const [city, setCity] = useState('Москва');
+  const [deliveryType, setDeliveryType] = useState<'door' | 'pvz'>('door');
+  const [address, setAddress] = useState('');
+  const [isCalculating, setIsCalculating] = useState(false);
+  const [tariffs, setTariffs] = useState<CdekTariff[]>([]);
+  const [selectedTariff, setSelectedTariff] = useState<CdekTariff | null>(null);
+  const [pvzList, setPvzList] = useState<any[]>([]);
+  const [selectedPvz, setSelectedPvz] = useState<string>('');
+
+  // Расчет стоимости доставки
+  const handleCalculate = async () => {
+    if (!city.trim()) {
+      onError('Укажите город получателя');
+      return;
+    }
+
+    setIsCalculating(true);
+    try {
+      // Рассчитываем стоимость
+      const weight = 1000; // TODO: брать из корзины
+      const calcResponse = await fetch('/api/delivery/cdek/calculate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fromCity: 'Санкт-Петербург',
+          toCity: city,
+          weight,
+          deliveryType,
+        }),
+      });
+
+      if (!calcResponse.ok) {
+        const error = await calcResponse.json();
+        throw new Error(error.error || 'Ошибка расчета стоимости');
+      }
+
+      const data = await calcResponse.json();
+      const availableTariffs = data.tariffs || data.tariff_codes || [];
+
+      if (availableTariffs.length === 0) {
+        throw new Error('Нет доступных тарифов для выбранного города');
+      }
+
+      setTariffs(availableTariffs);
+
+      // Если выбран ПВЗ, получаем список ПВЗ
+      if (deliveryType === 'pvz') {
+        const pvzResponse = await fetch(`/api/delivery/cdek/pvz?city=${encodeURIComponent(city)}`);
+        if (pvzResponse.ok) {
+          const pvzData = await pvzResponse.json();
+          setPvzList(pvzData.pvz || []);
+        }
+      }
+    } catch (error: any) {
+      onError(error.message || 'Ошибка расчета стоимости доставки');
+    } finally {
+      setIsCalculating(false);
+    }
+  };
+
+  // Автоматический расчет при изменении города
+  useEffect(() => {
+    if (city.trim()) {
+      const timeoutId = setTimeout(() => {
+        handleCalculate();
+      }, 500);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [city, deliveryType]);
+
+  const handleConfirm = () => {
+    if (!selectedTariff) {
+      onError('Выберите тариф доставки');
+      return;
+    }
+
+    if (deliveryType === 'door' && !address.trim()) {
+      onError('Укажите адрес доставки');
+      return;
+    }
+
+    if (deliveryType === 'pvz' && !selectedPvz) {
+      onError('Выберите пункт выдачи');
+      return;
+    }
+
+    const selectedPvzData = pvzList.find(p => p.code === selectedPvz);
+
+    onCalculate({
+      city,
+      deliveryType,
+      tariff: selectedTariff,
+      pvzCode: selectedPvz || undefined,
+      pvzAddress: selectedPvzData?.location?.address || undefined,
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="cdek-city">Город получателя *</Label>
+        <Input
+          id="cdek-city"
+          value={city}
+          onChange={(e) => setCity(e.target.value)}
+          placeholder="Например: Москва"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label>Тип доставки</Label>
+        <RadioGroup value={deliveryType} onValueChange={(v) => setDeliveryType(v as 'door' | 'pvz')}>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="door" id="cdek-door" />
+            <Label htmlFor="cdek-door">До двери</Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="pvz" id="cdek-pvz" />
+            <Label htmlFor="cdek-pvz">В пункт выдачи (ПВЗ)</Label>
+          </div>
+        </RadioGroup>
+      </div>
+
+      {deliveryType === 'door' && (
+        <div className="space-y-2">
+          <Label htmlFor="cdek-address">Адрес доставки *</Label>
+          <Input
+            id="cdek-address"
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+            placeholder="Улица, дом, квартира"
+          />
+        </div>
+      )}
+
+      {isCalculating && (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span>Расчет стоимости...</span>
+        </div>
+      )}
+
+      {tariffs.length > 0 && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="space-y-3">
+              <Label>Выберите тариф:</Label>
+              {tariffs.map((tariff) => (
+                <div
+                  key={tariff.tariff_code}
+                  className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                    selectedTariff?.tariff_code === tariff.tariff_code
+                      ? 'border-primary bg-primary/5'
+                      : 'hover:border-primary/50'
+                  }`}
+                  onClick={() => setSelectedTariff(tariff)}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-medium">{tariff.tariff_name}</div>
+                      <div className="text-sm text-muted-foreground">
+                        Срок: {tariff.period_min}-{tariff.period_max} дн.
+                      </div>
+                    </div>
+                    <div className="font-bold text-lg">{tariff.delivery_sum} ₽</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {deliveryType === 'pvz' && pvzList.length > 0 && (
+              <div className="mt-4 space-y-2">
+                <Label>Выберите пункт выдачи:</Label>
+                <select
+                  className="w-full p-2 border rounded-lg"
+                  value={selectedPvz}
+                  onChange={(e) => setSelectedPvz(e.target.value)}
+                >
+                  <option value="">Выберите ПВЗ</option>
+                  {pvzList.map((pvz) => (
+                    <option key={pvz.code} value={pvz.code}>
+                      {pvz.name} - {pvz.location?.address}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <Button
+              type="button"
+              onClick={handleConfirm}
+              className="w-full mt-4"
+              disabled={!selectedTariff || (deliveryType === 'pvz' && !selectedPvz)}
+            >
+              Подтвердить выбор
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}

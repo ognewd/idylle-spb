@@ -15,9 +15,10 @@ import { CreditCard, FileText, Banknote, Store, Download, CheckCircle, User, Sho
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import { CdekDeliveryForm } from '@/components/delivery/CdekDeliveryForm';
 
 type PaymentMethod = 'card' | 'invoice' | 'cash' | 'pickup';
-type DeliveryMethod = 'delivery' | 'pickup';
+type DeliveryMethod = 'delivery' | 'pickup' | 'cdek';
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -220,9 +221,45 @@ Email: info@idylle.spb.ru
                         </div>
                       </Label>
                     </div>
+
+                    <div className="flex items-center space-x-2 p-4 rounded-lg border hover:border-primary cursor-pointer">
+                      <RadioGroupItem value="cdek" id="cdek" />
+                      <Label htmlFor="cdek" className="flex-1 cursor-pointer">
+                        <div className="font-medium">Доставка СДЕК</div>
+                        <div className="text-sm text-muted-foreground">
+                          Доставка по России через СДЕК
+                        </div>
+                      </Label>
+                    </div>
                   </RadioGroup>
                 </CardContent>
               </Card>
+
+              {/* СДЕК Delivery Form */}
+              {deliveryMethod === 'cdek' && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Параметры доставки СДЕК</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <CdekDeliveryForm
+                      onCalculate={(data) => {
+                        // Сохраняем данные СДЕК для отправки с заказом
+                        setFormData(prev => ({
+                          ...prev,
+                          city: data.city,
+                          address: data.deliveryType === 'door' ? prev.address : data.pvzAddress || '',
+                        }));
+                        // TODO: сохранить данные тарифа и ПВЗ в state
+                      }}
+                      onError={(error) => {
+                        console.error('CDEK error:', error);
+                        // TODO: показать toast с ошибкой
+                      }}
+                    />
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Auth/Guest Option */}
               {!session?.user && showGuestOption && (
