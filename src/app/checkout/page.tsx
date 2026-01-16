@@ -29,6 +29,15 @@ export default function CheckoutPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isClient, setIsClient] = useState(false);
   const [showGuestOption, setShowGuestOption] = useState(!session?.user);
+  
+  // Данные СДЕК
+  const [cdekData, setCdekData] = useState<{
+    tariff?: { tariff_code: number; tariff_name: string; delivery_sum: number; period_min: number; period_max: number };
+    pvzCode?: string;
+    pvzAddress?: string;
+    city?: string;
+    deliveryType?: 'door' | 'pvz';
+  } | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({

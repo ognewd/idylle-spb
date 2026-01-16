@@ -61,12 +61,33 @@ export async function cdekApiRequest<T>(
 
   // Проверяем на ошибки
   if (!response.ok) {
-    const error: CdekError = data;
+    // Логируем полный ответ для отладки (только в dev режиме)
+    if (process.env.NODE_ENV === 'development' || process.env.CDEK_DEBUG === 'true') {
+      console.error('❌ CDEK API Error Response:', JSON.stringify(data, null, 2));
+      console.error('❌ Response Status:', response.status, response.statusText);
+      console.error('❌ Request URL:', url);
+    }
+    
+    // Проверяем разные форматы ошибок
+    let errorMessage = 'Неизвестная ошибка API СДЕК';
+    let errorCode = 'UNKNOWN_ERROR';
+    
+    if (data.error) {
+      errorCode = data.error;
+      errorMessage = data.error_description || data.message || errorMessage;
+    } else if (data.errors && Array.isArray(data.errors) && data.errors.length > 0) {
+      const firstError = data.errors[0];
+      errorCode = firstError.code || errorCode;
+      errorMessage = firstError.message || errorMessage;
+    } else if (data.message) {
+      errorMessage = data.message;
+    }
+    
     throw new CdekApiError(
-      error.error || 'UNKNOWN_ERROR',
-      error.error_description || 'Неизвестная ошибка API СДЕК',
+      errorCode,
+      errorMessage,
       response.status,
-      error.request_uuid
+      data.request_uuid
     );
   }
 

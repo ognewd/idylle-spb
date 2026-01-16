@@ -45,7 +45,8 @@ export interface CdekCalculateRequest {
 }
 
 export interface CdekCalculateResponse {
-  tariffs: CdekTariff[];
+  tariffs?: CdekTariff[]; // для обратной совместимости
+  tariff_codes?: CdekTariff[]; // реальный формат ответа API СДЕК
 }
 
 export interface CdekPvz {
@@ -143,8 +144,8 @@ export interface CdekOrderResponse {
   type: string;
   cdek_number?: string;
   number?: string;
-  tariff_code: number;
-  statuses: Array<{
+  tariff_code?: number;
+  statuses?: Array<{
     code: string;
     name: string;
     datetime: string;
@@ -158,6 +159,10 @@ export interface CdekOrderResponse {
     code: string;
     message: string;
   }>;
+  entity?: {
+    uuid?: string;
+    cdek_number?: string;
+  };
 }
 
 export interface CdekError {

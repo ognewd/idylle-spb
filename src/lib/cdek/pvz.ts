@@ -4,14 +4,16 @@
 
 import { cdekGet } from './client';
 import { CdekPvz, CdekPvzRequest } from './types';
+import { getCityCode } from './cities';
 
 /**
  * Получить список ПВЗ
  */
 export async function getCdekPvzList(params?: CdekPvzRequest): Promise<CdekPvz[]> {
   try {
-    const response = await cdekGet<{ data: CdekPvz[] }>('/deliverypoints', params || {});
-    return response.data || [];
+    // СДЕК возвращает массив напрямую, не объект с data
+    const response = await cdekGet<CdekPvz[]>('/deliverypoints', params || {});
+    return Array.isArray(response) ? response : [];
   } catch (error: any) {
     console.error('❌ Ошибка получения списка ПВЗ СДЕК:', error);
     throw error;
@@ -19,9 +21,22 @@ export async function getCdekPvzList(params?: CdekPvzRequest): Promise<CdekPvz[]
 }
 
 /**
- * Получить ПВЗ по городу
+ * Получить ПВЗ по городу (с автопоиском кода города)
  */
 export async function getPvzByCity(city: string): Promise<CdekPvz[]> {
+  // Сначала пытаемся найти код города
+  const cityCode = await getCityCode(city);
+  
+  if (cityCode) {
+    // Используем код города для более точного поиска
+    return getCdekPvzList({
+      type: 'PVZ',
+      city_code: cityCode,
+      lang: 'rus',
+    });
+  }
+  
+  // Если код не найден, пытаемся по названию
   return getCdekPvzList({
     type: 'PVZ',
     city: city,
