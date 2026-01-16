@@ -46,18 +46,11 @@ export function CdekDeliveryForm({ initialCity = '', initialAddress = '', onCalc
   // Обновляем адрес при изменении initialAddress и если выбран тип "до двери"
   useEffect(() => {
     if (deliveryType === 'door' && initialAddress) {
-      // Обновляем адрес, если initialAddress изменился
-      setAddress(prev => {
-        // Обновляем только если initialAddress действительно другой и не пустой
-        if (initialAddress.trim() && initialAddress.trim() !== prev) {
-          return initialAddress.trim();
-        }
-        // Если текущий адрес пустой, заполняем из initialAddress
-        if (!prev && initialAddress.trim()) {
-          return initialAddress.trim();
-        }
-        return prev;
-      });
+      // Всегда обновляем адрес из initialAddress, если он есть
+      const trimmedAddress = initialAddress.trim();
+      if (trimmedAddress) {
+        setAddress(trimmedAddress);
+      }
     }
   }, [initialAddress, deliveryType]);
   const [isCalculating, setIsCalculating] = useState(false);

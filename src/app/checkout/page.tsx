@@ -263,8 +263,9 @@ Email: info@idylle.spb.ru
                   </CardHeader>
                   <CardContent>
                     <CdekDeliveryForm
+                      key={`cdek-${deliveryMethod}-${formData.address}`}
                       initialCity={formData.city || 'Москва'}
-                      initialAddress={formData.address}
+                      initialAddress={formData.address || ''}
                       onCalculate={(data) => {
                         // Сохраняем данные СДЕК для отправки с заказом
                         setCdekData({
