@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
+import { AddressAutocomplete } from '@/components/ui/address-autocomplete';
 
 interface CdekTariff {
   tariff_code: number;
@@ -211,13 +212,14 @@ export function CdekDeliveryForm({ initialCity = '', initialAddress = '', onCalc
       {deliveryType === 'door' && (
         <div className="space-y-2">
           <Label htmlFor="cdek-address">Адрес доставки *</Label>
-          <Input
+          <AddressAutocomplete
             id="cdek-address"
             value={address}
-            onChange={(e) => {
+            onChange={(value) => {
               setHasUserTyped(true);
-              setAddress(e.target.value);
+              setAddress(value);
             }}
+            city={city}
             placeholder="Улица, дом, квартира"
           />
         </div>
