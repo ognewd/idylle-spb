@@ -39,6 +39,7 @@ export function CdekDeliveryForm({ initialCity = '', initialAddress = '', onCalc
   const [address, setAddress] = useState(() => {
     return initialAddress?.trim() || '';
   });
+  const [hasUserTyped, setHasUserTyped] = useState(false);
   
   // Обновляем состояние при изменении начальных значений
   useEffect(() => {
@@ -49,13 +50,16 @@ export function CdekDeliveryForm({ initialCity = '', initialAddress = '', onCalc
   }, [initialCity]);
   
   // Обновляем адрес при изменении initialAddress и если выбран тип "до двери"
+  // НО только если пользователь еще не начал вводить адрес
   useEffect(() => {
-    if (deliveryType === 'door') {
+    if (deliveryType === 'door' && !hasUserTyped) {
       const trimmedAddress = initialAddress?.trim() || '';
-      // Всегда обновляем адрес из initialAddress
-      setAddress(trimmedAddress);
+      // Обновляем адрес из initialAddress только если пользователь не вводил
+      if (trimmedAddress) {
+        setAddress(trimmedAddress);
+      }
     }
-  }, [initialAddress, deliveryType]);
+  }, [initialAddress, deliveryType, hasUserTyped]);
   const [isCalculating, setIsCalculating] = useState(false);
   const [tariffs, setTariffs] = useState<CdekTariff[]>([]);
   const [selectedTariff, setSelectedTariff] = useState<CdekTariff | null>(null);
