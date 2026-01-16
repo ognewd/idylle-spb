@@ -31,24 +31,30 @@ interface CdekDeliveryFormProps {
 }
 
 export function CdekDeliveryForm({ initialCity = '', initialAddress = '', onCalculate, onError }: CdekDeliveryFormProps) {
-  // Инициализируем с начальными значениями
-  const [city, setCity] = useState(() => initialCity || 'Москва');
+  // Инициализируем с начальными значениями - используем функции-инициализаторы
+  const [city, setCity] = useState(() => {
+    return initialCity?.trim() || 'Москва';
+  });
   const [deliveryType, setDeliveryType] = useState<'door' | 'pvz'>('door');
-  const [address, setAddress] = useState(() => initialAddress || '');
+  const [address, setAddress] = useState(() => {
+    return initialAddress?.trim() || '';
+  });
   
   // Обновляем состояние при изменении начальных значений
   useEffect(() => {
-    if (initialCity && initialCity.trim()) {
-      setCity(initialCity.trim());
+    const trimmedCity = initialCity?.trim();
+    if (trimmedCity && trimmedCity !== city) {
+      setCity(trimmedCity);
     }
   }, [initialCity]);
   
   // Обновляем адрес при изменении initialAddress и если выбран тип "до двери"
   useEffect(() => {
-    if (deliveryType === 'door' && initialAddress) {
-      // Всегда обновляем адрес из initialAddress, если он есть
-      const trimmedAddress = initialAddress.trim();
-      if (trimmedAddress) {
+    if (deliveryType === 'door') {
+      const trimmedAddress = initialAddress?.trim() || '';
+      // Всегда обновляем адрес из initialAddress, если он изменился
+      // Сравниваем с текущим значением, чтобы избежать лишних обновлений
+      if (trimmedAddress !== address) {
         setAddress(trimmedAddress);
       }
     }
