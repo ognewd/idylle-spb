@@ -38,7 +38,7 @@ export async function findCityByName(cityName: string, country?: string): Promis
       params.country_code = 'RU'; // По умолчанию Россия
     }
 
-    const cities = await getCdekCitiesList(params);
+    const cities = await cdekGet<CdekCity[]>('/location/cities', params);
     
     if (cities.length > 0) {
       return cities[0];
