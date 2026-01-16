@@ -57,6 +57,10 @@ export async function findCityByName(cityName: string, country?: string): Promis
 const cityCodeCache: Map<string, number | null> = new Map();
 
 export async function getCityCode(cityName: string): Promise<number | null> {
+  if (!cityName || !cityName.trim()) {
+    return null;
+  }
+  
   const cacheKey = cityName.toLowerCase().trim();
   
   // Проверяем кэш
@@ -64,13 +68,20 @@ export async function getCityCode(cityName: string): Promise<number | null> {
     return cityCodeCache.get(cacheKey) || null;
   }
 
-  const city = await findCityByName(cityName);
-  const code = city?.code || null;
-  
-  // Сохраняем в кэш
-  cityCodeCache.set(cacheKey, code);
-  
-  return code;
+  try {
+    const city = await findCityByName(cityName.trim());
+    const code = city?.code || null;
+    
+    // Сохраняем в кэш
+    cityCodeCache.set(cacheKey, code);
+    
+    return code;
+  } catch (error: any) {
+    console.error(`❌ Ошибка получения кода города "${cityName}":`, error.message);
+    // Сохраняем null в кэш, чтобы не повторять запрос
+    cityCodeCache.set(cacheKey, null);
+    return null;
+  }
 }
 
 /**

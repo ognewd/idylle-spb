@@ -53,6 +53,17 @@ export interface SimpleCalculateParams {
 }
 
 /**
+ * Известные коды городов (для fallback)
+ */
+const KNOWN_CITY_CODES: Record<string, number> = {
+  'Санкт-Петербург': 137, // Код СПб в СДЕК (проверено через тест)
+  'Москва': 44,
+  'МСК': 44,
+  'СПБ': 137,
+  'СПб': 137,
+};
+
+/**
  * Рассчитать стоимость доставки с упрощенными параметрами
  */
 export async function calculateDelivery(params: SimpleCalculateParams): Promise<CdekCalculateResponse> {
@@ -61,25 +72,48 @@ export async function calculateDelivery(params: SimpleCalculateParams): Promise<
   let toCode = params.toCityCode;
   
   try {
+    // Для города отправителя (СПб) используем известный код или ищем
     if (!fromCode) {
-      fromCode = await getCityCode(params.fromCity);
+      // Сначала проверяем известные коды
+      const normalizedFromCity = params.fromCity.trim();
+      if (KNOWN_CITY_CODES[normalizedFromCity]) {
+        fromCode = KNOWN_CITY_CODES[normalizedFromCity];
+      } else {
+        // Пытаемся найти код через API
+        fromCode = await getCityCode(params.fromCity);
+      }
+      
+      // Если все равно не найден, используем код СПб по умолчанию
+      if (!fromCode && (normalizedFromCity.includes('Санкт-Петербург') || normalizedFromCity.includes('СПб') || normalizedFromCity.includes('СПБ'))) {
+        fromCode = 137; // Код СПб
+        console.log(`✅ Используем код СПб по умолчанию: ${fromCode}`);
+      }
+      
       if (!fromCode) {
-        // Если не найден код, пробуем использовать название города напрямую
-        console.warn(`⚠️ Код города "${params.fromCity}" не найден, используем название`);
+        throw new Error(`Не удалось определить код города отправителя: "${params.fromCity}"`);
       }
     }
     
+    // Для города получателя
     if (!toCode) {
-      toCode = await getCityCode(params.toCity);
+      // Сначала проверяем известные коды
+      const normalizedToCity = params.toCity.trim();
+      if (KNOWN_CITY_CODES[normalizedToCity]) {
+        toCode = KNOWN_CITY_CODES[normalizedToCity];
+      } else {
+        // Пытаемся найти код через API
+        toCode = await getCityCode(params.toCity);
+      }
+      
       if (!toCode) {
-        // Если не найден код, пробуем использовать название города напрямую
-        console.warn(`⚠️ Код города "${params.toCity}" не найден, используем название`);
+        throw new Error(`Не удалось найти код города получателя: "${params.toCity}"`);
       }
     }
     
+    // Обязательно используем коды городов для расчета
     const request: CdekCalculateRequest = {
-      from_location: fromCode ? { code: fromCode } : { city: params.fromCity },
-      to_location: toCode ? { code: toCode } : { city: params.toCity },
+      from_location: { code: fromCode },
+      to_location: { code: toCode },
       packages: [
         {
           weight: params.weight,
@@ -95,25 +129,7 @@ export async function calculateDelivery(params: SimpleCalculateParams): Promise<
 
     return calculateCdekDelivery(request);
   } catch (error: any) {
-    // Если произошла ошибка с кодами, пробуем без кодов
-    if (error.message && error.message.includes('код города')) {
-      console.warn('⚠️ Используем названия городов вместо кодов');
-      const request: CdekCalculateRequest = {
-        from_location: { city: params.fromCity },
-        to_location: { city: params.toCity },
-        packages: [
-          {
-            weight: params.weight,
-            ...(params.length && params.width && params.height && {
-              length: params.length,
-              width: params.width,
-              height: params.height,
-            }),
-          },
-        ],
-      };
-      return calculateCdekDelivery(request);
-    }
+    console.error('❌ Ошибка в calculateDelivery:', error);
     throw error;
   }
 }
