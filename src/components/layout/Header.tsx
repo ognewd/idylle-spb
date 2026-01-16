@@ -107,13 +107,13 @@ export function Header() {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between py-2 text-sm">
             <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-1">
+              <a href="tel:8-800-500-87-29" className="flex items-center space-x-1 hover:text-primary transition-colors">
                 <Phone className="h-3 w-3" />
-                <span>+7 (812) 123-45-67</span>
-              </div>
+                <span>8-800-500-87-29</span>
+              </a>
               <div className="flex items-center space-x-1">
                 <MapPin className="h-3 w-3" />
-                <span>Санкт-Петербург</span>
+                <span>Санкт-Петербург, Невский пр., 114-116</span>
               </div>
             </div>
             <div className="hidden md:flex items-center space-x-4">
