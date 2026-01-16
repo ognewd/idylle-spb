@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
 
 interface StickyImageContainerProps {
@@ -16,91 +16,57 @@ export function StickyImageContainer({
   headerOffset = 96, // Высота хедера (примерно 96px для sticky header)
   className 
 }: StickyImageContainerProps) {
-  const stickyRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const updateStickyConstraints = () => {
+    const updateWrapperHeight = () => {
       const contentContainer = document.getElementById(contentContainerId);
-      const stickyElement = stickyRef.current;
       const wrapperElement = wrapperRef.current;
 
-      if (!contentContainer || !stickyElement || !wrapperElement) return;
+      if (!contentContainer || !wrapperElement) return;
 
-      // Получаем позицию правого контейнера относительно viewport
-      const contentRect = contentContainer.getBoundingClientRect();
-      const stickyRect = stickyElement.getBoundingClientRect();
-
-      // Вычисляем максимальную высоту viewport для sticky элемента
-      // Стicky должен останавливаться когда нижняя граница изображения
-      // достигает нижней границы правого контента
-      const viewportHeight = window.innerHeight;
+      // Получаем высоту правого контейнера
+      const contentHeight = contentContainer.offsetHeight;
       
-      // Вычисляем нижнюю границу правого контента
-      const contentBottom = contentRect.bottom;
-      
-      // Вычисляем доступную высоту для sticky элемента
-      // Учитываем отступ от верха (headerOffset) и отступ снизу (padding)
-      const availableHeight = contentBottom - headerOffset - 32; // 32px для padding снизу
-      
-      // Устанавливаем max-height для wrapper, чтобы ограничить sticky
-      // Используем min() чтобы не превысить высоту viewport
-      const maxHeight = Math.min(availableHeight, viewportHeight - headerOffset - 32);
-      
-      if (maxHeight > 0) {
-        wrapperElement.style.maxHeight = `${maxHeight}px`;
-      }
-    };
-
-    // Используем requestAnimationFrame для плавных обновлений при скролле
-    let rafId: number;
-    const handleScroll = () => {
-      if (rafId) {
-        cancelAnimationFrame(rafId);
-      }
-      rafId = requestAnimationFrame(updateStickyConstraints);
+      // Устанавливаем высоту wrapper равной высоте правого контента
+      // Это позволит sticky элементу останавливаться в конце правого контента
+      wrapperElement.style.height = `${contentHeight}px`;
     };
 
     // Обновляем при монтировании и изменении размера
-    updateStickyConstraints();
+    updateWrapperHeight();
     
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    window.addEventListener('resize', updateStickyConstraints);
+    window.addEventListener('resize', updateWrapperHeight);
     
     // Используем ResizeObserver для отслеживания изменений размеров контента
     const resizeObserver = new ResizeObserver(() => {
-      updateStickyConstraints();
+      updateWrapperHeight();
     });
     
     const contentContainer = document.getElementById(contentContainerId);
     if (contentContainer) {
       resizeObserver.observe(contentContainer);
     }
-    if (stickyRef.current) {
-      resizeObserver.observe(stickyRef.current);
-    }
+
+    // Небольшая задержка для первой инициализации (после рендера)
+    const timeoutId = setTimeout(updateWrapperHeight, 100);
 
     return () => {
-      window.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('resize', updateStickyConstraints);
+      window.removeEventListener('resize', updateWrapperHeight);
       resizeObserver.disconnect();
-      if (rafId) {
-        cancelAnimationFrame(rafId);
-      }
+      clearTimeout(timeoutId);
     };
-  }, [contentContainerId, headerOffset]);
+  }, [contentContainerId]);
 
   return (
     <div
       ref={wrapperRef}
       className={cn(
         "space-y-4",
-        "lg:overflow-hidden", // Предотвращаем выход за границы
         className
       )}
     >
       <div
-        ref={stickyRef}
         className={cn(
           "lg:sticky lg:top-24 lg:self-start", // sticky только на десктопе
           "transition-all duration-200", // Плавные переходы
