@@ -3,10 +3,12 @@ import { ProductImageCarousel } from '@/components/product/ProductImageCarousel'
 import { ProductInfo } from '@/components/product/ProductInfo';
 import { RelatedProducts } from '@/components/product/RelatedProducts';
 import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
+import { StickyImageContainer } from '@/components/product/StickyImageContainer';
 
 interface Product {
   id: string;
   name: string;
+  shortName?: string;
   slug: string;
   description?: string;
   shortDescription?: string;
@@ -18,6 +20,15 @@ interface Product {
   aromaFamily?: string;
   ingredients?: string;
   stock: number;
+  weight?: number;
+  dimensions?: string;
+  productType?: string;
+  topNotes?: string;
+  purpose?: string;
+  usageInstructions?: string;
+  brandCountry?: string;
+  manufactureCountry?: string;
+  barcode?: string;
   isActive: boolean;
   isFeatured: boolean;
   brand: {
@@ -103,7 +114,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
       label: product.productCategories[0]?.category.name || 'Товары', 
       href: `/catalog?category=${product.productCategories[0]?.category.slug}` 
     },
-    { label: product.name, href: `/catalog/${product.slug}` },
+    { label: product.shortName || product.name, href: `/catalog/${product.slug}` },
   ];
 
   return (
@@ -112,16 +123,21 @@ export default async function ProductPage({ params }: ProductPageProps) {
         <Breadcrumbs items={breadcrumbItems} />
         
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 mt-6">
-        {/* Product Images */}
-        <div className="space-y-4 lg:col-span-2">
-          <ProductImageCarousel 
-            images={product.images.map(img => img.url)} 
-            name={product.name} 
-          />
+        {/* Product Images - Sticky на десктопе */}
+        <div className="lg:col-span-2">
+          <StickyImageContainer 
+            contentContainerId="product-info-container"
+            headerOffset={96}
+          >
+            <ProductImageCarousel 
+              images={product.images.map(img => img.url)} 
+              name={product.shortName || product.name} 
+            />
+          </StickyImageContainer>
         </div>
 
         {/* Product Info */}
-        <div className="space-y-6 lg:col-span-3">
+        <div id="product-info-container" className="space-y-6 lg:col-span-3">
           <ProductInfo product={product} />
         </div>
       </div>
