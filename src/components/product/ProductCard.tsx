@@ -374,12 +374,14 @@ export function ProductCard({
           </p>
         )}
 
-        {/* Stock Status */}
-        {currentStock > 0 && currentStock < 10 && (
-          <p className="text-xs text-orange-600 mt-1">
-            Осталось {currentStock} шт.
-          </p>
-        )}
+        {/* Stock Status - зарезервировано место для одинакового выравнивания */}
+        <div className="min-h-[20px] mt-1">
+          {currentStock > 0 && currentStock < 10 && (
+            <p className="text-xs text-orange-600">
+              Осталось {currentStock} шт.
+            </p>
+          )}
+        </div>
 
         {/* Add to Cart Button - Always Visible */}
         <Button
