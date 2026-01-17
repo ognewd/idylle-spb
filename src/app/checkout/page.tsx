@@ -11,42 +11,73 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
-import { CreditCard, FileText, Banknote, Store, Download, CheckCircle, User, ShoppingBag } from 'lucide-react';
+import { CreditCard, FileText, Banknote, Store, Download, CheckCircle, User, ShoppingBag, AlertCircle, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { CdekDeliveryForm } from '@/components/delivery/CdekDeliveryForm';
+import { CityAutocomplete, CitySuggestion } from '@/components/ui/city-autocomplete';
+import { DELIVERY_CONFIG, isSaintPetersburg } from '@/lib/delivery-config';
 
 type PaymentMethod = 'card' | 'invoice' | 'cash' | 'pickup';
-type DeliveryMethod = 'delivery' | 'pickup' | 'cdek';
+type DeliveryMethod = 'spb_courier' | 'spb_boutique' | 'spb_cdek' | 'cdek_courier' | 'cdek_pickup';
+
+interface SelectedCity {
+  code: number;
+  city: string;
+  region: string;
+  displayValue: string; // "190000, г, Санкт-Петербург"
+}
+
+interface DeliveryPrice {
+  door?: number; // цена до двери
+  pickup?: number; // цена до ПВЗ
+  isLoading: boolean;
+  error?: string;
+}
 
 export default function CheckoutPage() {
   const router = useRouter();
   const { items, totalPrice, clearCart } = useCart();
   const { data: session } = useSession();
-  const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>('delivery');
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isClient, setIsClient] = useState(false);
   const [showGuestOption, setShowGuestOption] = useState(!session?.user);
+  
+  // Шаг 1: Контакты
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  
+  // Шаг 2: Город
+  const [selectedCity, setSelectedCity] = useState<SelectedCity | null>(null);
+  const [cityInput, setCityInput] = useState('');
+  
+  // Шаг 3: Доставка
+  const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod | null>(null);
+  const [deliveryPrices, setDeliveryPrices] = useState<DeliveryPrice>({ isLoading: false });
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card');
   
   // Данные СДЕК
   const [cdekData, setCdekData] = useState<{
     tariff?: { tariff_code: number; tariff_name: string; delivery_sum: number; period_min: number; period_max: number };
     pvzCode?: string;
     pvzAddress?: string;
-    city?: string;
     deliveryType?: 'door' | 'pvz';
   } | null>(null);
-
-  // Form state
+  
+  // Адрес доставки
+  const [address, setAddress] = useState({
+    street: '',
+    house: '',
+    apartment: '',
+    entrance: '',
+    floor: '',
+    code: '',
+    comment: '',
+  });
+  
+  // Данные пользователя
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
-    email: '',
-    phone: '',
-    address: '',
-    city: 'Санкт-Петербург',
     comment: '',
     companyName: '',
     inn: '',
@@ -54,50 +85,171 @@ export default function CheckoutPage() {
     companyAddress: '',
   });
 
-  // Auto-fill form for logged-in users
+  // Auto-fill для авторизованных пользователей
   useEffect(() => {
     if (session?.user) {
-      // Fetch user data to fill the form
       fetch('/api/user/me')
         .then(res => res.json())
         .then(data => {
           if (data && !data.error) {
-            // Split name into first and last name if it exists
             const nameParts = data.name ? data.name.split(' ') : [];
-            const firstName = nameParts[0] || '';
-            const lastName = nameParts.slice(1).join(' ') || '';
-            
             setFormData(prev => ({
               ...prev,
-              email: data.email || '',
-              firstName: firstName,
-              lastName: lastName,
-              phone: data.phone || '',
+              firstName: nameParts[0] || '',
+              lastName: nameParts.slice(1).join(' ') || '',
             }));
+            setEmail(data.email || '');
+            setPhone(data.phone || '');
           }
         })
-        .catch(error => {
-          console.error('Error fetching user data:', error);
-        });
+        .catch(error => console.error('Error fetching user data:', error));
     }
   }, [session]);
+
+  // Определяем, является ли выбранный город СПб
+  const isSpb = selectedCity ? isSaintPetersburg(selectedCity.code, selectedCity.city) : false;
+
+  // Расчет стоимости доставки после выбора города
+  useEffect(() => {
+    if (!selectedCity || isSpb) {
+      // Для СПб фиксированные цены
+      setDeliveryPrices({ 
+        door: DELIVERY_CONFIG.SPB_COURIER_PRICE,
+        pickup: 0, // бесплатно из бутика (или будет СДЭК)
+        isLoading: false 
+      });
+      return;
+    }
+
+    // Для других городов - расчет через CDEK API
+    setDeliveryPrices({ isLoading: true });
+    
+    const calculateDelivery = async () => {
+      try {
+        const weight = DELIVERY_CONFIG.DEFAULT_PACKAGE.weight;
+        
+        const response = await fetch('/api/delivery/cdek/calculate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fromCity: DELIVERY_CONFIG.SHIP_FROM_CITY,
+            toCity: selectedCity.city,
+            weight,
+            deliveryType: 'door', // рассчитываем оба варианта
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Ошибка расчета доставки');
+        }
+
+        const data = await response.json();
+        const tariffs = data.tariffs || data.tariff_codes || [];
+        
+        // Ищем тарифы для до двери и до ПВЗ
+        const doorTariff = tariffs.find((t: any) => 
+          t.tariff_code === 139 || t.delivery_mode === 1 || t.tariff_name?.toLowerCase().includes('дверь')
+        );
+        const pickupTariff = tariffs.find((t: any) => 
+          t.tariff_code === 138 || t.delivery_mode === 2 || t.tariff_name?.toLowerCase().includes('склад')
+        );
+
+        setDeliveryPrices({
+          door: doorTariff?.delivery_sum,
+          pickup: pickupTariff?.delivery_sum,
+          isLoading: false,
+        });
+      } catch (error: any) {
+        console.error('Error calculating delivery:', error);
+        setDeliveryPrices({
+          isLoading: false,
+          error: error.message || 'Не удалось рассчитать доставку',
+        });
+      }
+    };
+
+    calculateDelivery();
+  }, [selectedCity, isSpb]);
+
+  // Сброс способа доставки при смене города
+  useEffect(() => {
+    setDeliveryMethod(null);
+    setCdekData(null);
+    setAddress({
+      street: '',
+      house: '',
+      apartment: '',
+      entrance: '',
+      floor: '',
+      code: '',
+      comment: '',
+    });
+  }, [selectedCity]);
+
+  // Обработка выбора города
+  const handleCitySelect = (suggestion: CitySuggestion) => {
+    setSelectedCity({
+      code: suggestion.data.code,
+      city: suggestion.data.city,
+      region: suggestion.data.region,
+      displayValue: suggestion.value,
+    });
+    setCityInput(suggestion.value);
+  };
+
+  // Форматирование телефона
+  const formatPhone = (value: string) => {
+    let digits = value.replace(/\D/g, '');
+    if (digits.length > 0 && digits[0] !== '7') {
+      digits = '7' + digits;
+    }
+    digits = digits.slice(0, 11);
+    
+    if (digits.length === 0) return '';
+    
+    let formatted = '+7';
+    if (digits.length > 1) formatted += ` (${digits.slice(1, 4)}`;
+    if (digits.length > 4) formatted += `) ${digits.slice(4, 7)}`;
+    if (digits.length > 7) formatted += `-${digits.slice(7, 9)}`;
+    if (digits.length > 9) formatted += `-${digits.slice(9, 11)}`;
+    
+    return formatted;
+  };
 
   if (items.length === 0) {
     router.push('/cart');
     return null;
   }
 
+  // Расчет итоговой стоимости
+  let deliveryPrice = 0;
+  if (isSpb && deliveryMethod === 'spb_courier') {
+    deliveryPrice = totalPrice >= DELIVERY_CONFIG.SPB_FREE_DELIVERY_THRESHOLD ? 0 : DELIVERY_CONFIG.SPB_COURIER_PRICE;
+  } else if (isSpb && deliveryMethod === 'spb_boutique') {
+    deliveryPrice = DELIVERY_CONFIG.BOUTIQUE_PICKUP_PRICE;
+  } else if (deliveryMethod === 'cdek_courier' && deliveryPrices.door) {
+    deliveryPrice = deliveryPrices.door;
+  } else if (deliveryMethod === 'cdek_pickup' && deliveryPrices.pickup) {
+    deliveryPrice = deliveryPrices.pickup;
+  } else if (deliveryMethod === 'spb_cdek' && deliveryPrices.pickup) {
+    deliveryPrice = deliveryPrices.pickup;
+  }
+  
+  const finalPrice = totalPrice + deliveryPrice;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     try {
-      // Create order in database
+      // Определяем deliveryMethod для API
+      let apiDeliveryMethod: string = 'delivery';
+      if (deliveryMethod === 'spb_boutique') apiDeliveryMethod = 'pickup';
+      if (deliveryMethod?.includes('cdek') || deliveryMethod === 'spb_cdek') apiDeliveryMethod = 'cdek';
+
       const response = await fetch('/api/orders', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           items: items.map(item => ({
             productId: item.productId,
@@ -108,52 +260,41 @@ export default function CheckoutPage() {
           })),
           firstName: formData.firstName,
           lastName: formData.lastName,
-          email: formData.email,
-          phone: formData.phone,
-          deliveryMethod,
+          email,
+          phone,
+          deliveryMethod: apiDeliveryMethod,
           paymentMethod,
-          city: deliveryMethod === 'cdek' ? (cdekData?.city || formData.city) : (deliveryMethod === 'delivery' ? formData.city : null),
-          address: deliveryMethod === 'cdek' && cdekData?.deliveryType === 'door' 
-            ? formData.address 
-            : (deliveryMethod === 'delivery' ? formData.address : null),
-          comment: formData.comment || null,
+          city: selectedCity?.city || null,
+          address: deliveryMethod === 'spb_courier' || deliveryMethod === 'cdek_courier'
+            ? `${address.street}, д. ${address.house}${address.apartment ? ', кв. ' + address.apartment : ''}`
+            : null,
+          comment: formData.comment || address.comment || null,
           companyName: paymentMethod === 'invoice' ? formData.companyName : null,
           inn: paymentMethod === 'invoice' ? formData.inn : null,
           kpp: paymentMethod === 'invoice' ? formData.kpp : null,
           companyAddress: paymentMethod === 'invoice' ? formData.companyAddress : null,
-          // Данные СДЕК
-          ...(deliveryMethod === 'cdek' && cdekData && {
+          ...(apiDeliveryMethod === 'cdek' && cdekData && {
             cdekTariffCode: cdekData.tariff?.tariff_code,
             cdekTariffName: cdekData.tariff?.tariff_name,
             cdekDeliveryType: cdekData.deliveryType,
             cdekPvzCode: cdekData.pvzCode,
             cdekPvzAddress: cdekData.pvzAddress,
-            cdekDeliveryCost: cdekData.tariff?.delivery_sum,
+            cdekDeliveryCost: deliveryPrice,
           }),
         }),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to create order');
-      }
+      if (!response.ok) throw new Error('Failed to create order');
 
       const data = await response.json();
-      
-      // Store order data for success page
-      const orderData = {
+      localStorage.setItem('lastOrderData', JSON.stringify({
         orderNumber: data.order.orderNumber,
         firstName: formData.firstName,
         lastName: formData.lastName,
-      };
-      localStorage.setItem('lastOrderData', JSON.stringify(orderData));
+      }));
 
-      // Redirect first, then clear cart
       router.push('/checkout/success');
-      
-      // Clear cart after a small delay to ensure navigation happens
-      setTimeout(() => {
-        clearCart();
-      }, 100);
+      setTimeout(() => clearCart(), 100);
     } catch (error) {
       console.error('Error submitting order:', error);
       alert('Произошла ошибка при оформлении заказа. Попробуйте еще раз.');
@@ -162,9 +303,7 @@ export default function CheckoutPage() {
   };
 
   const handleDownloadRequisites = () => {
-    // Create requisites text
-    const requisites = `
-РЕКВИЗИТЫ ДЛЯ ОПЛАТЫ
+    const requisites = `РЕКВИЗИТЫ ДЛЯ ОПЛАТЫ
 
 ООО "ИДИЛЛЬ СПБ"
 ИНН: 1234567890
@@ -180,10 +319,8 @@ export default function CheckoutPage() {
 Телефон: +7 (812) 123-45-67
 Email: info@idylle.spb.ru
 
-Сумма к оплате: ${totalPrice.toLocaleString('ru-RU')} ₽
-    `.trim();
+Сумма к оплате: ${totalPrice.toLocaleString('ru-RU')} ₽`.trim();
 
-    // Create blob and download
     const blob = new Blob([requisites], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -195,9 +332,6 @@ Email: info@idylle.spb.ru
     URL.revokeObjectURL(url);
   };
 
-  const deliveryPrice = deliveryMethod === 'delivery' && totalPrice < 15000 ? 500 : 0;
-  const finalPrice = totalPrice + deliveryPrice;
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/30">
       <div className="container mx-auto px-4 py-8">
@@ -207,166 +341,262 @@ Email: info@idylle.spb.ru
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Main Form */}
             <div className="lg:col-span-2 space-y-6">
-              {/* Delivery Method */}
+              {/* Шаг 1: ОФОРМЛЕНИЕ ЗАКАЗА */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Способ получения</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <RadioGroup
-                    value={deliveryMethod}
-                    onValueChange={(value) => {
-                      setDeliveryMethod(value as DeliveryMethod);
-                      if (value === 'pickup') {
-                        setPaymentMethod('pickup');
-                      }
-                    }}
-                  >
-                    <div className="flex items-center space-x-2 p-4 rounded-lg border hover:border-primary cursor-pointer">
-                      <RadioGroupItem value="delivery" id="delivery" />
-                      <Label htmlFor="delivery" className="flex-1 cursor-pointer">
-                        <div className="font-medium">Доставка курьером</div>
-                        <div className="text-sm text-muted-foreground">
-                          По Санкт-Петербургу {totalPrice >= 15000 ? '— бесплатно' : '— 500 ₽'}
-                        </div>
-                      </Label>
-                    </div>
-
-                    <div className="flex items-center space-x-2 p-4 rounded-lg border hover:border-primary cursor-pointer">
-                      <RadioGroupItem value="pickup" id="pickup" />
-                      <Label htmlFor="pickup" className="flex-1 cursor-pointer">
-                        <div className="font-medium">Самовывоз из бутика</div>
-                        <div className="text-sm text-muted-foreground">
-                          г. Санкт-Петербург, Невский пр., д. 1
-                        </div>
-                      </Label>
-                    </div>
-
-                    <div className="flex items-center space-x-2 p-4 rounded-lg border hover:border-primary cursor-pointer">
-                      <RadioGroupItem value="cdek" id="cdek" />
-                      <Label htmlFor="cdek" className="flex-1 cursor-pointer">
-                        <div className="font-medium">Доставка СДЕК</div>
-                        <div className="text-sm text-muted-foreground">
-                          Доставка по России через СДЕК
-                        </div>
-                      </Label>
-                    </div>
-                  </RadioGroup>
-                </CardContent>
-              </Card>
-
-              {/* СДЕК Delivery Form */}
-              {deliveryMethod === 'cdek' && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Параметры доставки СДЕК</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <CdekDeliveryForm
-                      key={`cdek-${deliveryMethod}-${formData.address}`}
-                      initialCity={formData.city || 'Москва'}
-                      initialAddress={formData.address || ''}
-                      onCalculate={(data) => {
-                        // Сохраняем данные СДЕК для отправки с заказом
-                        setCdekData({
-                          tariff: data.tariff,
-                          pvzCode: data.pvzCode,
-                          pvzAddress: data.pvzAddress,
-                          city: data.city,
-                          deliveryType: data.deliveryType,
-                        });
-                        setFormData(prev => ({
-                          ...prev,
-                          city: data.city,
-                          address: data.deliveryType === 'door' ? prev.address : data.pvzAddress || '',
-                        }));
-                      }}
-                      onError={(error) => {
-                        console.error('CDEK error:', error);
-                        alert(`Ошибка СДЕК: ${error}`);
-                      }}
-                    />
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Auth/Guest Option */}
-              {!session?.user && showGuestOption && (
-                <Card className="border-primary/20 bg-primary/5">
-                  <CardHeader>
-                    <CardTitle>У вас есть аккаунт?</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <p className="text-sm text-muted-foreground">
-                      Войдите, чтобы быстро оформить заказ или зарегистрируйтесь для отслеживания статуса.
-                    </p>
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <Button 
-                        type="button" 
-                        variant="default" 
-                        className="flex-1"
-                        onClick={() => router.push('/auth/signin?callbackUrl=/checkout')}
-                      >
-                        <User className="h-4 w-4 mr-2" />
-                        Войти
-                      </Button>
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        className="flex-1"
-                        onClick={() => router.push('/auth/signup')}
-                      >
-                        Регистрация
-                      </Button>
-                      <Button 
-                        type="button" 
-                        variant="ghost" 
-                        onClick={() => setShowGuestOption(false)}
-                      >
-                        <ShoppingBag className="h-4 w-4 mr-2" />
-                        Оформить как гость
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Logged in user info */}
-              {session?.user && (
-                <Card className="border-green-200 bg-green-50">
-                  <CardContent className="pt-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                          <User className="h-5 w-5 text-primary" />
-                        </div>
-                        <div>
-                          <p className="font-medium">{session.user.name || session.user.email}</p>
-                          <p className="text-sm text-muted-foreground">
-                            Вы авторизованы
-                          </p>
-                        </div>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => router.push('/auth/signin?callbackUrl=/checkout')}
-                      >
-                        Другой аккаунт
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Contact Information */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Контактная информация</CardTitle>
+                  <CardTitle>ОФОРМЛЕНИЕ ЗАКАЗА</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Ваш телефон *</Label>
+                      <Input
+                        id="phone"
+                        type="tel"
+                        required
+                        placeholder="+7 (___) ___-__-__"
+                        value={phone}
+                        onChange={(e) => setPhone(formatPhone(e.target.value))}
+                      />
+                      <p className="text-xs text-muted-foreground">Ваш телефон</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Ваш email *</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground">для получения деталей заказа</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Шаг 2: СТРАНА И ГОРОД ДОСТАВКИ */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>СТРАНА И ГОРОД ДОСТАВКИ</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2 px-4 py-2 border rounded-lg bg-muted/50">
+                      <span>🇷🇺</span>
+                      <span className="font-medium">РОССИЯ</span>
+                    </div>
+                    <div className="flex-1 space-y-2">
+                      <Label htmlFor="city">Населённый пункт</Label>
+                      <CityAutocomplete
+                        id="city"
+                        value={cityInput}
+                        onChange={setCityInput}
+                        onSelect={handleCitySelect}
+                        placeholder="Начните вводить название города"
+                      />
+                      {selectedCity && (
+                        <p className="text-sm text-muted-foreground">
+                          {selectedCity.region ? `${selectedCity.region}, ` : ''}{selectedCity.displayValue}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Шаг 3: СПОСОБ ДОСТАВКИ */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>СПОСОБ ДОСТАВКИ</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {!selectedCity ? (
+                    <div className="flex items-center gap-2 p-4 rounded-lg bg-muted/50 border border-muted">
+                      <AlertCircle className="h-5 w-5 text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground">
+                        Введите свой город, чтобы перейти к выбору доставки
+                      </p>
+                    </div>
+                  ) : (
+                    <RadioGroup
+                      value={deliveryMethod || ''}
+                      onValueChange={(value) => {
+                        const method = value as DeliveryMethod;
+                        setDeliveryMethod(method);
+                        if (method === 'spb_boutique') {
+                          setPaymentMethod('pickup');
+                        }
+                      }}
+                    >
+                      {isSpb ? (
+                        // СПб: 3 опции
+                        <>
+                          <div className="flex items-center justify-between p-4 rounded-lg border hover:border-primary cursor-pointer">
+                            <div className="flex items-center gap-3">
+                              <RadioGroupItem value="spb_courier" id="spb-courier" />
+                              <Label htmlFor="spb-courier" className="cursor-pointer">
+                                <div className="font-medium">Доставка курьером</div>
+                                <div className="text-sm text-muted-foreground">
+                                  По Санкт-Петербургу {totalPrice >= DELIVERY_CONFIG.SPB_FREE_DELIVERY_THRESHOLD ? '— бесплатно' : `— ${DELIVERY_CONFIG.SPB_COURIER_PRICE} ₽`}
+                                </div>
+                              </Label>
+                            </div>
+                            <div className="font-bold text-lg">
+                              {totalPrice >= DELIVERY_CONFIG.SPB_FREE_DELIVERY_THRESHOLD ? 'Бесплатно' : `${DELIVERY_CONFIG.SPB_COURIER_PRICE} ₽`}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between p-4 rounded-lg border hover:border-primary cursor-pointer">
+                            <div className="flex items-center gap-3">
+                              <RadioGroupItem value="spb_boutique" id="spb-boutique" />
+                              <Label htmlFor="spb-boutique" className="cursor-pointer">
+                                <div className="font-medium">Самовывоз из бутика</div>
+                                <div className="text-sm text-muted-foreground">
+                                  {DELIVERY_CONFIG.BOUTIQUE_ADDRESS}
+                                </div>
+                              </Label>
+                            </div>
+                            <div className="font-bold text-lg">
+                              {DELIVERY_CONFIG.BOUTIQUE_PICKUP_PRICE === 0 ? 'Бесплатно' : `${DELIVERY_CONFIG.BOUTIQUE_PICKUP_PRICE} ₽`}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between p-4 rounded-lg border hover:border-primary cursor-pointer">
+                            <div className="flex items-center gap-3">
+                              <RadioGroupItem value="spb_cdek" id="spb-cdek" />
+                              <Label htmlFor="spb-cdek" className="cursor-pointer">
+                                <div className="font-medium">Доставка СДЭК</div>
+                                <div className="text-sm text-muted-foreground">
+                                  Самовывоз из пункта СДЭК
+                                </div>
+                              </Label>
+                            </div>
+                            <div className="font-bold text-lg">
+                              {deliveryPrices.isLoading ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : deliveryPrices.pickup ? (
+                                `от ${deliveryPrices.pickup} руб.`
+                              ) : deliveryPrices.error ? (
+                                <span className="text-sm text-destructive">Ошибка</span>
+                              ) : (
+                                '...'
+                              )}
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        // Остальные города: 2 опции
+                        <>
+                          <div className="flex items-center justify-between p-4 rounded-lg border hover:border-primary cursor-pointer">
+                            <div className="flex items-center gap-3">
+                              <RadioGroupItem value="cdek_courier" id="cdek-courier" />
+                              <Label htmlFor="cdek-courier" className="cursor-pointer">
+                                <div className="font-medium">Курьером СДЭК</div>
+                              </Label>
+                            </div>
+                            <div className="font-bold text-lg">
+                              {deliveryPrices.isLoading ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : deliveryPrices.door ? (
+                                `от ${deliveryPrices.door} руб.`
+                              ) : deliveryPrices.error ? (
+                                <span className="text-sm text-destructive">Ошибка</span>
+                              ) : (
+                                '...'
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between p-4 rounded-lg border hover:border-primary cursor-pointer">
+                            <div className="flex items-center gap-3">
+                              <RadioGroupItem value="cdek_pickup" id="cdek-pickup" />
+                              <Label htmlFor="cdek-pickup" className="cursor-pointer">
+                                <div className="font-medium">Самовывоз из пункта СДЭК</div>
+                              </Label>
+                            </div>
+                            <div className="font-bold text-lg">
+                              {deliveryPrices.isLoading ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : deliveryPrices.pickup ? (
+                                `от ${deliveryPrices.pickup} руб.`
+                              ) : deliveryPrices.error ? (
+                                <span className="text-sm text-destructive">Ошибка</span>
+                              ) : (
+                                '...'
+                              )}
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </RadioGroup>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* АДРЕС ДОСТАВКИ (для курьера) */}
+              {(deliveryMethod === 'spb_courier' || deliveryMethod === 'cdek_courier') && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>АДРЕС ДОСТАВКИ</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="street">Улица *</Label>
+                      <Input
+                        id="street"
+                        required
+                        value={address.street}
+                        onChange={(e) => setAddress({ ...address, street: e.target.value })}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="house">Номер дома / корпус / строение / литера *</Label>
+                        <Input
+                          id="house"
+                          required
+                          value={address.house}
+                          onChange={(e) => setAddress({ ...address, house: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="apartment">Квартира</Label>
+                        <Input
+                          id="apartment"
+                          value={address.apartment}
+                          onChange={(e) => setAddress({ ...address, apartment: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="courier-comment">Комментарий для курьера (необязательно)</Label>
+                      <Textarea
+                        id="courier-comment"
+                        placeholder="Подъезд, этаж, код домофона и т.д."
+                        value={address.comment}
+                        onChange={(e) => setAddress({ ...address, comment: e.target.value })}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* ВАШИ ДАННЫЕ */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>ВАШИ ДАННЫЕ</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="lastName">Фамилия</Label>
+                      <Input
+                        id="lastName"
+                        value={formData.lastName}
+                        onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                      />
+                    </div>
                     <div className="space-y-2">
                       <Label htmlFor="firstName">Имя *</Label>
                       <Input
@@ -376,96 +606,7 @@ Email: info@idylle.spb.ru
                         onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="lastName">Фамилия *</Label>
-                      <Input
-                        id="lastName"
-                        required
-                        value={formData.lastName}
-                        onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                      />
-                    </div>
                   </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email *</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      required
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Телефон *</Label>
-                    <Input
-                      id="phone"
-                      type="tel"
-                      required
-                      placeholder="+7 (___) ___-__-__"
-                      value={formData.phone}
-                      onChange={(e) => {
-                        // Remove all non-digits
-                        let value = e.target.value.replace(/\D/g, '');
-                        
-                        // Ensure it starts with 7
-                        if (value.length > 0 && value[0] !== '7') {
-                          value = '7' + value;
-                        }
-                        
-                        // Limit to 11 digits (7 + 10)
-                        value = value.slice(0, 11);
-                        
-                        // Format the phone number
-                        let formatted = '';
-                        if (value.length > 0) {
-                          formatted = '+7';
-                          if (value.length > 1) {
-                            formatted += ' (' + value.slice(1, 4);
-                            if (value.length > 4) {
-                              formatted += ') ' + value.slice(4, 7);
-                              if (value.length > 7) {
-                                formatted += '-' + value.slice(7, 9);
-                                if (value.length > 9) {
-                                  formatted += '-' + value.slice(9, 11);
-                                }
-                              }
-                            }
-                          }
-                        }
-                        
-                        setFormData({ ...formData, phone: formatted });
-                      }}
-                    />
-                  </div>
-
-                  {deliveryMethod === 'delivery' && (
-                    <>
-                      <div className="space-y-2">
-                        <Label htmlFor="city">Город *</Label>
-                        <Input
-                          id="city"
-                          required
-                          value={formData.city}
-                          onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="address">Адрес доставки *</Label>
-                        <Textarea
-                          id="address"
-                          required
-                          placeholder="Улица, дом, квартира"
-                          value={formData.address}
-                          onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                        />
-                      </div>
-                    </>
-                  )}
-
                   <div className="space-y-2">
                     <Label htmlFor="comment">Комментарий к заказу</Label>
                     <Textarea
@@ -478,17 +619,17 @@ Email: info@idylle.spb.ru
                 </CardContent>
               </Card>
 
-              {/* Payment Method */}
+              {/* СПОСОБ ОПЛАТЫ */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Способ оплаты</CardTitle>
+                  <CardTitle>СПОСОБ ОПЛАТЫ</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <RadioGroup
                     value={paymentMethod}
                     onValueChange={(value) => setPaymentMethod(value as PaymentMethod)}
                   >
-                    {deliveryMethod === 'pickup' && (
+                    {deliveryMethod === 'spb_boutique' && (
                       <div className="flex items-start space-x-3 p-4 rounded-lg border hover:border-primary cursor-pointer">
                         <RadioGroupItem value="pickup" id="pay-pickup" className="mt-1" />
                         <Label htmlFor="pay-pickup" className="flex-1 cursor-pointer">
@@ -503,7 +644,7 @@ Email: info@idylle.spb.ru
                       </div>
                     )}
 
-                    {deliveryMethod === 'delivery' && (
+                    {(deliveryMethod === 'spb_courier' || deliveryMethod === 'cdek_courier') && (
                       <>
                         <div className="flex items-start space-x-3 p-4 rounded-lg border hover:border-primary cursor-pointer">
                           <RadioGroupItem value="card" id="pay-card" className="mt-1" />
@@ -608,6 +749,47 @@ Email: info@idylle.spb.ru
                   )}
                 </CardContent>
               </Card>
+
+              {/* Auth/Guest Option */}
+              {!session?.user && showGuestOption && (
+                <Card className="border-primary/20 bg-primary/5">
+                  <CardHeader>
+                    <CardTitle>У вас есть аккаунт?</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      Войдите, чтобы быстро оформить заказ или зарегистрируйтесь для отслеживания статуса.
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <Button 
+                        type="button" 
+                        variant="default" 
+                        className="flex-1"
+                        onClick={() => router.push('/auth/signin?callbackUrl=/checkout')}
+                      >
+                        <User className="h-4 w-4 mr-2" />
+                        Войти
+                      </Button>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        className="flex-1"
+                        onClick={() => router.push('/auth/signup')}
+                      >
+                        Регистрация
+                      </Button>
+                      <Button 
+                        type="button" 
+                        variant="ghost" 
+                        onClick={() => setShowGuestOption(false)}
+                      >
+                        <ShoppingBag className="h-4 w-4 mr-2" />
+                        Оформить как гость
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </div>
 
             {/* Order Summary */}
@@ -617,7 +799,6 @@ Email: info@idylle.spb.ru
                   <CardTitle>Ваш заказ</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {/* Order Items */}
                   <div className="space-y-3 max-h-60 overflow-y-auto">
                     {items.map((item) => (
                       <div key={item.id} className="flex gap-3">
@@ -645,7 +826,6 @@ Email: info@idylle.spb.ru
 
                   <div className="h-px bg-border"></div>
 
-                  {/* Price Summary */}
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Товары</span>
@@ -654,7 +834,7 @@ Email: info@idylle.spb.ru
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Доставка</span>
                       <span>
-                        {deliveryPrice === 0 ? 'Бесплатно' : `${deliveryPrice} ₽`}
+                        {deliveryPrice === 0 ? 'Бесплатно' : `${deliveryPrice.toLocaleString('ru-RU')} ₽`}
                       </span>
                     </div>
                     <div className="h-px bg-border"></div>
@@ -668,7 +848,7 @@ Email: info@idylle.spb.ru
                     type="submit"
                     size="lg"
                     className="w-full"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || !selectedCity || !deliveryMethod}
                   >
                     {isSubmitting ? (
                       'Оформляем...'
@@ -682,9 +862,9 @@ Email: info@idylle.spb.ru
 
                   <p className="text-xs text-muted-foreground text-center">
                     Нажимая кнопку, вы соглашаетесь с условиями{' '}
-                    <a href="#" className="underline">
+                    <Link href="/terms" className="underline">
                       пользовательского соглашения
-                    </a>
+                    </Link>
                   </p>
                 </CardContent>
               </Card>
@@ -695,4 +875,3 @@ Email: info@idylle.spb.ru
     </div>
   );
 }
-
