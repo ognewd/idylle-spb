@@ -235,14 +235,41 @@ export default async function ContactsPage() {
           <div className="bg-muted/30 rounded-lg p-8">
             <h2 className="text-2xl font-semibold mb-6 text-center">Как нас найти</h2>
             <div className="text-center">
-              <p className="text-muted-foreground mb-4 max-w-2xl mx-auto">
+              <p className="text-muted-foreground mb-6 max-w-2xl mx-auto">
                 Наш бутик находится в самом сердце Санкт-Петербурга на Невском проспекте, 
                 в торговом комплексе «Невский центр» на 4 этаже
               </p>
-              <div className="bg-white rounded-lg p-6 inline-block shadow-sm">
+              <div className="bg-white rounded-lg p-6 inline-block shadow-sm mb-6">
                 <p className="font-medium mb-2">🚇 Ближайшая станция метро:</p>
                 <p className="text-primary font-semibold text-lg">Площадь Восстания</p>
                 <p className="text-sm text-muted-foreground mt-2">2-3 минуты пешком от метро</p>
+              </div>
+              
+              {/* Яндекс карта */}
+              <div className="mt-8 w-full max-w-4xl mx-auto">
+                <div className="bg-white rounded-lg shadow-lg overflow-hidden rounded-lg">
+                  <iframe
+                    src="https://yandex.com/map-widget/v1/?ll=30.359203%2C59.932112&amp;z=16&amp;pt=30.359203%2C59.932112&amp;l=map"
+                    width="100%"
+                    height="400"
+                    frameBorder="0"
+                    allowFullScreen={true}
+                    style={{ position: 'relative' }}
+                    className="w-full"
+                    title="Карта AROMA BOUTIQUE IDYLLE"
+                  />
+                </div>
+                <div className="mt-4 text-center">
+                  <a
+                    href="https://yandex.com/maps/org/aroma_idylle_boutique/118045470929/?ll=30.359203%2C59.932112&z=16"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline text-sm inline-flex items-center gap-2 transition-colors"
+                  >
+                    <MapPin className="h-4 w-4" />
+                    Открыть на Яндекс Картах
+                  </a>
+                </div>
               </div>
             </div>
           </div>
