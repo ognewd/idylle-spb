@@ -184,7 +184,7 @@ export default function AdminDashboard() {
       section: 'products' as const,
     },
     {
-      title: 'Задачи для Димы',
+      title: 'Задачи по сайту',
       description: 'Постановка и отслеживание задач',
       icon: CheckSquare,
       href: '/admin/tasks',
