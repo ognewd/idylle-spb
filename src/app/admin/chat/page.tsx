@@ -7,6 +7,8 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 interface ChatSession {
   id: string;
@@ -34,6 +36,8 @@ export default function AdminChatPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingSessions, setIsLoadingSessions] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [chatEnabled, setChatEnabled] = useState<boolean>(true);
+  const [isTogglingChat, setIsTogglingChat] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -43,12 +47,53 @@ export default function AdminChatPage() {
       return;
     }
 
+    loadChatSettings();
     loadSessions();
     
     // Refresh sessions every 10 seconds
     const interval = setInterval(loadSessions, 10000);
     return () => clearInterval(interval);
   }, [router]);
+
+  const loadChatSettings = async () => {
+    try {
+      const response = await fetch('/api/chat/settings');
+      if (response.ok) {
+        const data = await response.json();
+        setChatEnabled(data.enabled ?? true);
+      }
+    } catch (error) {
+      console.error('Error loading chat settings:', error);
+    }
+  };
+
+  const toggleChat = async (enabled: boolean) => {
+    setIsTogglingChat(true);
+    try {
+      const token = localStorage.getItem('admin_token');
+      const response = await fetch('/api/chat/settings', {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ enabled }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setChatEnabled(data.enabled);
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Ошибка при обновлении настройки');
+      }
+    } catch (error) {
+      console.error('Error toggling chat:', error);
+      alert('Ошибка при обновлении настройки');
+    } finally {
+      setIsTogglingChat(false);
+    }
+  };
 
   useEffect(() => {
     if (selectedSession) {
@@ -173,7 +218,37 @@ export default function AdminChatPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto">
-        <div className="flex gap-6 h-[calc(100vh-8rem)]">
+        {/* Chat Toggle Settings */}
+        <Card className="mb-6">
+          <div className="p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-lg ${chatEnabled ? 'bg-green-100' : 'bg-gray-100'}`}>
+                <MessageCircle className={`h-5 w-5 ${chatEnabled ? 'text-green-600' : 'text-gray-400'}`} />
+              </div>
+              <div>
+                <h3 className="font-semibold text-lg">Чат на сайте</h3>
+                <p className="text-sm text-gray-600">
+                  {chatEnabled 
+                    ? 'Чат включен и доступен пользователям' 
+                    : 'Чат выключен и скрыт от пользователей'}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <Label htmlFor="chat-toggle" className="cursor-pointer">
+                {chatEnabled ? 'Включен' : 'Выключен'}
+              </Label>
+              <Switch
+                id="chat-toggle"
+                checked={chatEnabled}
+                onCheckedChange={toggleChat}
+                disabled={isTogglingChat}
+              />
+            </div>
+          </div>
+        </Card>
+
+        <div className="flex gap-6 h-[calc(100vh-12rem)]">
           {/* Sessions List */}
           <div className="w-80 flex-shrink-0">
             <Card className="h-full flex flex-col">

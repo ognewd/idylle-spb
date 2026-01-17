@@ -22,6 +22,7 @@ export function ChatWidget() {
   const [userName, setUserName] = useState('');
   const [userEmail, setUserEmail] = useState('');
   const [showRegistration, setShowRegistration] = useState(false);
+  const [chatEnabled, setChatEnabled] = useState<boolean>(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -31,6 +32,28 @@ export function ChatWidget() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Check if chat is enabled
+  useEffect(() => {
+    const checkChatEnabled = async () => {
+      try {
+        const response = await fetch('/api/chat/settings');
+        if (response.ok) {
+          const data = await response.json();
+          setChatEnabled(data.enabled ?? true);
+        }
+      } catch (error) {
+        console.error('Error checking chat settings:', error);
+        // По умолчанию показываем чат, если не удалось проверить
+        setChatEnabled(true);
+      }
+    };
+
+    checkChatEnabled();
+    // Проверяем настройку каждые 30 секунд
+    const interval = setInterval(checkChatEnabled, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Load saved user info from localStorage on mount
   useEffect(() => {
@@ -135,6 +158,11 @@ export function ChatWidget() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, userName, userEmail, chatId, showRegistration]);
+
+  // Не показывать виджет, если чат выключен
+  if (!chatEnabled) {
+    return null;
+  }
 
   return (
     <>
