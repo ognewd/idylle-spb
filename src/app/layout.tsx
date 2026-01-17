@@ -9,6 +9,7 @@ import { WishlistProvider } from '@/contexts/WishlistContext';
 import { ChatWidget } from '@/components/chat/ChatWidget';
 import { SessionProvider } from '@/components/providers/SessionProvider';
 import { MaintenancePage } from '@/components/maintenance/MaintenancePage';
+import { CookieBanner } from '@/components/layout/CookieBanner';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -41,6 +42,7 @@ export default function RootLayout({
                 </main>
                 <Footer />
                 <ChatWidget />
+                <CookieBanner />
               </div>
             </CartProvider>
           </WishlistProvider>
