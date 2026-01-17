@@ -6,6 +6,8 @@ import { NextRequest, NextResponse } from 'next/server';
  * Использует точно указанные URL:
  * - https://api.edu.cdek.ru/v2/oauth/token?grant_type=client_credentials&client_id=...&client_secret=...
  * - https://api.edu.cdek.ru/v2/location/suggest/cities?name=...&country_code=RU&size=10
+ * 
+ * Фильтрует только российские города (country_code: 'RU')
  */
 
 // Кэш токена
