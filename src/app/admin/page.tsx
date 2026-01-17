@@ -94,7 +94,10 @@ export default function AdminDashboard() {
     router.push('/admin/login');
   };
 
+  // Конфигурация карточек с разделением на секции
+  // Порядок: строго 1-12 как указано в требованиях
   const allMenuItems = [
+    // Секция A: Каталог
     {
       title: 'Товары',
       description: 'Управление каталогом товаров',
@@ -102,6 +105,7 @@ export default function AdminDashboard() {
       href: '/admin/products',
       color: 'bg-blue-500',
       section: 'products' as const,
+      sectionName: 'Каталог' as const,
     },
     {
       title: 'Категории',
@@ -110,14 +114,7 @@ export default function AdminDashboard() {
       href: '/admin/categories',
       color: 'bg-green-500',
       section: 'categories' as const,
-    },
-    {
-      title: 'Сезонные скидки',
-      description: 'Управление скидками по категориям',
-      icon: Tag,
-      href: '/admin/seasonal-discounts',
-      color: 'bg-pink-500',
-      section: 'seasonal-discounts' as const,
+      sectionName: 'Каталог' as const,
     },
     {
       title: 'Фильтры',
@@ -126,6 +123,17 @@ export default function AdminDashboard() {
       href: '/admin/filters',
       color: 'bg-purple-500',
       section: 'filters' as const,
+      sectionName: 'Каталог' as const,
+    },
+    // Секция B: Продажи
+    {
+      title: 'Заказы',
+      description: 'Просмотр и управление заказами',
+      icon: ShoppingCart,
+      href: '/admin/orders',
+      color: 'bg-red-500',
+      section: 'orders' as const,
+      sectionName: 'Продажи' as const,
     },
     {
       title: 'Покупатели',
@@ -134,23 +142,18 @@ export default function AdminDashboard() {
       href: '/admin/buyers',
       color: 'bg-orange-500',
       section: 'users' as const,
+      sectionName: 'Продажи' as const,
     },
     {
-      title: 'Заказы',
-      description: 'Просмотр и управление заказами',
-      icon: ShoppingCart,
-      href: '/admin/orders',
-      color: 'bg-red-500',
-      section: 'orders' as const,
+      title: 'Сезонные скидки',
+      description: 'Управление скидками по категориям',
+      icon: Tag,
+      href: '/admin/seasonal-discounts',
+      color: 'bg-pink-500',
+      section: 'seasonal-discounts' as const,
+      sectionName: 'Продажи' as const,
     },
-    {
-      title: 'Администраторы',
-      description: 'Управление администраторами',
-      icon: Users,
-      href: '/admin/admins',
-      color: 'bg-indigo-500',
-      section: 'administrators' as const,
-    },
+    // Секция C: Коммуникации и контент
     {
       title: 'Управление email',
       description: 'SMTP настройки и шаблоны писем',
@@ -158,6 +161,7 @@ export default function AdminDashboard() {
       href: '/admin/email',
       color: 'bg-cyan-500',
       section: 'products' as const, // Using products section for now, can be added to permissions later
+      sectionName: 'Коммуникации и контент' as const,
     },
     {
       title: 'Чат',
@@ -166,14 +170,7 @@ export default function AdminDashboard() {
       href: '/admin/chat',
       color: 'bg-teal-500',
       section: 'products' as const, // Using products section for now, can be added to permissions later
-    },
-    {
-      title: 'OAuth / Социальные сети',
-      description: 'Настройка авторизации через социальные сети',
-      icon: Shield,
-      href: '/admin/oauth',
-      color: 'bg-gradient-to-br from-blue-500 to-purple-600',
-      section: 'products' as const,
+      sectionName: 'Коммуникации и контент' as const,
     },
     {
       title: 'Страницы',
@@ -182,6 +179,26 @@ export default function AdminDashboard() {
       href: '/admin/pages',
       color: 'bg-amber-500',
       section: 'products' as const,
+      sectionName: 'Коммуникации и контент' as const,
+    },
+    // Секция D: Администрирование и задачи
+    {
+      title: 'Администраторы',
+      description: 'Управление администраторами',
+      icon: Users,
+      href: '/admin/admins',
+      color: 'bg-indigo-500',
+      section: 'administrators' as const,
+      sectionName: 'Администрирование и задачи' as const,
+    },
+    {
+      title: 'OAuth / Социальные сети',
+      description: 'Настройка авторизации через социальные сети',
+      icon: Shield,
+      href: '/admin/oauth',
+      color: 'bg-gradient-to-br from-blue-500 to-purple-600',
+      section: 'products' as const,
+      sectionName: 'Администрирование и задачи' as const,
     },
     {
       title: 'Задачи по сайту',
@@ -190,6 +207,7 @@ export default function AdminDashboard() {
       href: '/admin/tasks',
       color: 'bg-violet-500',
       section: 'products' as const,
+      sectionName: 'Администрирование и задачи' as const,
     },
   ];
 
@@ -283,31 +301,60 @@ export default function AdminDashboard() {
           </Card>
         </div>
 
-        {/* Menu Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {menuItems.map((item) => (
-            <Card key={item.href} className="hover:shadow-lg transition-shadow cursor-pointer">
-              <CardHeader>
-                <div className="flex items-center space-x-4">
-                  <div className={`p-3 rounded-lg ${item.color}`}>
-                    <item.icon className="h-6 w-6 text-white" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-lg">{item.title}</CardTitle>
-                    <CardDescription>{item.description}</CardDescription>
-                  </div>
+        {/* Menu Grid with Sections */}
+        <div className="space-y-6">
+          {/* Группируем карточки по секциям */}
+          {['Каталог', 'Продажи', 'Коммуникации и контент', 'Администрирование и задачи'].map((sectionName) => {
+            const sectionItems = menuItems.filter(item => item.sectionName === sectionName);
+            
+            if (sectionItems.length === 0) return null;
+
+            // Легкие фоновые цвета для разных секций (очень ненавязчивые)
+            const sectionBgClass = 
+              sectionName === 'Каталог' ? 'bg-blue-50/30' :
+              sectionName === 'Продажи' ? 'bg-green-50/30' :
+              sectionName === 'Коммуникации и контент' ? 'bg-purple-50/30' :
+              'bg-slate-50/30';
+
+            return (
+              <div 
+                key={sectionName} 
+                className={`${sectionBgClass} rounded-xl border border-gray-100 shadow-sm p-6 space-y-4 transition-all hover:shadow-md`}
+              >
+                {/* Заголовок секции */}
+                <h2 className="text-2xl font-bold text-gray-900 border-b border-gray-200/50 pb-3">
+                  {sectionName}
+                </h2>
+                
+                {/* Сетка карточек секции: 1 колонка на мобильных, 2 на планшетах, 3 на десктопе */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {sectionItems.map((item) => (
+                    <Card key={item.href} className="hover:shadow-lg transition-shadow cursor-pointer flex flex-col bg-white">
+                      <CardHeader className="flex-1">
+                        <div className="flex items-center space-x-4">
+                          <div className={`p-3 rounded-lg ${item.color} flex-shrink-0`}>
+                            <item.icon className="h-6 w-6 text-white" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <CardTitle className="text-lg">{item.title}</CardTitle>
+                            <CardDescription className="text-sm">{item.description}</CardDescription>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="pt-0">
+                        <Button 
+                          className="w-full" 
+                          onClick={() => router.push(item.href)}
+                        >
+                          Перейти
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
-              </CardHeader>
-              <CardContent>
-                <Button 
-                  className="w-full" 
-                  onClick={() => router.push(item.href)}
-                >
-                  Перейти
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
