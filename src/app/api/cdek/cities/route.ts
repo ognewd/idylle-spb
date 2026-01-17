@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
     const formattedCities = russianCities.map(city => {
       // Парсим full_name: "Санкт-Петербург, Россия" или "Самара, городской округ Самара, Самарская область, Россия"
       const fullName = city.full_name || '';
-      const parts = fullName.split(',').map(p => p.trim());
+      const parts = fullName.split(',').map((p: string) => p.trim());
       const cityName = parts[0] || '';
       const region = parts.length > 2 ? parts.slice(1, -1).join(', ') : (parts[1] || '');
       
