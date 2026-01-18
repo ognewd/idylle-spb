@@ -6,6 +6,9 @@ import { Calendar } from 'lucide-react';
 
 export function MaintenancePage() {
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const [maintenanceEnabled, setMaintenanceEnabled] = useState<boolean>(false);
+  const [maintenanceDate, setMaintenanceDate] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const pathname = usePathname();
 
   useEffect(() => {
@@ -13,6 +16,9 @@ export function MaintenancePage() {
     const adminToken = typeof window !== 'undefined' ? localStorage.getItem('admin_token') : null;
     const admin = !!adminToken;
     setIsAdmin(admin);
+    
+    // Загружаем настройки режима обслуживания
+    loadMaintenanceSettings();
     
     // Добавляем класс к body для управления видимостью контента
     if (typeof window !== 'undefined') {
@@ -24,8 +30,30 @@ export function MaintenancePage() {
     }
   }, [pathname]);
 
-  // Если проверка еще идет, не показываем ничего (или loading)
-  if (isAdmin === null) {
+  const loadMaintenanceSettings = async () => {
+    try {
+      const response = await fetch('/api/maintenance');
+      if (response.ok) {
+        const data = await response.json();
+        setMaintenanceEnabled(data.enabled ?? false);
+        setMaintenanceDate(data.maintenanceDate || null);
+      }
+    } catch (error) {
+      console.error('Error loading maintenance settings:', error);
+      // По умолчанию режим обслуживания выключен
+      setMaintenanceEnabled(false);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Если проверка еще идет, не показываем ничего
+  if (isAdmin === null || isLoading) {
+    return null;
+  }
+
+  // Если режим обслуживания выключен - не показываем заглушку
+  if (!maintenanceEnabled) {
     return null;
   }
 
@@ -67,14 +95,16 @@ export function MaintenancePage() {
             Мы готовим для вас что-то особенное
           </p>
           
-          <div className="mt-8 pt-8 border-t border-white/20">
-            <p className="text-lg sm:text-xl text-white/80 mb-2">
-              Планируемое открытие
-            </p>
-            <p className="text-2xl sm:text-3xl font-semibold text-white">
-              14 февраля 2026 года
-            </p>
-          </div>
+          {maintenanceDate && (
+            <div className="mt-8 pt-8 border-t border-white/20">
+              <p className="text-lg sm:text-xl text-white/80 mb-2">
+                Планируемое открытие
+              </p>
+              <p className="text-2xl sm:text-3xl font-semibold text-white">
+                {formatMaintenanceDate(maintenanceDate)}
+              </p>
+            </div>
+          )}
           
           <div className="mt-8 text-sm text-white/60">
             Следите за обновлениями в наших социальных сетях
@@ -86,3 +116,28 @@ export function MaintenancePage() {
   );
 }
 
+// Функция для форматирования даты в русском формате
+function formatMaintenanceDate(dateString: string): string {
+  try {
+    const date = new Date(dateString);
+    const options: Intl.DateTimeFormatOptions = {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    };
+    const dateFormatted = date.toLocaleDateString('ru-RU', options);
+    
+    // Добавляем время, если оно указано (не 00:00)
+    const hours = date.getHours();
+    const minutes = date.getMinutes();
+    if (hours !== 0 || minutes !== 0) {
+      const timeFormatted = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+      return `${dateFormatted}, ${timeFormatted}`;
+    }
+    
+    return dateFormatted;
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return dateString;
+  }
+}

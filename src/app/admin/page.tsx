@@ -20,7 +20,8 @@ import {
   MessageCircle,
   Shield,
   FileText,
-  CheckSquare
+  CheckSquare,
+  Wrench
 } from 'lucide-react';
 import { hasAccessToSection } from '@/lib/admin-permissions';
 
@@ -197,6 +198,15 @@ export default function AdminDashboard() {
       icon: Shield,
       href: '/admin/oauth',
       color: 'bg-gradient-to-br from-blue-500 to-purple-600',
+      section: 'products' as const,
+      sectionName: 'Администрирование и задачи' as const,
+    },
+    {
+      title: 'Режим обслуживания',
+      description: 'Управление режимом обслуживания сайта',
+      icon: Wrench,
+      href: '/admin/maintenance',
+      color: 'bg-orange-500',
       section: 'products' as const,
       sectionName: 'Администрирование и задачи' as const,
     },
