@@ -25,7 +25,16 @@ export function StickyImageContainer({
 
       if (!contentContainer || !wrapperElement) return;
 
-      // Получаем высоту правого контейнера
+      // Проверяем, находимся ли мы на десктопе (lg breakpoint и выше)
+      const isDesktop = window.matchMedia('(min-width: 1024px)').matches;
+
+      if (!isDesktop) {
+        // На мобильной версии не устанавливаем высоту - пусть контент определяет естественную высоту
+        wrapperElement.style.height = 'auto';
+        return;
+      }
+
+      // На десктопе получаем высоту правого контейнера
       const contentHeight = contentContainer.offsetHeight;
       
       // Устанавливаем высоту wrapper равной высоте правого контента
