@@ -82,8 +82,26 @@ export async function sendMail(options: MailOptions) {
   try {
     const transporter = await getMailTransporter();
 
+    // Получаем FROM из настроек БД или env
+    const smtpSettings = await prisma.settings.findMany({
+      where: {
+        key: {
+          startsWith: 'SMTP_',
+        },
+      },
+    });
+
+    const settings: any = {};
+    smtpSettings.forEach(setting => {
+      const key = setting.key.replace('SMTP_', '');
+      settings[key] = setting.value;
+    });
+
+    // Используем FROM из БД, если есть, иначе из env, иначе дефолтный
+    const fromEmail = settings.FROM || process.env.SMTP_FROM || 'noreply@idylle.spb.ru';
+
     const mailOptions = {
-      from: process.env.SMTP_FROM || 'noreply@idylle.spb.ru',
+      from: fromEmail,
       to: options.to,
       subject: options.subject,
       html: options.html,
@@ -91,7 +109,7 @@ export async function sendMail(options: MailOptions) {
     };
 
     const info = await transporter.sendMail(mailOptions);
-    console.log('📧 Email sent:', info.messageId);
+    console.log('📧 Email sent from:', fromEmail, 'to:', options.to, 'messageId:', info.messageId);
     return { success: true, messageId: info.messageId };
   } catch (error) {
     console.error('❌ Error sending email:', error);
