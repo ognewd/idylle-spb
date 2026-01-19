@@ -90,11 +90,21 @@ export default function MaintenancePage() {
       });
 
       if (response.ok) {
+        const result = await response.json();
+        console.log('[Admin Maintenance] Save response:', result);
+        
         setMessage({ type: 'success', text: 'Настройки сохранены' });
+        
+        // Перезагружаем настройки после сохранения, чтобы убедиться, что они совпадают
+        setTimeout(() => {
+          loadSettings();
+        }, 500);
+        
         // Очищаем сообщение через 3 секунды
         setTimeout(() => setMessage(null), 3000);
       } else {
         const error = await response.json();
+        console.error('[Admin Maintenance] Save error:', error);
         setMessage({ type: 'error', text: error.error || 'Ошибка при сохранении' });
       }
     } catch (error) {
