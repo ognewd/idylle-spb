@@ -252,18 +252,20 @@ model WishlistItem {
 
 model Review {
   id         String   @id @default(cuid())
-  userId     String
+  userId     String?  // Опционально для анонимных отзывов
   productId  String
   rating     Int
   title      String?
   comment    String?
+  userName   String?  // Имя для анонимных отзывов
+  userEmail  String?  // Email для анонимных отзывов
   isVerified Boolean  @default(false)
+  isApproved Boolean  @default(false) // Модерация отзывов
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, productId])
   @@map("reviews")
 }
 

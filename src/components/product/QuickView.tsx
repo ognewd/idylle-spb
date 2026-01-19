@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Heart, ShoppingCart, Star, X, Minus, Plus } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, getReviewWord } from '@/lib/utils';
 import { useCart } from '@/contexts/CartContext';
 
 interface ProductVariant {
@@ -195,7 +195,7 @@ export function QuickView({ product, isOpen, onClose, onAddToCart }: QuickViewPr
                   ))}
                 </div>
                 <span className="text-sm text-muted-foreground">
-                  ({product.reviewCount} отзывов)
+                  ({product.reviewCount} {getReviewWord(product.reviewCount)})
                 </span>
               </div>
             )}
@@ -247,12 +247,6 @@ export function QuickView({ product, isOpen, onClose, onAddToCart }: QuickViewPr
                   <span className="font-medium">
                     {product.gender === 'men' ? 'Мужской' : product.gender === 'women' ? 'Женский' : 'Унисекс'}
                   </span>
-                </div>
-              )}
-              {product.ingredients && (
-                <div>
-                  <span className="text-muted-foreground">Состав: </span>
-                  <span className="font-medium">{product.ingredients}</span>
                 </div>
               )}
             </div>

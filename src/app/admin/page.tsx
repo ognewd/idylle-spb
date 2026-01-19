@@ -21,7 +21,8 @@ import {
   Shield,
   FileText,
   CheckSquare,
-  Wrench
+  Wrench,
+  Star
 } from 'lucide-react';
 import { hasAccessToSection } from '@/lib/admin-permissions';
 
@@ -171,6 +172,15 @@ export default function AdminDashboard() {
       href: '/admin/chat',
       color: 'bg-teal-500',
       section: 'products' as const, // Using products section for now, can be added to permissions later
+      sectionName: 'Коммуникации и контент' as const,
+    },
+    {
+      title: 'Отзывы',
+      description: 'Модерация отзывов на товары',
+      icon: Star,
+      href: '/admin/reviews',
+      color: 'bg-yellow-500',
+      section: 'products' as const,
       sectionName: 'Коммуникации и контент' as const,
     },
     {

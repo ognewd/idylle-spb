@@ -7,8 +7,9 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Heart, ShoppingCart, Star, Truck, Shield, RotateCcw, MessageCircle } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, getReviewWord } from '@/lib/utils';
 import { useCart } from '@/contexts/CartContext';
+import { ReviewForm } from './ReviewForm';
 
 interface ProductVariant {
   id: string;
@@ -176,7 +177,7 @@ export function ProductInfo({ product, className }: ProductInfoProps) {
             ))}
           </div>
           <span className="text-sm text-muted-foreground">
-            {averageRating.toFixed(1)} ({reviewCount} отзывов)
+            {averageRating.toFixed(1)} ({reviewCount} {getReviewWord(reviewCount)})
           </span>
         </div>
       )}
@@ -663,42 +664,57 @@ export function ProductInfo({ product, className }: ProductInfoProps) {
         </TabsContent>
         
         <TabsContent value="reviews" className="mt-4">
-          <div className="space-y-4">
-            {reviews.length > 0 ? (
-              reviews.map((review) => (
-                <div key={review.id} className="border rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center space-x-2">
-                      <span className="font-medium">{review.user.name}</span>
-                      <div className="flex items-center">
-                        {[...Array(5)].map((_, i) => (
-                          <Star
-                            key={i}
-                            className={cn(
-                              "h-3 w-3",
-                              i < review.rating
-                                ? "fill-yellow-400 text-yellow-400"
-                                : "text-muted-foreground"
-                            )}
-                          />
-                        ))}
+          <div className="space-y-6">
+            {/* Список отзывов */}
+            <div className="space-y-4">
+              {reviews.length > 0 ? (
+                reviews.map((review) => (
+                  <div key={review.id} className="border rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center space-x-2">
+                        <span className="font-medium">{review.user?.name || 'Анонимный пользователь'}</span>
+                        <div className="flex items-center">
+                          {[...Array(5)].map((_, i) => (
+                            <Star
+                              key={i}
+                              className={cn(
+                                "h-3 w-3",
+                                i < review.rating
+                                  ? "fill-yellow-400 text-yellow-400"
+                                  : "text-muted-foreground"
+                              )}
+                            />
+                          ))}
+                        </div>
                       </div>
+                      <span className="text-sm text-muted-foreground">
+                        {new Date(review.createdAt).toLocaleDateString('ru-RU')}
+                      </span>
                     </div>
-                    <span className="text-sm text-muted-foreground">
-                      {new Date(review.createdAt).toLocaleDateString('ru-RU')}
-                    </span>
+                    {review.title && (
+                      <h4 className="font-medium mb-1">{review.title}</h4>
+                    )}
+                    {review.comment && (
+                      <p className="text-sm text-muted-foreground">{review.comment}</p>
+                    )}
                   </div>
-                  {review.title && (
-                    <h4 className="font-medium mb-1">{review.title}</h4>
-                  )}
-                  {review.comment && (
-                    <p className="text-sm text-muted-foreground">{review.comment}</p>
-                  )}
-                </div>
-              ))
-            ) : (
-              <p className="text-muted-foreground">Отзывов пока нет</p>
-            )}
+                ))
+              ) : (
+                <p className="text-muted-foreground">Отзывов пока нет</p>
+              )}
+            </div>
+
+            {/* Форма для добавления отзыва */}
+            <div className="border-t pt-6">
+              <h3 className="text-lg font-semibold mb-4">Оставить отзыв</h3>
+              <ReviewForm 
+                productId={product.id} 
+                onSuccess={() => {
+                  // Перезагрузить страницу для обновления отзывов
+                  window.location.reload();
+                }}
+              />
+            </div>
           </div>
         </TabsContent>
       </Tabs>

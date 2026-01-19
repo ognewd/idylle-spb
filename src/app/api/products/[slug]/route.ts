@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getImageUrl } from '@/lib/image-url';
 
 export async function GET(
   request: NextRequest,
@@ -32,6 +31,9 @@ export async function GET(
           ],
         },
         reviews: {
+          where: {
+            isApproved: true, // Показываем только одобренные отзывы
+          },
           include: {
             user: {
               select: {
@@ -53,8 +55,9 @@ export async function GET(
       );
     }
 
-    // Calculate average rating from reviews
-    const ratings = product.reviews.map(review => review.rating);
+    // Calculate average rating from approved reviews only
+    const approvedReviews = product.reviews.filter(review => review.isApproved);
+    const ratings = approvedReviews.map(review => review.rating);
     const averageRating = ratings.length > 0 
       ? ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length 
       : 0;
@@ -147,12 +150,13 @@ export async function GET(
       product: {
         ...product,
         averageRating: Math.round(averageRating * 10) / 10,
-        reviewCount: product.reviews.length,
+        reviewCount: approvedReviews.length, // Только одобренные отзывы
         price: discountedPrice,
         comparePrice: seasonal ? basePrice : (product.comparePrice ? Number(product.comparePrice) : null),
         seasonalDiscount: seasonal || null,
+        weight: product.weight ? Number(product.weight) : null,
         images: product.images.map(img => ({
-          url: getImageUrl(img.url),
+          url: img.url, // Возвращаем относительный путь, клиент сам добавит baseUrl
           alt: img.alt,
           isPrimary: img.isPrimary,
         })),
@@ -171,14 +175,16 @@ export async function GET(
           rating: r.rating,
           title: r.title,
           comment: r.comment,
-          user: r.user,
+          user: {
+            name: r.user?.name || r.userName || 'Анонимный пользователь',
+          },
           createdAt: r.createdAt.toISOString(),
         })),
       },
       relatedProducts: relatedProductsWithRatings.map(relatedProduct => ({
         ...relatedProduct,
         images: relatedProduct.images.map(img => ({
-          url: getImageUrl(img.url),
+          url: img.url, // Возвращаем относительный путь, клиент сам добавит baseUrl
           alt: img.alt,
           isPrimary: img.isPrimary,
         })),

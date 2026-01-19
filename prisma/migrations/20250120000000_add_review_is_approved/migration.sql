@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "reviews" ADD COLUMN IF NOT EXISTS "isApproved" BOOLEAN NOT NULL DEFAULT false;
