@@ -30,13 +30,32 @@ export function MaintenancePage() {
     // Загружаем настройки режима обслуживания
     loadMaintenanceSettings();
     
-    // Периодически проверяем настройки (каждые 5 секунд)
-    const interval = setInterval(() => {
-      checkAdmin();
-      loadMaintenanceSettings();
-    }, 5000);
+    // Проверяем только когда страница видна (не в фоне)
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        checkAdmin();
+        loadMaintenanceSettings();
+      }
+    };
     
-    return () => clearInterval(interval);
+    // Периодически проверяем настройки (каждые 30 секунд, только если страница видна)
+    const interval = setInterval(() => {
+      if (!document.hidden) {
+        checkAdmin();
+        loadMaintenanceSettings();
+      }
+    }, 30000); // Увеличено с 5 до 30 секунд
+    
+    // Проверяем при возврате на страницу
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    // Проверяем при фокусе окна
+    window.addEventListener('focus', handleVisibilityChange);
+    
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleVisibilityChange);
+    };
   }, [pathname]);
 
   const loadMaintenanceSettings = async () => {
