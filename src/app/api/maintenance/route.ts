@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+// Отключаем кеширование для этого роута
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 const MAINTENANCE_ENABLED_KEY = 'maintenance_enabled';
 const MAINTENANCE_DATE_KEY = 'maintenance_date';
 
@@ -50,10 +54,12 @@ export async function GET() {
       maintenanceDate,
     });
     
-    // Отключаем кеширование для этого API
-    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    // Агрессивно отключаем кеширование для этого API
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
     response.headers.set('Pragma', 'no-cache');
     response.headers.set('Expires', '0');
+    response.headers.set('X-Accel-Expires', '0'); // Для nginx
+    response.headers.set('Surrogate-Control', 'no-store'); // Для CDN
     
     return response;
   } catch (error) {

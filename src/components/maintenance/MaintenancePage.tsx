@@ -41,11 +41,16 @@ export function MaintenancePage() {
 
   const loadMaintenanceSettings = async () => {
     try {
-      // Добавляем timestamp для предотвращения кеширования
-      const response = await fetch(`/api/maintenance?t=${Date.now()}`, {
+      // Добавляем timestamp и случайное число для предотвращения кеширования
+      const timestamp = Date.now();
+      const random = Math.random();
+      const response = await fetch(`/api/maintenance?t=${timestamp}&r=${random}`, {
         cache: 'no-store',
+        method: 'GET',
         headers: {
-          'Cache-Control': 'no-cache',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
         },
       });
       if (response.ok) {
