@@ -45,8 +45,24 @@ export async function GET(request: NextRequest) {
       where: { key: MAINTENANCE_DATE_KEY },
     });
 
-    const enabled = enabledSetting ? enabledSetting.value === 'true' : false;
+    // Правильно обрабатываем значение: может быть 'true'/'false' (строка) или true/false (boolean)
+    let enabled = false;
+    if (enabledSetting) {
+      const value = enabledSetting.value;
+      if (value === 'true' || value === true) {
+        enabled = true;
+      } else if (value === 'false' || value === false) {
+        enabled = false;
+      }
+    }
     const maintenanceDate = dateSetting?.value || null;
+    
+    console.log('[Admin Maintenance API GET] Settings:', {
+      enabled,
+      enabledSettingValue: enabledSetting?.value,
+      enabledSettingValueType: typeof enabledSetting?.value,
+      maintenanceDate,
+    });
 
     return NextResponse.json({
       enabled,
@@ -77,21 +93,39 @@ export async function PATCH(request: NextRequest) {
 
     const { enabled, maintenanceDate } = await request.json();
 
+    console.log('[Admin Maintenance API PATCH] Received:', {
+      enabled,
+      enabledType: typeof enabled,
+      maintenanceDate,
+    });
+
     // Обновляем статус включения/выключения
     // Всегда обновляем, даже если enabled === false
     if (typeof enabled === 'boolean') {
+      const valueString = enabled.toString(); // 'true' или 'false'
       await prisma.settings.upsert({
         where: { key: MAINTENANCE_ENABLED_KEY },
-        update: { value: enabled.toString() },
+        update: { value: valueString },
         create: {
           key: MAINTENANCE_ENABLED_KEY,
-          value: enabled.toString(),
+          value: valueString,
           type: 'boolean',
         },
       });
-      console.log('[Admin Maintenance API] Saved enabled:', enabled, 'as string:', enabled.toString());
+      
+      // Проверяем, что значение сохранилось
+      const saved = await prisma.settings.findUnique({
+        where: { key: MAINTENANCE_ENABLED_KEY },
+      });
+      
+      console.log('[Admin Maintenance API PATCH] Saved:', {
+        enabled,
+        savedValue: saved?.value,
+        savedValueType: typeof saved?.value,
+        matches: saved?.value === valueString,
+      });
     } else {
-      console.warn('[Admin Maintenance API] enabled is not boolean:', typeof enabled, enabled);
+      console.warn('[Admin Maintenance API PATCH] enabled is not boolean:', typeof enabled, enabled);
     }
 
     // Обновляем дату и время
