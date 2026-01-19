@@ -26,15 +26,6 @@ export function MaintenancePage() {
       loadMaintenanceSettings();
     }, 5000);
     
-    // Добавляем класс к body для управления видимостью контента
-    if (typeof window !== 'undefined') {
-      if (admin || pathname?.startsWith('/admin')) {
-        document.body.classList.add('admin-visible');
-      } else {
-        document.body.classList.remove('admin-visible');
-      }
-    }
-    
     return () => clearInterval(interval);
   }, [pathname]);
 
