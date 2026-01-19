@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { Calendar } from 'lucide-react';
 
@@ -10,6 +10,7 @@ export function MaintenancePage() {
   const [maintenanceDate, setMaintenanceDate] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const pathname = usePathname();
+  const maintenanceEnabledRef = useRef<boolean>(false);
 
   useEffect(() => {
     // Проверяем, есть ли токен админа
@@ -20,6 +21,11 @@ export function MaintenancePage() {
     // Загружаем настройки режима обслуживания
     loadMaintenanceSettings();
     
+    // Периодически проверяем настройки (каждые 5 секунд)
+    const interval = setInterval(() => {
+      loadMaintenanceSettings();
+    }, 5000);
+    
     // Добавляем класс к body для управления видимостью контента
     if (typeof window !== 'undefined') {
       if (admin || pathname?.startsWith('/admin')) {
@@ -28,20 +34,39 @@ export function MaintenancePage() {
         document.body.classList.remove('admin-visible');
       }
     }
+    
+    return () => clearInterval(interval);
   }, [pathname]);
 
   const loadMaintenanceSettings = async () => {
     try {
-      const response = await fetch('/api/maintenance');
+      // Добавляем timestamp для предотвращения кеширования
+      const response = await fetch(`/api/maintenance?t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+        },
+      });
       if (response.ok) {
         const data = await response.json();
-        setMaintenanceEnabled(data.enabled ?? false);
+        const newEnabled = data.enabled ?? false;
+        const prevEnabled = maintenanceEnabledRef.current;
+        
+        maintenanceEnabledRef.current = newEnabled;
+        setMaintenanceEnabled(newEnabled);
         setMaintenanceDate(data.maintenanceDate || null);
+        
+        // Если режим обслуживания выключен, но мы его показывали - перезагружаем страницу
+        if (!newEnabled && prevEnabled) {
+          window.location.reload();
+        }
       }
     } catch (error) {
       console.error('Error loading maintenance settings:', error);
       // По умолчанию режим обслуживания выключен
-      setMaintenanceEnabled(false);
+      const newEnabled = false;
+      maintenanceEnabledRef.current = newEnabled;
+      setMaintenanceEnabled(newEnabled);
     } finally {
       setIsLoading(false);
     }
