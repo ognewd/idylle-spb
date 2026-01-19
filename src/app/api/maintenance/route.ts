@@ -18,14 +18,20 @@ export async function GET() {
       where: { key: MAINTENANCE_DATE_KEY },
     });
 
-    const enabled = enabledSetting ? enabledSetting.value === 'true' : false;
+    // Проверяем значение: может быть 'true' (строка) или true (boolean)
+    const enabled = enabledSetting 
+      ? (enabledSetting.value === 'true' || enabledSetting.value === true)
+      : false;
     const maintenanceDate = dateSetting?.value || null;
 
     console.log('[Maintenance API] Settings:', {
       enabled,
       maintenanceDate,
       enabledSettingValue: enabledSetting?.value,
+      enabledSettingValueType: typeof enabledSetting?.value,
       dateSettingValue: dateSetting?.value,
+      enabledSettingExists: !!enabledSetting,
+      dateSettingExists: !!dateSetting,
     });
 
     const response = NextResponse.json({

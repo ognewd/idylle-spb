@@ -14,15 +14,25 @@ export function MaintenancePage() {
 
   useEffect(() => {
     // Проверяем, есть ли токен админа
-    const adminToken = typeof window !== 'undefined' ? localStorage.getItem('admin_token') : null;
-    const admin = !!adminToken;
-    setIsAdmin(admin);
+    const checkAdmin = () => {
+      if (typeof window !== 'undefined') {
+        const adminToken = localStorage.getItem('admin_token');
+        const admin = !!adminToken;
+        setIsAdmin(admin);
+        console.log('[MaintenancePage] Admin check:', { admin, hasToken: !!adminToken });
+      } else {
+        setIsAdmin(false);
+      }
+    };
+    
+    checkAdmin();
     
     // Загружаем настройки режима обслуживания
     loadMaintenanceSettings();
     
     // Периодически проверяем настройки (каждые 5 секунд)
     const interval = setInterval(() => {
+      checkAdmin();
       loadMaintenanceSettings();
     }, 5000);
     
@@ -40,15 +50,18 @@ export function MaintenancePage() {
       });
       if (response.ok) {
         const data = await response.json();
-        const newEnabled = data.enabled ?? false;
+        const newEnabled = data.enabled === true || data.enabled === 'true';
         const prevEnabled = maintenanceEnabledRef.current;
         
         console.log('[MaintenancePage] Settings loaded:', {
           enabled: newEnabled,
+          dataEnabled: data.enabled,
+          dataEnabledType: typeof data.enabled,
           maintenanceDate: data.maintenanceDate,
           prevEnabled,
           isAdmin,
           pathname,
+          fullData: data,
         });
         
         maintenanceEnabledRef.current = newEnabled;
@@ -93,9 +106,8 @@ export function MaintenancePage() {
     }
   };
 
-  // Если проверка еще идет, показываем заглушку только если режим уже включен
-  if (isAdmin === null || isLoading) {
-    // Во время загрузки не показываем ничего, чтобы избежать мигания
+  // Если админ или находимся на странице админки - не показываем заглушку
+  if (isAdmin || pathname?.startsWith('/admin')) {
     return null;
   }
 
@@ -104,8 +116,8 @@ export function MaintenancePage() {
     return null;
   }
 
-  // Если админ или находимся на странице админки - не показываем заглушку
-  if (isAdmin || pathname?.startsWith('/admin')) {
+  // Если проверка еще идет, но режим включен - показываем заглушку
+  if (isLoading && !maintenanceEnabled) {
     return null;
   }
 
@@ -113,6 +125,7 @@ export function MaintenancePage() {
     maintenanceEnabled,
     isAdmin,
     pathname,
+    isLoading,
   });
 
   return (
