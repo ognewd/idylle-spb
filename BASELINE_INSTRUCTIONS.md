@@ -93,11 +93,37 @@ ls -la prisma/migrations/
 npx prisma migrate status
 ```
 
-### Ошибка подключения к БД
-Убедитесь, что `.env` файл содержит правильный `DATABASE_URL`:
+### Ошибка подключения к БД: "FATAL: Tenant or user not found"
+
+Эта ошибка означает, что в `.env` на сервере указан Supabase connection string, хотя Supabase не используется. Скрипт деплоя автоматически заменяет его на локальную PostgreSQL.
+
+**Решение: Исправить `.env` на сервере**
+
+1. Проверьте текущий `DATABASE_URL`:
 ```bash
 cat .env | grep DATABASE_URL
 ```
+
+2. Исправьте `.env`, заменив Supabase connection string на локальную PostgreSQL:
+```bash
+# Отредактируйте .env файл
+nano .env
+# или
+vi .env
+```
+
+3. Установите правильный `DATABASE_URL`:
+```
+DATABASE_URL="postgresql://idylle_user:wendw%40%40422ewd%21@localhost:5432/idylle_spb?schema=public"
+```
+
+4. Или временно используйте `export` для baseline:
+```bash
+export DATABASE_URL="postgresql://idylle_user:wendw%40%40422ewd%21@localhost:5432/idylle_spb?schema=public"
+npx prisma migrate resolve --applied 20250120000000_add_review_is_approved
+```
+
+**Важно:** После исправления `.env` все Prisma команды будут использовать локальную БД, что соответствует скрипту деплоя.
 
 ## Быстрая команда (всё сразу)
 

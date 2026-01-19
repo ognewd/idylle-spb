@@ -33,10 +33,19 @@ if [ -f .env ]; then
     export $(grep -v '^#' .env | xargs)
 fi
 
-# Проверяем, что DATABASE_URL указывает на локальный PostgreSQL
+# Проверяем, что DATABASE_URL установлен
+if [ -z "$DATABASE_URL" ]; then
+    echo "❌ Ошибка: DATABASE_URL не установлен в .env файле!"
+    echo "📝 Добавьте DATABASE_URL в .env файл"
+    exit 1
+fi
+
+# Проверяем, что DATABASE_URL указывает на локальный PostgreSQL (не Supabase)
 if echo "$DATABASE_URL" | grep -q "supabase\|aws-1-us-east-1"; then
-    echo "⚠️  Предупреждение: DATABASE_URL указывает на Supabase, используем локальный fallback"
-    export DATABASE_URL="postgresql://idylle_user:wendw%40%40422ewd%21@localhost:5432/idylle_spb?schema=public"
+    echo "⚠️  Предупреждение: DATABASE_URL указывает на Supabase"
+    echo "📝 Для продакшн-сервера используйте локальную PostgreSQL"
+    echo "📝 Установите DATABASE_URL в .env файле на локальную БД"
+    exit 1
 fi
 
 echo "📊 DATABASE_URL настроен: ${DATABASE_URL%%@*}@***"
