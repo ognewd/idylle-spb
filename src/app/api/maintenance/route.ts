@@ -21,6 +21,13 @@ export async function GET() {
     const enabled = enabledSetting ? enabledSetting.value === 'true' : false;
     const maintenanceDate = dateSetting?.value || null;
 
+    console.log('[Maintenance API] Settings:', {
+      enabled,
+      maintenanceDate,
+      enabledSettingValue: enabledSetting?.value,
+      dateSettingValue: dateSetting?.value,
+    });
+
     const response = NextResponse.json({
       enabled,
       maintenanceDate,

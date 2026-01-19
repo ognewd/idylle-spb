@@ -26,7 +26,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ru">
-      <body className={inter.className}>
+      <body className={`${inter.className} admin-visible`}>
         <SessionProvider>
           <WishlistProvider>
             <CartProvider>

@@ -58,7 +58,8 @@
   }
   
   /* Скрываем основной контент когда показывается заглушка (не для админов) */
-  body:not(.admin-visible) > div > div.min-h-screen {
+  /* По умолчанию контент виден, скрывается только когда maintenance включен */
+  body.maintenance-mode:not(.admin-visible) > div > div.min-h-screen {
     display: none !important;
   }
 }

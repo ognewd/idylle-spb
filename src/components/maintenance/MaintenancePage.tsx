@@ -59,14 +59,19 @@ export function MaintenancePage() {
         if (typeof window !== 'undefined') {
           const adminToken = localStorage.getItem('admin_token');
           const admin = !!adminToken;
+          
+          // Управляем классом maintenance-mode
+          if (newEnabled) {
+            document.body.classList.add('maintenance-mode');
+          } else {
+            document.body.classList.remove('maintenance-mode');
+          }
+          
+          // Управляем классом admin-visible
           if (admin || pathname?.startsWith('/admin')) {
             document.body.classList.add('admin-visible');
-          } else if (newEnabled) {
-            // Если режим обслуживания включен и не админ - скрываем контент
-            document.body.classList.remove('admin-visible');
           } else {
-            // Если режим обслуживания выключен - показываем контент
-            document.body.classList.add('admin-visible');
+            document.body.classList.remove('admin-visible');
           }
         }
         
