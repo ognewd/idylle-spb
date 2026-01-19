@@ -79,6 +79,8 @@ export function MaintenancePage() {
           const adminToken = localStorage.getItem('admin_token');
           const admin = !!adminToken;
           
+          const bodyClassesBefore = document.body.className;
+          
           // Управляем классом maintenance-mode
           if (newEnabled) {
             document.body.classList.add('maintenance-mode');
@@ -92,6 +94,18 @@ export function MaintenancePage() {
           } else {
             document.body.classList.remove('admin-visible');
           }
+          
+          const bodyClassesAfter = document.body.className;
+          
+          console.log('[MaintenancePage] Body classes updated:', {
+            before: bodyClassesBefore,
+            after: bodyClassesAfter,
+            hasMaintenanceMode: document.body.classList.contains('maintenance-mode'),
+            hasAdminVisible: document.body.classList.contains('admin-visible'),
+            admin,
+            pathname,
+            newEnabled,
+          });
         }
         
         // Если режим обслуживания выключен, но мы его показывали - перезагружаем страницу
