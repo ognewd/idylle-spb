@@ -50,7 +50,12 @@ export function MaintenancePage() {
       });
       if (response.ok) {
         const data = await response.json();
-        const newEnabled = data.enabled === true || data.enabled === 'true';
+        // Более явная проверка enabled - может быть boolean true или строка 'true'
+        const newEnabled = Boolean(
+          data.enabled === true || 
+          data.enabled === 'true' || 
+          String(data.enabled).toLowerCase() === 'true'
+        );
         const prevEnabled = maintenanceEnabledRef.current;
         
         console.log('[MaintenancePage] Settings loaded:', {
@@ -62,6 +67,7 @@ export function MaintenancePage() {
           isAdmin,
           pathname,
           fullData: data,
+          willRender: !isAdmin && !pathname?.startsWith('/admin') && newEnabled,
         });
         
         maintenanceEnabledRef.current = newEnabled;

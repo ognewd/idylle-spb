@@ -78,6 +78,7 @@ export async function PATCH(request: NextRequest) {
     const { enabled, maintenanceDate } = await request.json();
 
     // Обновляем статус включения/выключения
+    // Всегда обновляем, даже если enabled === false
     if (typeof enabled === 'boolean') {
       await prisma.settings.upsert({
         where: { key: MAINTENANCE_ENABLED_KEY },
@@ -88,6 +89,9 @@ export async function PATCH(request: NextRequest) {
           type: 'boolean',
         },
       });
+      console.log('[Admin Maintenance API] Saved enabled:', enabled, 'as string:', enabled.toString());
+    } else {
+      console.warn('[Admin Maintenance API] enabled is not boolean:', typeof enabled, enabled);
     }
 
     // Обновляем дату и время

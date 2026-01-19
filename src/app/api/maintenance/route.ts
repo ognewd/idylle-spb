@@ -18,10 +18,21 @@ export async function GET() {
       where: { key: MAINTENANCE_DATE_KEY },
     });
 
-    // Проверяем значение: может быть 'true' (строка) или true (boolean)
-    const enabled = enabledSetting 
-      ? (enabledSetting.value === 'true' || enabledSetting.value === true)
-      : false;
+    // Проверяем значение: может быть 'true'/'false' (строка) или true/false (boolean)
+    // По умолчанию false, если настройка не существует
+    let enabled = false;
+    if (enabledSetting) {
+      const value = enabledSetting.value;
+      // Обрабатываем разные варианты: 'true', 'false', true, false
+      if (value === 'true' || value === true) {
+        enabled = true;
+      } else if (value === 'false' || value === false) {
+        enabled = false;
+      } else {
+        // Если значение не распознано, считаем false
+        enabled = false;
+      }
+    }
     const maintenanceDate = dateSetting?.value || null;
 
     console.log('[Maintenance API] Settings:', {
