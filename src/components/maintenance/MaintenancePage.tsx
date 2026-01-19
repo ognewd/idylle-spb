@@ -52,17 +52,42 @@ export function MaintenancePage() {
         const newEnabled = data.enabled ?? false;
         const prevEnabled = maintenanceEnabledRef.current;
         
+        console.log('[MaintenancePage] Settings loaded:', {
+          enabled: newEnabled,
+          maintenanceDate: data.maintenanceDate,
+          prevEnabled,
+          isAdmin,
+          pathname,
+        });
+        
         maintenanceEnabledRef.current = newEnabled;
         setMaintenanceEnabled(newEnabled);
         setMaintenanceDate(data.maintenanceDate || null);
+        
+        // Обновляем класс body для управления видимостью контента
+        if (typeof window !== 'undefined') {
+          const adminToken = localStorage.getItem('admin_token');
+          const admin = !!adminToken;
+          if (admin || pathname?.startsWith('/admin')) {
+            document.body.classList.add('admin-visible');
+          } else if (newEnabled) {
+            // Если режим обслуживания включен и не админ - скрываем контент
+            document.body.classList.remove('admin-visible');
+          } else {
+            // Если режим обслуживания выключен - показываем контент
+            document.body.classList.add('admin-visible');
+          }
+        }
         
         // Если режим обслуживания выключен, но мы его показывали - перезагружаем страницу
         if (!newEnabled && prevEnabled) {
           window.location.reload();
         }
+      } else {
+        console.error('[MaintenancePage] Failed to load settings:', response.status, response.statusText);
       }
     } catch (error) {
-      console.error('Error loading maintenance settings:', error);
+      console.error('[MaintenancePage] Error loading maintenance settings:', error);
       // По умолчанию режим обслуживания выключен
       const newEnabled = false;
       maintenanceEnabledRef.current = newEnabled;
@@ -72,8 +97,9 @@ export function MaintenancePage() {
     }
   };
 
-  // Если проверка еще идет, не показываем ничего
+  // Если проверка еще идет, показываем заглушку только если режим уже включен
   if (isAdmin === null || isLoading) {
+    // Во время загрузки не показываем ничего, чтобы избежать мигания
     return null;
   }
 
@@ -86,6 +112,12 @@ export function MaintenancePage() {
   if (isAdmin || pathname?.startsWith('/admin')) {
     return null;
   }
+
+  console.log('[MaintenancePage] Rendering maintenance page', {
+    maintenanceEnabled,
+    isAdmin,
+    pathname,
+  });
 
   return (
     <>
