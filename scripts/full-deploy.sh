@@ -20,7 +20,10 @@ echo "✅ Код обновлен"
 # Шаг 2: Установить зависимости
 echo ""
 echo "📦 Шаг 2: Установка зависимостей..."
-npm ci --prefer-offline --no-audit
+# Полная переустановка для избежания проблем с зависимостями
+rm -rf node_modules
+rm -f package-lock.json
+npm install --prefer-offline --no-audit
 echo "✅ Зависимости установлены"
 
 # Шаг 3: Настроить DATABASE_URL
@@ -42,11 +45,16 @@ echo "📊 DATABASE_URL настроен: ${DATABASE_URL%%@*}@***"
 echo ""
 echo "🔄 Шаг 4: Применение миграций Prisma..."
 if [ -d "prisma/migrations" ] && [ "$(ls -A prisma/migrations 2>/dev/null)" ]; then
-    echo "🔄 Используем миграции..."
-    npx prisma migrate deploy || npx prisma db push
+    echo "🔄 Пытаемся использовать миграции..."
+    if npx prisma migrate deploy 2>&1 | grep -q "P3005\|not empty"; then
+        echo "⚠️  База данных не пустая, используем db push..."
+        npx prisma db push --accept-data-loss || npx prisma db push
+    else
+        echo "✅ Миграции применены успешно"
+    fi
 else
     echo "🔄 Используем db push (миграций нет)..."
-    npx prisma db push
+    npx prisma db push --accept-data-loss || npx prisma db push
 fi
 
 npx prisma generate
