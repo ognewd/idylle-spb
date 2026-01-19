@@ -21,10 +21,17 @@ export async function GET() {
     const enabled = enabledSetting ? enabledSetting.value === 'true' : false;
     const maintenanceDate = dateSetting?.value || null;
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       enabled,
       maintenanceDate,
     });
+    
+    // Отключаем кеширование для этого API
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
+    
+    return response;
   } catch (error) {
     console.error('Error fetching maintenance settings:', error);
     // По умолчанию режим обслуживания выключен
