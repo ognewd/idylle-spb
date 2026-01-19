@@ -112,18 +112,37 @@ export function MaintenancePage() {
     }
   };
 
+  // Логируем все условия для отладки
+  const shouldHideForAdmin = isAdmin || pathname?.startsWith('/admin');
+  const shouldHideForDisabled = !maintenanceEnabled;
+  const shouldHideForLoading = isLoading && !maintenanceEnabled;
+  
+  console.log('[MaintenancePage] Render check:', {
+    maintenanceEnabled,
+    isAdmin,
+    pathname,
+    isLoading,
+    shouldHideForAdmin,
+    shouldHideForDisabled,
+    shouldHideForLoading,
+    willRender: !shouldHideForAdmin && !shouldHideForDisabled && !shouldHideForLoading,
+  });
+
   // Если админ или находимся на странице админки - не показываем заглушку
-  if (isAdmin || pathname?.startsWith('/admin')) {
+  if (shouldHideForAdmin) {
+    console.log('[MaintenancePage] Hiding: user is admin or on admin page');
     return null;
   }
 
   // Если режим обслуживания выключен - не показываем заглушку
-  if (!maintenanceEnabled) {
+  if (shouldHideForDisabled) {
+    console.log('[MaintenancePage] Hiding: maintenance is disabled');
     return null;
   }
 
   // Если проверка еще идет, но режим включен - показываем заглушку
-  if (isLoading && !maintenanceEnabled) {
+  if (shouldHideForLoading) {
+    console.log('[MaintenancePage] Hiding: still loading');
     return null;
   }
 
