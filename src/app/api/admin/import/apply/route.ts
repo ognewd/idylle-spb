@@ -1,7 +1,78 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
+import { join } from 'path';
+import { existsSync } from 'fs';
+import { writeFile, mkdir } from 'fs/promises';
 import { prisma } from '@/lib/prisma';
 import { generateSlug } from '@/lib/transliterate';
+
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
+const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.webp'];
+const MIME_TO_EXT: Record<string, string> = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/jpg': 'jpg',
+  'image/gif': 'gif',
+  'image/webp': 'webp',
+};
+
+async function downloadImageAsUpload(photoUrl: string): Promise<string | null> {
+  const baseUploadsDir = process.env.UPLOADS_DIR || join(process.cwd(), 'public', 'uploads');
+  const uploadsDir = join(baseUploadsDir, 'products');
+
+  if (!existsSync(uploadsDir)) {
+    await mkdir(uploadsDir, { recursive: true });
+  }
+
+  let res: Response;
+  try {
+    res = await fetch(photoUrl, {
+      headers: { 'User-Agent': 'Idylle-Import/1.0' },
+      signal: AbortSignal.timeout(30_000),
+    });
+  } catch (e) {
+    throw new Error(`Ошибка загрузки: ${e instanceof Error ? e.message : 'network'}`);
+  }
+
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}`);
+  }
+
+  const contentType = (res.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+  const extFromMime = MIME_TO_EXT[contentType];
+  let ext = extFromMime;
+
+  if (!ext) {
+    try {
+      const u = new URL(photoUrl);
+      const pathname = u.pathname || '';
+      const last = pathname.split('/').pop() || '';
+      const idx = last.lastIndexOf('.');
+      if (idx > 0) {
+        const candidate = last.slice(idx).toLowerCase();
+        if (IMAGE_EXTENSIONS.includes(candidate)) ext = candidate.slice(1);
+      }
+    } catch { /* ignore */ }
+  }
+
+  if (!ext) ext = 'jpg';
+
+  const buffer = Buffer.from(await res.arrayBuffer());
+  if (buffer.length > MAX_IMAGE_SIZE) {
+    throw new Error('Файл превышает 10 МБ');
+  }
+  if (buffer.length === 0) {
+    throw new Error('Пустой ответ');
+  }
+
+  const timestamp = Date.now();
+  const randomString = Math.random().toString(36).substring(2, 15);
+  const filename = `${timestamp}-${randomString}.${ext}`;
+  const filePath = join(uploadsDir, filename);
+  await writeFile(filePath, buffer);
+
+  return `/uploads/products/${filename}`;
+}
 
 function verifyAdminToken(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
@@ -46,6 +117,7 @@ export async function POST(request: NextRequest) {
       created: 0,
       updated: 0,
       errors: [] as string[],
+      photoErrors: [] as string[],
     };
 
     // Обрабатываем товары по одному
@@ -55,24 +127,37 @@ export async function POST(request: NextRequest) {
           name,
           shortName,
           slug,
+          description,
+          shortDescription,
           myWarehouseCode,
           manufacturerSku,
+          sku,
           productType,
           categoryName,
           categoryId,
           stock,
           price,
+          comparePrice,
+          volume,
+          weight,
+          dimensions,
           aromaDescription,
           topNotes,
-          volume,
+          aromaFamily,
+          gender,
           purpose,
           usageInstructions,
+          ingredients,
           brandName,
           brandId,
           brandCountry,
           manufactureCountry,
           warehouseLocation,
           barcode,
+          isActive,
+          isFeatured,
+          photoUrl,
+          additionalImageUrls = [],
           isUpdate,
           existingProductId,
         } = productData;
@@ -151,26 +236,39 @@ export async function POST(request: NextRequest) {
           }
         }
 
+        let productIdForPhoto: string;
+
         if (isUpdate && existingProductId) {
           // Обновляем существующий товар
           const updateData: any = {
             name,
             shortName: shortName || undefined,
-            price: price || 0,
-            stock: stock || 0,
+            description: description ?? undefined,
+            shortDescription: shortDescription ?? undefined,
+            price: price ?? 0,
+            comparePrice: comparePrice ?? undefined,
+            stock: stock ?? 0,
             brandId: brand.id,
+            sku: sku ?? undefined,
             myWarehouseCode: myWarehouseCode || undefined,
             manufacturerSku: manufacturerSku || undefined,
             productType: productType || undefined,
+            volume: volume || undefined,
+            weight: weight ?? undefined,
+            dimensions: dimensions || undefined,
             aromaDescription: aromaDescription || undefined,
             topNotes: topNotes || undefined,
-            volume: volume || undefined,
+            aromaFamily: aromaFamily || undefined,
+            gender: gender || undefined,
             purpose: purpose || undefined,
             usageInstructions: usageInstructions || undefined,
+            ingredients: ingredients || undefined,
             brandCountry: brandCountry || undefined,
             manufactureCountry: manufactureCountry || undefined,
             warehouseLocation: warehouseLocation || undefined,
             barcode: barcode || undefined,
+            ...(isActive !== null && isActive !== undefined && { isActive }),
+            ...(isFeatured !== null && isFeatured !== undefined && { isFeatured }),
           };
 
           await prisma.product.update({
@@ -194,6 +292,7 @@ export async function POST(request: NextRequest) {
             });
           }
 
+          productIdForPhoto = existingProductId;
           results.updated++;
         } else {
           // Создаем новый товар
@@ -201,23 +300,33 @@ export async function POST(request: NextRequest) {
             data: {
               name,
               shortName: shortName || undefined,
+              description: description ?? undefined,
+              shortDescription: shortDescription ?? undefined,
               slug: slug || generateSlug(name),
-              price: price || 0,
-              stock: stock || 0,
+              price: price ?? 0,
+              comparePrice: comparePrice ?? undefined,
+              stock: stock ?? 0,
               brandId: brand.id,
+              sku: sku ?? undefined,
               myWarehouseCode: myWarehouseCode || undefined,
               manufacturerSku: manufacturerSku || undefined,
               productType: productType || undefined,
+              volume: volume || undefined,
+              weight: weight ?? undefined,
+              dimensions: dimensions || undefined,
               aromaDescription: aromaDescription || undefined,
               topNotes: topNotes || undefined,
-              volume: volume || undefined,
+              aromaFamily: aromaFamily || undefined,
+              gender: gender || undefined,
               purpose: purpose || undefined,
               usageInstructions: usageInstructions || undefined,
+              ingredients: ingredients || undefined,
               brandCountry: brandCountry || undefined,
               manufactureCountry: manufactureCountry || undefined,
               warehouseLocation: warehouseLocation || undefined,
               barcode: barcode || undefined,
-              isActive: true,
+              isActive: isActive ?? true,
+              isFeatured: isFeatured ?? false,
               productCategories: categoryIdFinal ? {
                 create: {
                   categoryId: categoryIdFinal,
@@ -227,7 +336,59 @@ export async function POST(request: NextRequest) {
             },
           });
 
+          productIdForPhoto = product.id;
           results.created++;
+        }
+
+        // Фото по URL: скачиваем и сохраняем как главное изображение
+        let nextSortOrder = 0;
+        if (photoUrl && typeof photoUrl === 'string' && (photoUrl.startsWith('http://') || photoUrl.startsWith('https://'))) {
+          try {
+            const savedUrl = await downloadImageAsUpload(photoUrl);
+            if (savedUrl) {
+              if (isUpdate && existingProductId) {
+                await prisma.productImage.updateMany({
+                  where: { productId: existingProductId },
+                  data: { isPrimary: false },
+                });
+              }
+              await prisma.productImage.create({
+                data: {
+                  productId: productIdForPhoto,
+                  url: savedUrl,
+                  alt: name,
+                  sortOrder: 0,
+                  isPrimary: true,
+                },
+              });
+              nextSortOrder = 1;
+            }
+          } catch (imgErr: any) {
+            results.photoErrors.push(`Товар "${name}": фото не загружено — ${imgErr?.message || String(imgErr)}`);
+          }
+        }
+
+        // Доп. изображения: URL через запятую, скачиваем и создаём ProductImage (isPrimary: false)
+        const urls = Array.isArray(additionalImageUrls) ? additionalImageUrls : [];
+        for (let i = 0; i < urls.length; i++) {
+          const url = urls[i];
+          if (typeof url !== 'string' || (!url.startsWith('http://') && !url.startsWith('https://'))) continue;
+          try {
+            const savedUrl = await downloadImageAsUpload(url);
+            if (savedUrl) {
+              await prisma.productImage.create({
+                data: {
+                  productId: productIdForPhoto,
+                  url: savedUrl,
+                  alt: `${name} — фото ${i + 1}`,
+                  sortOrder: nextSortOrder + i,
+                  isPrimary: false,
+                },
+              });
+            }
+          } catch (imgErr: any) {
+            results.photoErrors.push(`Товар "${name}": доп. изображение ${i + 1} не загружено — ${imgErr?.message || String(imgErr)}`);
+          }
         }
       } catch (error: any) {
         results.errors.push(`Товар "${productData.name}": ${error.message}`);

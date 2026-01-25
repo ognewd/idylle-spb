@@ -24,22 +24,38 @@ interface ImportProduct {
   rowNum: number;
   name: string;
   slug: string;
+  shortName: string | null;
+  description: string | null;
+  shortDescription: string | null;
   myWarehouseCode: string | null;
   manufacturerSku: string | null;
+  sku: string | null;
   productType: string | null;
   categoryName: string | null;
   stock: number;
   price: number;
+  comparePrice: number | null;
+  volume: string | null;
+  weight: number | null;
+  dimensions: string | null;
   aromaDescription: string | null;
   topNotes: string | null;
-  volume: string | null;
+  aromaFamily: string | null;
+  gender: string | null;
   purpose: string | null;
+  usageInstructions: string | null;
+  ingredients: string | null;
   brandName: string;
-  country: string | null;
+  brandCountry: string | null;
+  manufactureCountry: string | null;
+  warehouseLocation: string | null;
   barcode: string | null;
+  isActive: boolean | null;
+  isFeatured: boolean | null;
+  photoUrl: string | null;
+  additionalImageUrls: string[];
   isUpdate: boolean;
   existingProductId: string | null;
-  // Все остальные колонки из файла
   rawData: Record<number, any>;
 }
 
@@ -51,20 +67,46 @@ interface ImportStats {
 }
 
 const FIELD_LABELS: Record<string, string> = {
+  // Обязательные и основные
   name: 'Наименование *',
+  brand: 'Бренд',
+  category: 'Категория',
+  price: 'Цена продажи',
+  comparePrice: 'Цена до скидки (сравнение)',
+  stock: 'Доступно (остаток)',
+  // Названия и описания
+  shortName: 'Краткое название',
+  description: 'Описание (полное)',
+  shortDescription: 'Краткое описание',
+  // Артикулы и идентификаторы
+  sku: 'Артикул (SKU)',
   myWarehouseCode: 'Код Мой склад',
   manufacturerSku: 'Артикул производителя',
-  productType: 'Для фильтра (Вид товара)',
-  category: 'Категория',
-  stock: 'Доступно',
-  price: 'Цена продажи',
+  barcode: 'Штрихкод',
+  // Характеристики
+  volume: 'Объем, мл или гр',
+  weight: 'Вес, г',
+  dimensions: 'Габариты',
+  productType: 'Вид товара (для фильтра)',
+  // Аромат
   aromaDescription: 'Описание аромата',
   topNotes: 'Основные ноты',
-  volume: 'Объем, мл или гр',
-  purpose: 'Назначение (Для какого помещения)',
-  brand: 'Бренд',
-  country: 'Страна',
-  barcode: 'Штрихкод',
+  aromaFamily: 'Семейство аромата',
+  gender: 'Пол (мужской/женский/унисекс)',
+  // Использование
+  purpose: 'Назначение (для какого помещения)',
+  usageInstructions: 'Способ применения',
+  ingredients: 'Состав',
+  // География
+  brandCountry: 'Страна происхождения бренда',
+  manufactureCountry: 'Страна производства',
+  warehouseLocation: 'Место на складе',
+  // Флаги
+  isActive: 'Активен (да/нет)',
+  isFeatured: 'Рекомендуемый (да/нет)',
+  // Медиа
+  photo: 'Фото (URL)',
+  additionalPhotos: 'Доп. изображения (URL через запятую)',
 };
 
 export default function ImportProductsPage() {
@@ -89,6 +131,7 @@ export default function ImportProductsPage() {
     created: number;
     updated: number;
     errors: string[];
+    photoErrors?: string[];
   } | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -487,7 +530,7 @@ export default function ImportProductsPage() {
                     </div>
                   </div>
                 )}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {Object.entries(FIELD_LABELS).map(([field, label]) => (
                     <div key={field} className="space-y-2">
                       <Label htmlFor={`mapping-${field}`}>{label}</Label>
@@ -706,6 +749,20 @@ export default function ImportProductsPage() {
                     </div>
                     <ul className="list-disc list-inside space-y-1 text-sm text-red-700">
                       {applyResults.errors.map((error, index) => (
+                        <li key={index}>{error}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {applyResults.photoErrors && applyResults.photoErrors.length > 0 && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <AlertCircle className="h-5 w-5 text-amber-600" />
+                      <h3 className="font-semibold text-amber-800">Фото не загружены (товары созданы/обновлены):</h3>
+                    </div>
+                    <ul className="list-disc list-inside space-y-1 text-sm text-amber-700">
+                      {applyResults.photoErrors.map((error, index) => (
                         <li key={index}>{error}</li>
                       ))}
                     </ul>

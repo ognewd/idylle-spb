@@ -41,7 +41,7 @@ export function ProductImageCarousel({ images, name, className }: ProductImageCa
   }
 
   return (
-    <div className={cn("space-y-4", className)}>
+    <div className={cn("space-y-3", className)}>
       {/* Main Image */}
       <div className="relative bg-white overflow-visible group flex items-center justify-center" style={{ minHeight: '400px' }}>
         <div className="relative w-full max-w-full">
@@ -95,7 +95,7 @@ export function ProductImageCarousel({ images, name, className }: ProductImageCa
 
       {/* Thumbnail Navigation */}
       {images.length > 1 && (
-        <div className="flex space-x-2 overflow-x-auto pb-2">
+        <div className="flex space-x-2 overflow-x-auto pb-1">
           {images.map((image, index) => (
             <button
               key={index}

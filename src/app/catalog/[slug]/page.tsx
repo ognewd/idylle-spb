@@ -1,4 +1,4 @@
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { ProductImageCarousel } from '@/components/product/ProductImageCarousel';
 import { ProductInfo } from '@/components/product/ProductInfo';
 import { RelatedProducts } from '@/components/product/RelatedProducts';
@@ -76,7 +76,7 @@ interface ProductPageProps {
   };
 }
 
-async function getProduct(slug: string): Promise<{ product: Product; relatedProducts: Product[] } | null> {
+async function getProduct(slug: string): Promise<{ product: Product; relatedProducts: Product[]; canonicalSlug?: string } | null> {
   try {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
     
@@ -105,7 +105,10 @@ export default async function ProductPage({ params }: ProductPageProps) {
     notFound();
   }
 
-  const { product, relatedProducts } = data;
+  const { product, relatedProducts, canonicalSlug } = data;
+  if (canonicalSlug && canonicalSlug !== params.slug) {
+    redirect(`/catalog/${canonicalSlug}`);
+  }
 
   const breadcrumbItems = [
     { label: 'Главная', href: '/' },
@@ -122,7 +125,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
       <div className="container mx-auto px-4 py-8">
         <Breadcrumbs items={breadcrumbItems} />
         
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 mt-6">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 lg:gap-6 mt-6">
         {/* Product Images - Sticky на десктопе */}
         <div className="lg:col-span-2">
           <StickyImageContainer 

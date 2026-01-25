@@ -6,11 +6,8 @@ export async function GET(
   { params }: { params: { slug: string } }
 ) {
   try {
-    const product = await prisma.product.findUnique({
-      where: {
-        slug: params.slug,
-        isActive: true,
-      },
+    let product = await prisma.product.findUnique({
+      where: { slug: params.slug },
       include: {
         brand: true,
         productCategories: {
@@ -30,23 +27,42 @@ export async function GET(
             { sortOrder: 'asc' },
           ],
         },
-        reviews: {
-          where: {
-            isApproved: true, // Показываем только одобренные отзывы
-          },
-          include: {
-            user: {
-              select: {
-                name: true,
-              },
-            },
-          },
-          orderBy: {
-            createdAt: 'desc',
-          },
-        },
       },
     });
+
+    // Fallback: ищем по артикулу (manufacturerSku/sku), если slug не совпал
+    let canonicalSlug: string | undefined;
+    if (!product) {
+      const artMatch = params.slug.match(/-art-([a-zA-Z0-9_-]+)$/i);
+      let code: string | null = artMatch ? artMatch[1].trim() : null;
+      if (!code) {
+        const last = params.slug.split('-').pop();
+        if (last && /^[a-zA-Z0-9]{6,}$/.test(last)) code = last;
+      }
+      if (code) {
+        const fallback = await prisma.product.findFirst({
+          where: {
+            isActive: true,
+            OR: [
+              { manufacturerSku: { equals: code, mode: 'insensitive' } },
+              { manufacturerSku: { contains: code, mode: 'insensitive' } },
+              { sku: { equals: code, mode: 'insensitive' } },
+              { sku: { contains: code, mode: 'insensitive' } },
+            ],
+          },
+          include: {
+            brand: true,
+            productCategories: { include: { category: true } },
+            images: { orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }] },
+            variants: { orderBy: [{ isDefault: 'desc' }, { sortOrder: 'asc' }] },
+          },
+        });
+        if (fallback) {
+          product = fallback;
+          canonicalSlug = product.slug;
+        }
+      }
+    }
 
     if (!product) {
       return NextResponse.json(
@@ -54,12 +70,35 @@ export async function GET(
         { status: 404 }
       );
     }
+    if (!product.isActive) {
+      return NextResponse.json(
+        { error: 'Product not found', inactive: true },
+        { status: 404 }
+      );
+    }
 
-    // Calculate average rating from approved reviews only
-    const approvedReviews = product.reviews.filter(review => review.isApproved);
-    const ratings = approvedReviews.map(review => review.rating);
-    const averageRating = ratings.length > 0 
-      ? ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length 
+    // Отзывы — отдельным запросом; только одобренные, исключаем userId=null (битые данные)
+    type ReviewWithUser = { id: string; rating: number; title: string | null; comment: string | null; createdAt: Date; user: { name: string | null } };
+    let reviews: ReviewWithUser[] = [];
+    try {
+      const rows = await prisma.review.findMany({
+        where: {
+          productId: product.id,
+          isApproved: true,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          userId: { not: null } as any,
+        },
+        include: { user: { select: { name: true } } },
+        orderBy: { createdAt: 'desc' },
+      });
+      reviews = rows as unknown as ReviewWithUser[];
+    } catch {
+      reviews = [];
+    }
+
+    const ratings = reviews.map(review => review.rating);
+    const averageRating = ratings.length > 0
+      ? ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length
       : 0;
 
     // Get related products (same category or brand)
@@ -146,11 +185,11 @@ export async function GET(
     const basePrice = Number(product.price);
     const discountedPrice = seasonal ? Math.max(0, Math.round(basePrice * (100 - seasonal.discount) / 100)) : basePrice;
 
-    return NextResponse.json({
+    const body = {
       product: {
         ...product,
         averageRating: Math.round(averageRating * 10) / 10,
-        reviewCount: approvedReviews.length, // Только одобренные отзывы
+        reviewCount: reviews.length,
         price: discountedPrice,
         comparePrice: seasonal ? basePrice : (product.comparePrice ? Number(product.comparePrice) : null),
         seasonalDiscount: seasonal || null,
@@ -170,13 +209,13 @@ export async function GET(
           sku: v.sku,
           isDefault: v.isDefault,
         })),
-        reviews: product.reviews.map(r => ({
+        reviews: reviews.map(r => ({
           id: r.id,
           rating: r.rating,
           title: r.title,
           comment: r.comment,
           user: {
-            name: r.user?.name || r.userName || 'Анонимный пользователь',
+            name: r.user?.name ?? 'Анонимный пользователь',
           },
           createdAt: r.createdAt.toISOString(),
         })),
@@ -189,7 +228,9 @@ export async function GET(
           isPrimary: img.isPrimary,
         })),
       })),
-    });
+      ...(canonicalSlug && { canonicalSlug }),
+    };
+    return NextResponse.json(body);
   } catch (error) {
     console.error('Product API error:', error);
     return NextResponse.json(

@@ -212,43 +212,32 @@ export function ProductInfo({ product, className }: ProductInfoProps) {
         }
 
         const notesText = product.topNotes;
-        
-        // Ищем все три части - более точный парсинг
-        // Используем позитивный lookahead для поиска следующего заголовка
-        const topNotesMatch = notesText.match(/Верхние ноты:\s*([^]*?)(?=\s*Сердце аромата:|Ноты шлейфа:|$)/i);
-        const heartNotesMatch = notesText.match(/Сердце аромата:\s*([^]*?)(?=\s*Ноты шлейфа:|$)/i);
-        const baseNotesMatch = notesText.match(/Ноты шлейфа:\s*([^]*?)(?=\s*Верхние ноты:|Сердце аромата:|$)/i);
+        const anyHeader = /Верхние ноты:|Сердце аромата:|Средние ноты:|Ноты шлейфа:|Базовые ноты:/i;
+        const nextHeader = /(?=\s*(?:Верхние ноты:|Сердце аромата:|Средние ноты:|Ноты шлейфа:|Базовые ноты:)|$)/i;
 
-        const hasStructuredNotes = topNotesMatch || heartNotesMatch || baseNotesMatch;
+        // Захватываем заголовок (до двоеточия) и контент — показываем только тот заголовок, что в тексте
+        const topNotesMatch = notesText.match(new RegExp('(Верхние ноты:)\\s*([^]*?)' + nextHeader.source, 'i'));
+        const heartNotesMatch = notesText.match(new RegExp('(Сердце аромата:|Средние ноты:)\\s*([^]*?)' + nextHeader.source, 'i'));
+        const baseNotesMatch = notesText.match(new RegExp('(Ноты шлейфа:|Базовые ноты:)\\s*([^]*?)' + nextHeader.source, 'i'));
 
-        if (!hasStructuredNotes) {
-          return null;
-        }
+        const hasStructuredNotes = notesText.match(anyHeader);
+        if (!hasStructuredNotes) return null;
 
-        const topNotes = topNotesMatch ? topNotesMatch[1].trim().replace(/\s+/g, ' ') : null;
-        const heartNotes = heartNotesMatch ? heartNotesMatch[1].trim().replace(/\s+/g, ' ') : null;
-        const baseNotes = baseNotesMatch ? baseNotesMatch[1].trim().replace(/\s+/g, ' ') : null;
+        const trimNotes = (s: string) => s.trim().replace(/\s+/g, ' ');
+
+        const blocks: { header: string; content: string; bg: string; headerCl: string; contentCl: string; maxW: string }[] = [];
+        if (topNotesMatch) blocks.push({ header: topNotesMatch[1], content: trimNotes(topNotesMatch[2]), bg: '#FEF3C7', headerCl: 'text-amber-900', contentCl: 'text-amber-800', maxW: 'max-w-md' });
+        if (heartNotesMatch) blocks.push({ header: heartNotesMatch[1], content: trimNotes(heartNotesMatch[2]), bg: '#FCE7F3', headerCl: 'text-rose-900', contentCl: 'text-rose-800', maxW: 'max-w-lg' });
+        if (baseNotesMatch) blocks.push({ header: baseNotesMatch[1], content: trimNotes(baseNotesMatch[2]), bg: '#FED7AA', headerCl: 'text-orange-900', contentCl: 'text-orange-800', maxW: 'max-w-xl' });
 
         return (
           <div className="space-y-2 flex flex-col items-start">
-            {topNotes && (
-              <div className="py-2 px-4 rounded-md max-w-md" style={{ backgroundColor: '#FEF3C7' }}>
-                <span className="font-medium text-amber-900">Верхние ноты: </span>
-                <span className="text-sm text-amber-800">{topNotes}</span>
+            {blocks.map((b, i) => (
+              <div key={i} className={cn('py-2 px-4 rounded-md', b.maxW)} style={{ backgroundColor: b.bg }}>
+                <span className={cn('font-medium', b.headerCl)}>{b.header} </span>
+                <span className={cn('text-sm', b.contentCl)}>{b.content}</span>
               </div>
-            )}
-            {heartNotes && (
-              <div className="py-2 px-4 rounded-md max-w-lg" style={{ backgroundColor: '#FCE7F3' }}>
-                <span className="font-medium text-rose-900">Сердце аромата: </span>
-                <span className="text-sm text-rose-800">{heartNotes}</span>
-              </div>
-            )}
-            {baseNotes && (
-              <div className="py-2 px-4 rounded-md max-w-xl" style={{ backgroundColor: '#FED7AA' }}>
-                <span className="font-medium text-orange-900">Ноты шлейфа: </span>
-                <span className="text-sm text-orange-800">{baseNotes}</span>
-              </div>
-            )}
+            ))}
           </div>
         );
       })()}
@@ -256,8 +245,8 @@ export function ProductInfo({ product, className }: ProductInfoProps) {
       {/* Характеристики товара */}
       {(() => {
         // Проверяем, есть ли структурированные ноты (если да, не показываем topNotes в таблице)
-        const hasStructuredNotes = product.topNotes && 
-          product.topNotes.match(/Верхние ноты:|Сердце аромата:|Ноты шлейфа:/i);
+        const hasStructuredNotes = product.topNotes &&
+          product.topNotes.match(/Верхние ноты:|Сердце аромата:|Средние ноты:|Ноты шлейфа:|Базовые ноты:/i);
         
         const showTopNotesInTable = product.topNotes && 
           product.topNotes.trim() && 
@@ -277,100 +266,83 @@ export function ProductInfo({ product, className }: ProductInfoProps) {
       })() ? (
         <div className="border rounded-lg p-4 bg-gray-50">
           <h2 className="text-lg font-semibold mb-4">Характеристики</h2>
-          <div className="space-y-2 text-sm">
-            {/* Бренд - всегда показываем */}
-            <div className="flex justify-between py-1 border-b border-gray-200">
-              <span className="text-muted-foreground font-medium">Бренд:</span>
-              <span>{product.brand.name}</span>
-            </div>
-            
-            {/* Категория */}
+          <div className="grid gap-x-4 text-sm" style={{ gridTemplateColumns: 'minmax(11rem, max-content) 1fr' }}>
+            <span className="py-2 pr-2 border-b border-gray-200 text-muted-foreground font-medium whitespace-nowrap">Бренд:</span>
+            <span className="py-2 border-b border-gray-200 min-w-0 break-words">{product.brand.name}</span>
+
             {product.productCategories && product.productCategories.length > 0 && (
-              <div className="flex justify-between py-1 border-b border-gray-200">
-                <span className="text-muted-foreground font-medium">Категория:</span>
-                <span>{product.productCategories[0]?.category.name}</span>
-              </div>
+              <>
+                <span className="py-2 pr-2 border-b border-gray-200 text-muted-foreground font-medium whitespace-nowrap">Категория:</span>
+                <span className="py-2 border-b border-gray-200 min-w-0 break-words">{product.productCategories[0]?.category.name}</span>
+              </>
             )}
-            
-            {/* Вид товара */}
+
             {product.productType && product.productType.trim() && product.productType.trim() !== '-' && (
-              <div className="flex justify-between py-1 border-b border-gray-200">
-                <span className="text-muted-foreground font-medium">Вид товара:</span>
-                <span>{product.productType}</span>
-              </div>
+              <>
+                <span className="py-2 pr-2 border-b border-gray-200 text-muted-foreground font-medium whitespace-nowrap">Вид товара:</span>
+                <span className="py-2 border-b border-gray-200 min-w-0 break-words">{product.productType}</span>
+              </>
             )}
             
-            {/* Основные ноты (только если нет структурированных нот) */}
             {(() => {
-              const hasStructuredNotes = product.topNotes && 
-                product.topNotes.match(/Верхние ноты:|Сердце аромата:|Ноты шлейфа:/i);
-              
-              if (!product.topNotes || !product.topNotes.trim() || product.topNotes.trim() === '-' || hasStructuredNotes) {
-                return null;
-              }
-              
+              const hasStructuredNotes = product.topNotes &&
+                product.topNotes.match(/Верхние ноты:|Сердце аромата:|Средние ноты:|Ноты шлейфа:|Базовые ноты:/i);
+              if (!product.topNotes || !product.topNotes.trim() || product.topNotes.trim() === '-' || hasStructuredNotes) return null;
               return (
-                <div className="flex justify-between py-1 border-b border-gray-200">
-                  <span className="text-muted-foreground font-medium">Основные ноты:</span>
-                  <span>{product.topNotes}</span>
-                </div>
+                <>
+                  <span className="py-2 pr-2 border-b border-gray-200 text-muted-foreground font-medium whitespace-nowrap">Основные ноты:</span>
+                  <span className="py-2 border-b border-gray-200 min-w-0 break-words">{product.topNotes}</span>
+                </>
               );
             })()}
-            
-            {/* Объем */}
+
             {product.volume && product.volume.trim() && product.volume.trim() !== '-' && (
-              <div className="flex justify-between py-1 border-b border-gray-200">
-                <span className="text-muted-foreground font-medium">Объем:</span>
-                <span>{product.volume}</span>
-              </div>
+              <>
+                <span className="py-2 pr-2 border-b border-gray-200 text-muted-foreground font-medium whitespace-nowrap">Объем:</span>
+                <span className="py-2 border-b border-gray-200 min-w-0 break-words">{product.volume}</span>
+              </>
             )}
-            
-            {/* Вес */}
+
             {product.weight && product.weight > 0 && (
-              <div className="flex justify-between py-1 border-b border-gray-200">
-                <span className="text-muted-foreground font-medium">Вес:</span>
-                <span>{product.weight} г</span>
-              </div>
+              <>
+                <span className="py-2 pr-2 border-b border-gray-200 text-muted-foreground font-medium whitespace-nowrap">Вес:</span>
+                <span className="py-2 border-b border-gray-200 min-w-0 break-words">{product.weight} г</span>
+              </>
             )}
-            
-            {/* Размеры */}
+
             {product.dimensions && product.dimensions.trim() && product.dimensions.trim() !== '-' && (
-              <div className="flex justify-between py-1 border-b border-gray-200">
-                <span className="text-muted-foreground font-medium">Размеры:</span>
-                <span>{product.dimensions}</span>
-              </div>
+              <>
+                <span className="py-2 pr-2 border-b border-gray-200 text-muted-foreground font-medium whitespace-nowrap">Размеры:</span>
+                <span className="py-2 border-b border-gray-200 min-w-0 break-words">{product.dimensions}</span>
+              </>
             )}
-            
-            {/* Назначение (помещение) */}
+
             {product.purpose && product.purpose.trim() && product.purpose.trim() !== '-' && (
-              <div className="flex justify-between py-1 border-b border-gray-200">
-                <span className="text-muted-foreground font-medium">Назначение:</span>
-                <span>{product.purpose}</span>
-              </div>
+              <>
+                <span className="py-2 pr-2 border-b border-gray-200 text-muted-foreground font-medium whitespace-nowrap">Назначение:</span>
+                <span className="py-2 border-b border-gray-200 min-w-0 break-words">{product.purpose}</span>
+              </>
             )}
-            
-            {/* Страна происхождения бренда */}
+
             {product.brandCountry && product.brandCountry.trim() && product.brandCountry.trim() !== '-' && (
-              <div className="flex justify-between py-1 border-b border-gray-200">
-                <span className="text-muted-foreground font-medium">Страна происхождения бренда:</span>
-                <span>{product.brandCountry}</span>
-              </div>
+              <>
+                <span className="py-2 pr-2 border-b border-gray-200 text-muted-foreground font-medium whitespace-nowrap">Страна происхождения бренда:</span>
+                <span className="py-2 border-b border-gray-200 min-w-0 break-words">{product.brandCountry}</span>
+              </>
             )}
-            
-            {/* Страна производства */}
+
             {product.manufactureCountry && product.manufactureCountry.trim() && product.manufactureCountry.trim() !== '-' && (
-              <div className="flex justify-between py-1 border-b border-gray-200">
-                <span className="text-muted-foreground font-medium">Страна производства:</span>
-                <span>{product.manufactureCountry}</span>
-              </div>
+              <>
+                <span className="py-2 pr-2 border-b border-gray-200 text-muted-foreground font-medium whitespace-nowrap">Страна производства:</span>
+                <span className="py-2 border-b border-gray-200 min-w-0 break-words">{product.manufactureCountry}</span>
+              </>
             )}
-            
-            {/* Штрихкод */}
+
             {product.barcode && product.barcode.trim() && product.barcode.trim() !== '-' && (
-              <div className="flex justify-between py-1 border-b border-gray-200">
-                <span className="text-muted-foreground font-medium">Штрихкод:</span>
-                <span className="font-mono">{product.barcode}</span>
-              </div>
+              <>
+                <span className="py-2 pr-2 border-b border-gray-200 text-muted-foreground font-medium whitespace-nowrap">Штрихкод:</span>
+                <span className={cn('py-2 border-b border-gray-200 min-w-0 break-words font-mono')}>{product.barcode}</span>
+              </>
             )}
           </div>
         </div>
@@ -378,11 +350,9 @@ export function ProductInfo({ product, className }: ProductInfoProps) {
         // Если нет характеристик, показываем только бренд
         <div className="border rounded-lg p-4 bg-gray-50">
           <h2 className="text-lg font-semibold mb-4">Характеристики</h2>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between py-1 border-b border-gray-200">
-              <span className="text-muted-foreground font-medium">Бренд:</span>
-              <span>{product.brand.name}</span>
-            </div>
+          <div className="grid gap-x-4 text-sm" style={{ gridTemplateColumns: 'minmax(11rem, max-content) 1fr' }}>
+            <span className="py-2 pr-2 border-b border-gray-200 text-muted-foreground font-medium whitespace-nowrap">Бренд:</span>
+            <span className="py-2 border-b border-gray-200 min-w-0 break-words">{product.brand.name}</span>
           </div>
         </div>
       )}

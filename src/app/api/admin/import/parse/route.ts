@@ -62,6 +62,15 @@ function normalizeVolume(volumeStr: string | undefined | null): string | null {
   return normalized;
 }
 
+function parseBool(val: string | undefined | null): boolean | null {
+  if (val === undefined || val === null) return null;
+  const s = String(val).trim().toLowerCase();
+  if (!s) return null;
+  if (['да', 'yes', '1', 'true', 'активен', 'рекомендуемый', 'y', 'д'].includes(s)) return true;
+  if (['нет', 'no', '0', 'false', 'н', 'n'].includes(s)) return false;
+  return null;
+}
+
 // Используем generateSlug из lib/transliterate
 
 export async function POST(request: NextRequest) {
@@ -172,6 +181,45 @@ export async function POST(request: NextRequest) {
           columnMap.warehouseLocation = index;
         } else if (normalized.includes('штрихкод') || normalized.includes('штрих код')) {
           columnMap.barcode = index;
+        } else if (normalized.includes('описание') && !normalized.includes('аромат') && !normalized.includes('кратк')) {
+          columnMap.description = index;
+        } else if (normalized.includes('краткое описание')) {
+          columnMap.shortDescription = index;
+        } else if (normalized.includes('цена до скидки') || normalized.includes('старая цена') || normalized.includes('compare')) {
+          columnMap.comparePrice = index;
+        } else if ((normalized.includes('артикул') && !normalized.includes('производителя')) || normalized === 'sku') {
+          columnMap.sku = index;
+        } else if (normalized.includes('вес') || normalized.includes('weight')) {
+          columnMap.weight = index;
+        } else if (normalized.includes('габарит') || normalized.includes('размер') || normalized.includes('dimensions')) {
+          columnMap.dimensions = index;
+        } else if (normalized.includes('семейство аромата') || (normalized.includes('аромат') && normalized.includes('семейство'))) {
+          columnMap.aromaFamily = index;
+        } else if (normalized.includes('пол') && !normalized.includes('применения')) {
+          columnMap.gender = index;
+        } else if (normalized.includes('состав') || normalized.includes('ингредиент') || normalized.includes('ingredients')) {
+          columnMap.ingredients = index;
+        } else if (normalized.includes('активен') || normalized.includes('активный')) {
+          columnMap.isActive = index;
+        } else if (normalized.includes('рекомендуемый') || normalized.includes('хит') || normalized.includes('featured')) {
+          columnMap.isFeatured = index;
+        } else if (
+          (normalized.includes('доп') && (normalized.includes('изображен') || normalized.includes('фото'))) ||
+          normalized.includes('дополнительные изображения') ||
+          normalized.includes('extra images') ||
+          normalized.includes('additional images') ||
+          (normalized.includes('url') && normalized.includes('доп'))
+        ) {
+          columnMap.additionalPhotos = index;
+        } else if (
+          normalized.includes('фото') ||
+          normalized.includes('изображение') ||
+          normalized.includes('картинка') ||
+          normalized.includes('image') ||
+          normalized.includes('photo') ||
+          (normalized.includes('url') && (normalized.includes('фото') || normalized.includes('img')))
+        ) {
+          columnMap.photo = index;
         }
       });
     }
@@ -261,17 +309,24 @@ export async function POST(request: NextRequest) {
           categoryMap.set(categoryName.toLowerCase(), newCategory);
         }
 
-        // Цена и остаток
+        // Цена, остаток, сравнение
         const priceStr = columnMap.price !== undefined ? String(row[columnMap.price] || '').trim() : '';
         const stockStr = columnMap.stock !== undefined ? String(row[columnMap.stock] || '').trim() : '';
+        const comparePriceStr = columnMap.comparePrice !== undefined ? String(row[columnMap.comparePrice] || '').trim() : '';
+        const weightStr = columnMap.weight !== undefined ? String(row[columnMap.weight] || '').trim() : '';
         
         const price = priceStr ? parseFloat(priceStr.replace(/,/g, '.')) || 0 : 0;
         const stock = stockStr ? parseInt(stockStr) || 0 : 0;
+        const comparePrice = comparePriceStr ? parseFloat(comparePriceStr.replace(/,/g, '.')) || null : null;
+        const weight = weightStr ? parseFloat(weightStr.replace(/,/g, '.')) || null : null;
 
         // Объем
         const volume = normalizeVolume(
           columnMap.volume !== undefined ? row[columnMap.volume] : undefined
         );
+
+        const isActiveVal = columnMap.isActive !== undefined ? parseBool(row[columnMap.isActive]) : null;
+        const isFeaturedVal = columnMap.isFeatured !== undefined ? parseBool(row[columnMap.isFeatured]) : null;
 
         // Сохраняем все колонки из файла
         const rawData: Record<number, any> = {};
@@ -279,53 +334,63 @@ export async function POST(request: NextRequest) {
           rawData[index] = value;
         });
 
+        const str = (col: number | undefined) =>
+          col !== undefined ? (String(row[col] ?? '').trim() || null) : null;
+
         const product: any = {
           rowNum,
           name,
-          shortName: columnMap.shortName !== undefined 
-            ? String(row[columnMap.shortName] || '').trim() || null 
-            : null,
+          shortName: str(columnMap.shortName),
+          description: str(columnMap.description),
+          shortDescription: str(columnMap.shortDescription),
           myWarehouseCode,
-          manufacturerSku: columnMap.manufacturerSku !== undefined 
-            ? String(row[columnMap.manufacturerSku] || '').trim() || null 
-            : null,
-          productType: columnMap.productType !== undefined 
-            ? String(row[columnMap.productType] || '').trim() || null 
-            : null,
+          manufacturerSku: str(columnMap.manufacturerSku),
+          sku: str(columnMap.sku),
+          productType: str(columnMap.productType),
           categoryName: category?.name || categoryName || null,
           categoryId: category?.id || null,
           stock,
           price,
-          aromaDescription: columnMap.aromaDescription !== undefined 
-            ? String(row[columnMap.aromaDescription] || '').trim() || null 
-            : null,
-          topNotes: columnMap.topNotes !== undefined 
-            ? String(row[columnMap.topNotes] || '').trim() || null 
-            : null,
+          comparePrice,
           volume,
-          purpose: columnMap.purpose !== undefined 
-            ? String(row[columnMap.purpose] || '').trim() || null 
-            : null,
-          usageInstructions: columnMap.usageInstructions !== undefined 
-            ? String(row[columnMap.usageInstructions] || '').trim() || null 
-            : null,
+          weight,
+          dimensions: str(columnMap.dimensions),
+          aromaDescription: str(columnMap.aromaDescription),
+          topNotes: str(columnMap.topNotes),
+          aromaFamily: str(columnMap.aromaFamily),
+          gender: str(columnMap.gender),
+          purpose: str(columnMap.purpose),
+          usageInstructions: str(columnMap.usageInstructions),
+          ingredients: str(columnMap.ingredients),
           brandName: brand.name,
           brandId: brand.id,
-          brandCountry: columnMap.brandCountry !== undefined 
-            ? String(row[columnMap.brandCountry] || '').trim() || null 
-            : (columnMap.country !== undefined ? String(row[columnMap.country] || '').trim() || null : null),
-          manufactureCountry: columnMap.manufactureCountry !== undefined 
-            ? String(row[columnMap.manufactureCountry] || '').trim() || null 
+          brandCountry: str(columnMap.brandCountry) ?? str(columnMap.country),
+          manufactureCountry: str(columnMap.manufactureCountry),
+          warehouseLocation: str(columnMap.warehouseLocation),
+          barcode: str(columnMap.barcode),
+          isActive: isActiveVal,
+          isFeatured: isFeaturedVal,
+          photoUrl: columnMap.photo !== undefined 
+            ? (() => {
+                const v = String(row[columnMap.photo!] || '').trim();
+                if (!v) return null;
+                if (v.startsWith('http://') || v.startsWith('https://')) return v;
+                return null;
+              })()
             : null,
-          warehouseLocation: columnMap.warehouseLocation !== undefined 
-            ? String(row[columnMap.warehouseLocation] || '').trim() || null 
-            : null,
-          barcode: columnMap.barcode !== undefined 
-            ? String(row[columnMap.barcode] || '').trim() || null 
-            : null,
+          additionalImageUrls: columnMap.additionalPhotos !== undefined
+            ? (() => {
+                const raw = String(row[columnMap.additionalPhotos!] ?? '').trim();
+                if (!raw) return [];
+                return raw
+                  .split(/[,;\n]+/)
+                  .map((s: string) => s.trim())
+                  .filter((s: string) => s && (s.startsWith('http://') || s.startsWith('https://')));
+              })()
+            : [],
           isUpdate: !!existingProduct,
           existingProductId: existingProduct?.id || null,
-          rawData, // Все колонки из файла
+          rawData,
         };
 
         // Генерируем slug
