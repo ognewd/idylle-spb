@@ -20,10 +20,13 @@ echo "✅ Код обновлен"
 # Шаг 2: Установить зависимости
 echo ""
 echo "📦 Шаг 2: Установка зависимостей..."
-# Полная переустановка для избежания проблем с зависимостями
 rm -rf node_modules
-rm -f package-lock.json
-npm install --prefer-offline --no-audit
+# Сохраняем package-lock.json — без него возможны конфликты (nodemailer/next-auth)
+if [ -f package-lock.json ]; then
+  npm ci --prefer-offline --no-audit || npm install --prefer-offline --no-audit --legacy-peer-deps
+else
+  npm install --prefer-offline --no-audit --legacy-peer-deps
+fi
 echo "✅ Зависимости установлены"
 
 # Шаг 3: Настроить DATABASE_URL
