@@ -279,22 +279,17 @@ export async function POST(request: NextRequest) {
 
         const existingProduct = myWarehouseCode ? productMap.get(myWarehouseCode) : null;
 
-        // Получаем или создаем бренд
-        const brandName = columnMap.brand !== undefined 
-          ? String(row[columnMap.brand] || '').trim() 
+        // Получаем или создаем бренд (если не указан — используем «Без бренда», не считаем ошибкой)
+        const brandNameRaw = columnMap.brand !== undefined
+          ? String(row[columnMap.brand] || '').trim()
           : 'Без бренда';
-        
+        const brandName = brandNameRaw || 'Без бренда';
+
         let brand = brandMap.get(brandName.toLowerCase());
-        if (!brand && brandName) {
-          // Бренд будет создан при импорте
+        if (!brand) {
           const newBrand = { id: 'NEW', name: brandName, slug: generateSlug(brandName) } as any;
           brand = newBrand;
           brandMap.set(brandName.toLowerCase(), newBrand);
-        }
-
-        if (!brand) {
-          errors.push(`Строка ${rowNum}: не указан бренд`);
-          continue;
         }
 
         // Получаем категорию
