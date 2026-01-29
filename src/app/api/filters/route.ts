@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
         distinct: ['volume'],
       }),
       
-      // Назначение (purpose)
+      // Назначение (purpose) — значения могут быть через запятую, нужны уникальные токены
       prisma.product.findMany({
         where: {
           ...baseWhere,
@@ -57,7 +57,6 @@ export async function GET(request: NextRequest) {
         select: {
           purpose: true,
         },
-        distinct: ['purpose'],
       }),
       
       // Страна - убрано, используем brandCountry и manufactureCountry вместо country
@@ -116,10 +115,49 @@ export async function GET(request: NextRequest) {
       return counts;
     };
 
-    const [productTypeCounts, volumeCounts, purposeCounts] = await Promise.all([
+    // Назначение: разбить по запятой, оставить только уникальные значения (без дублей)
+    const splitPurpose = (s: string | null): string[] =>
+      !s ? [] : s.split(/\s*,\s*/).map(t => t.trim()).filter(Boolean);
+    const purposeTokensMap = new Map<string, string>(); // normalized (lower) -> display (first occurrence)
+    for (const row of purposes) {
+      if (!row.purpose) continue;
+      for (const token of splitPurpose(row.purpose)) {
+        const key = token.toLowerCase();
+        if (!purposeTokensMap.has(key)) purposeTokensMap.set(key, token);
+      }
+    }
+    const uniquePurposeTokens = Array.from(purposeTokensMap.values()).sort((a, b) =>
+      a.localeCompare(b, 'ru')
+    );
+
+    // Подсчёт товаров по каждому уникальному назначению (поле purpose содержит этот токен в списке через запятую)
+    const purposeCounts: Record<string, number> = {};
+    const purposeWhere = (token: string) => ({
+      OR: [
+        { purpose: { equals: token, mode: 'insensitive' as const } },
+        { purpose: { startsWith: token + ',', mode: 'insensitive' as const } },
+        { purpose: { startsWith: token + ', ', mode: 'insensitive' as const } },
+        { purpose: { endsWith: ',' + token, mode: 'insensitive' as const } },
+        { purpose: { endsWith: ', ' + token, mode: 'insensitive' as const } },
+        { purpose: { contains: ',' + token + ',', mode: 'insensitive' as const } },
+        { purpose: { contains: ', ' + token + ',', mode: 'insensitive' as const } },
+        { purpose: { contains: ',' + token + ', ', mode: 'insensitive' as const } },
+        { purpose: { contains: ', ' + token + ', ', mode: 'insensitive' as const } },
+      ],
+    });
+    const purposeCountResults = await Promise.all(
+      uniquePurposeTokens.map(async (token) => {
+        const count = await prisma.product.count({
+          where: { ...baseWhere, ...purposeWhere(token) },
+        });
+        return { token, count };
+      })
+    );
+    purposeCountResults.forEach(({ token, count }) => { purposeCounts[token] = count; });
+
+    const [productTypeCounts, volumeCounts] = await Promise.all([
       getFilterCounts('productType', productTypes.map(p => p.productType)),
       getFilterCounts('volume', volumes.map(v => v.volume)),
-      getFilterCounts('purpose', purposes.map(p => p.purpose)),
     ]);
 
     return NextResponse.json({
@@ -137,12 +175,12 @@ export async function GET(request: NextRequest) {
           name: v.volume!,
           count: volumeCounts[v.volume!] || 0,
         })),
-      purpose: purposes
-        .filter(p => p.purpose)
-        .map(p => ({
-          id: p.purpose!,
-          name: p.purpose!,
-          count: purposeCounts[p.purpose!] || 0,
+      purpose: uniquePurposeTokens
+        .filter(token => purposeCounts[token] > 0)
+        .map(token => ({
+          id: token,
+          name: token,
+          count: purposeCounts[token],
         })),
       country: [], // Убрано, используется brandCountry и manufactureCountry
       brand: brands.map(b => ({

@@ -105,11 +105,20 @@ export async function GET(request: NextRequest) {
       };
     }
 
+    // Назначение: в БД хранится строка через запятую (например "Гостиная, столовая"); фильтр по вхождению токена
     if (purposes.length > 0) {
-      where.purpose = {
-        in: purposes,
-        mode: 'insensitive',
-      };
+      const purposeConditions = purposes.flatMap(p => [
+        { purpose: { equals: p, mode: 'insensitive' as const } },
+        { purpose: { startsWith: p + ',', mode: 'insensitive' as const } },
+        { purpose: { startsWith: p + ', ', mode: 'insensitive' as const } },
+        { purpose: { endsWith: ',' + p, mode: 'insensitive' as const } },
+        { purpose: { endsWith: ', ' + p, mode: 'insensitive' as const } },
+        { purpose: { contains: ',' + p + ',', mode: 'insensitive' as const } },
+        { purpose: { contains: ', ' + p + ',', mode: 'insensitive' as const } },
+        { purpose: { contains: ',' + p + ', ', mode: 'insensitive' as const } },
+        { purpose: { contains: ', ' + p + ', ', mode: 'insensitive' as const } },
+      ]);
+      where.AND = [...(Array.isArray(where.AND) ? where.AND : []), { OR: purposeConditions }];
     }
 
     if (countries.length > 0) {
