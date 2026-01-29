@@ -375,7 +375,7 @@ function GiftsContent() {
             {/* Filters Sidebar */}
             <aside className="lg:w-64 flex-shrink-0">
               <div 
-                className="sticky top-20 max-h-[calc(100vh-5rem)] overflow-y-auto pb-4 lg:block"
+                className="sticky top-[11rem] max-h-[calc(100vh-11rem)] overflow-y-auto pb-4 lg:block"
                 onWheel={(e) => {
                   // Prevent page scroll when scrolling filters on desktop
                   e.stopPropagation();

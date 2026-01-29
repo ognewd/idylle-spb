@@ -326,8 +326,8 @@ export function ProductFilters({ filters, className, basePath = '/catalog' }: Pr
         // Don't render filter if it has no results
         if (!hasResults) return null;
 
-        // Make the first filter (Category) sticky
-        const isSticky = index === 0 && filter.id === 'category';
+        // Первый блок фильтра прилипает к верху сайдбара при прокрутке — опции сверху всегда видны
+        const isSticky = index === 0;
 
         return (
           <div 

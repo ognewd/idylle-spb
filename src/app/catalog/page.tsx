@@ -380,7 +380,7 @@ function CatalogContent() {
       
       <div className="flex flex-col lg:flex-row gap-8 mt-6">
         {/* Filters Sidebar */}
-        <aside className="lg:w-64 flex-shrink-0 lg:sticky lg:top-24 lg:self-start lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto lg:bg-white lg:rounded-lg lg:shadow-sm lg:p-2 lg:-mr-2">
+        <aside className="lg:w-64 flex-shrink-0 lg:sticky lg:top-[11rem] lg:self-start lg:max-h-[calc(100vh-11rem)] lg:overflow-y-auto lg:bg-white lg:rounded-lg lg:shadow-sm lg:p-2 lg:-mr-2">
           <ProductFilters filters={filters} />
         </aside>
 
