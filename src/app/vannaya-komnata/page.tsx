@@ -1,0 +1,446 @@
+'use client';
+
+import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { ProductFilters } from '@/components/product/ProductFilters';
+import { ProductGrid } from '@/components/product/ProductGrid';
+import { SortSelector } from '@/components/product/SortSelector';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Home, ChevronDown, ChevronUp } from 'lucide-react';
+
+interface Product {
+  id: string;
+  name: string;
+  slug: string;
+  price: number;
+  comparePrice?: number;
+  images: Array<{ url: string; alt?: string; isPrimary: boolean }>;
+  brand: {
+    name: string;
+    slug: string;
+  };
+  productCategories: Array<{
+    category: {
+      name: string;
+      slug: string;
+    };
+  }>;
+  volume?: string;
+  aromaFamily?: string;
+  gender?: string;
+  productType?: string;
+  purpose?: string;
+  country?: string;
+  stock: number;
+  isFeatured: boolean;
+  averageRating: number;
+  reviewCount: number;
+}
+
+interface Filter {
+  id: string;
+  name: string;
+  type: 'checkbox' | 'range';
+  options?: Array<{
+    id: string;
+    name: string;
+    count: number;
+  }>;
+  min?: number;
+  max?: number;
+  step?: number;
+}
+
+interface ApiResponse {
+  products: Product[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+const SLUG = 'vannaya-komnata';
+const DEFAULT_NAME = 'Ванная комната';
+
+function VannayaContent() {
+  const searchParams = useSearchParams();
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  const [filters, setFilters] = useState<Filter[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [categoryContent, setCategoryContent] = useState<string | null>(null);
+  const [categoryName, setCategoryName] = useState<string>(DEFAULT_NAME);
+  const [categoryDescription, setCategoryDescription] = useState<string | null>(null);
+  const [isCategoryContentLoading, setIsCategoryContentLoading] = useState(true);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 24,
+    total: 0,
+    totalPages: 0,
+  });
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isMounted) return;
+    setIsCategoryContentLoading(true);
+
+    fetch(`/api/categories?slug=${SLUG}&_=${Date.now()}`, { cache: 'no-store' })
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.length > 0) {
+          const category = data.find((c: any) => c.slug === SLUG) || data[0];
+          if (category) {
+            setCategoryName(category.name || DEFAULT_NAME);
+            setCategoryDescription(category.description || null);
+            setCategoryContent(category.pageContent || null);
+          }
+        }
+      })
+      .catch(err => console.error('Error loading category:', err))
+      .finally(() => setIsCategoryContentLoading(false));
+  }, [isMounted]);
+
+  useEffect(() => {
+    if (!isMounted) return;
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+
+        const queryParams = new URLSearchParams();
+        queryParams.set('category', SLUG);
+        queryParams.set('page', '1');
+        queryParams.set('limit', '24');
+
+        searchParams.forEach((value, key) => {
+          if (key.startsWith('filter_')) {
+            queryParams.append(key, value);
+          }
+        });
+
+        const [productsResponse, filtersResponse] = await Promise.all([
+          fetch(`/api/products?${queryParams.toString()}`),
+          fetch(`/api/filters?category=${SLUG}`),
+        ]);
+
+        if (!productsResponse.ok) {
+          throw new Error(`HTTP error! status: ${productsResponse.status}`);
+        }
+
+        const productsData: ApiResponse = await productsResponse.json();
+        const filtersData = await filtersResponse.json();
+
+        const products = Array.isArray(productsData?.products) ? productsData.products : [];
+
+        setAllProducts(products);
+        setFilteredProducts(products);
+        setPagination(productsData.pagination);
+        setCurrentPage(1);
+
+        const prices = products.map((p) => p.price);
+        const minPrice = prices.length > 0 ? Math.floor(Math.min(...prices) / 1000) * 1000 : 0;
+        const maxPrice = prices.length > 0 ? Math.ceil(Math.max(...prices) / 1000) * 1000 : 50000;
+
+        const newFilters: Filter[] = [];
+
+        if (filtersData.productType && filtersData.productType.length > 0) {
+          newFilters.push({
+            id: 'productType',
+            name: 'Вид товара',
+            type: 'checkbox',
+            options: filtersData.productType,
+          });
+        }
+
+        if (filtersData.purpose && filtersData.purpose.length > 0) {
+          newFilters.push({
+            id: 'purpose',
+            name: 'Назначение',
+            type: 'checkbox',
+            options: filtersData.purpose,
+          });
+        }
+
+        if (filtersData.brand && filtersData.brand.length > 0) {
+          newFilters.push({
+            id: 'brand',
+            name: 'Бренд',
+            type: 'checkbox',
+            options: filtersData.brand,
+          });
+        }
+
+        if (filtersData.country && filtersData.country.length > 0) {
+          newFilters.push({
+            id: 'country',
+            name: 'Страна',
+            type: 'checkbox',
+            options: filtersData.country,
+          });
+        }
+
+        newFilters.push({
+          id: 'price',
+          name: 'Цена',
+          type: 'range',
+          min: minPrice,
+          max: maxPrice,
+          step: 1000,
+        });
+
+        setFilters(newFilters);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        setAllProducts([]);
+        setFilteredProducts([]);
+        setFilters([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [isMounted, searchParams]);
+
+  useEffect(() => {
+    setFilteredProducts(allProducts);
+  }, [allProducts]);
+
+  const loadMore = useCallback(async () => {
+    if (loadingMore || currentPage >= pagination.totalPages || loading) {
+      return;
+    }
+
+    try {
+      setLoadingMore(true);
+      const nextPage = currentPage + 1;
+
+      const queryParams = new URLSearchParams();
+      searchParams.forEach((value, key) => {
+        queryParams.append(key, value);
+      });
+      queryParams.set('category', SLUG);
+      queryParams.set('page', nextPage.toString());
+      queryParams.set('limit', '24');
+
+      const response = await fetch(`/api/products?${queryParams.toString()}`);
+      const data: ApiResponse = await response.json();
+
+      setAllProducts(prev => [...prev, ...data.products]);
+      setFilteredProducts(prev => [...prev, ...data.products]);
+      setCurrentPage(nextPage);
+    } catch (error) {
+      console.error('Error loading more products:', error);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loadingMore, currentPage, pagination.totalPages, loading, searchParams]);
+
+  useEffect(() => {
+    if (pagination.totalPages === 0 || loading || currentPage >= pagination.totalPages) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const filtersSidebar = document.querySelector('aside.lg\\:w-64');
+        const isScrollingFilters = filtersSidebar && (
+          document.activeElement?.closest('aside') === filtersSidebar ||
+          (filtersSidebar as HTMLElement).matches(':hover')
+        );
+
+        if (entries[0].isIntersecting && !loadingMore && !isScrollingFilters) {
+          loadMore();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    setTimeout(() => {
+      const sentinel = document.getElementById('scroll-sentinel-home');
+      if (sentinel) {
+        observer.observe(sentinel);
+      }
+    }, 100);
+
+    return () => {
+      const sentinel = document.getElementById('scroll-sentinel-home');
+      if (sentinel) {
+        observer.unobserve(sentinel);
+      }
+    };
+  }, [currentPage, pagination.totalPages, loading, loadingMore, loadMore]);
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-background to-muted/30">
+      <section className="relative h-[500px] overflow-hidden">
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{
+            backgroundImage: 'url(https://images.unsplash.com/photo-1552321554-5fefe8c9ef14?q=80&w=2070&auto=format&fit=crop)',
+          }}
+        >
+          <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/30"></div>
+        </div>
+
+        <div className="container mx-auto px-4 h-full flex items-center relative z-10">
+          <div className="max-w-2xl text-white">
+            <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full mb-6">
+              <Home className="h-5 w-5" />
+              <span className="text-sm font-medium uppercase tracking-wider">{DEFAULT_NAME}</span>
+            </div>
+
+            <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
+              {categoryName}
+            </h1>
+
+            {categoryDescription && (
+              <p className="text-lg md:text-xl text-gray-100 mb-8 max-w-xl">
+                {categoryDescription}
+              </p>
+            )}
+
+            <Button
+              size="lg"
+              className="bg-white text-gray-900 hover:bg-gray-100 shadow-lg"
+              onClick={() => window.scrollTo({ top: 600, behavior: 'smooth' })}
+            >
+              Смотреть коллекцию
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      <section className="relative py-12 md:py-16 overflow-hidden">
+        <div
+          className="absolute inset-0 bg-cover bg-center opacity-5"
+          style={{
+            backgroundImage: 'url(https://images.unsplash.com/photo-1552321554-5fefe8c9ef14?q=80&w=2070&auto=format&fit=crop)',
+          }}
+        ></div>
+        <div className="absolute inset-0 bg-gradient-to-b from-background via-background/90 to-background"></div>
+        <div className="absolute top-10 right-10 w-72 h-72 bg-primary/5 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-10 left-10 w-96 h-96 bg-primary/5 rounded-full blur-3xl"></div>
+
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="max-w-4xl mx-auto">
+            <Card className="bg-card/90 backdrop-blur-md border-primary/20 shadow-xl">
+              <CardContent className="p-6">
+                {isCategoryContentLoading ? (
+                  <div className="animate-pulse space-y-4">
+                    <div className="h-4 bg-muted rounded w-3/4" />
+                    <div className="h-4 bg-muted rounded w-full" />
+                    <div className="h-4 bg-muted rounded w-1/2" />
+                  </div>
+                ) : categoryContent ? (
+                  <>
+                    <div
+                      className={`prose prose-lg max-w-none prose-headings:font-bold prose-p:text-muted-foreground prose-p:leading-relaxed prose-p:mb-4 prose-p:last:mb-0 prose-ul:list-disc prose-ol:list-decimal prose-a:text-primary prose-a:underline hover:prose-a:text-primary/80 prose-img:rounded-lg prose-img:shadow-sm ${!isDescriptionExpanded && categoryContent.length > 300 ? 'line-clamp-3' : ''}`}
+                      dangerouslySetInnerHTML={{ __html: categoryContent }}
+                    />
+                    {categoryContent.length > 300 && (
+                      <Button
+                        variant="ghost"
+                        className="w-full mt-4"
+                        onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
+                      >
+                        {isDescriptionExpanded ? (
+                          <>Свернуть <ChevronUp className="ml-2 h-4 w-4" /></>
+                        ) : (
+                          <>Читать далее <ChevronDown className="ml-2 h-4 w-4" /></>
+                        )}
+                      </Button>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-muted-foreground text-center py-8">
+                    <p>Описание категории пока отсутствует.</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      <section className="py-8 bg-background">
+        <div className="container mx-auto px-4">
+          <div className="flex flex-col lg:flex-row gap-8">
+            <aside className="lg:w-64 flex-shrink-0">
+              <div
+                className="sticky top-20 max-h-[calc(100vh-5rem)] overflow-y-auto pb-4 lg:block"
+                onWheel={(e) => e.stopPropagation()}
+                onTouchMove={(e) => e.stopPropagation()}
+              >
+                <ProductFilters filters={filters} basePath={`/${SLUG}`} />
+              </div>
+            </aside>
+
+            <div className="flex-1">
+              <div className="flex justify-between items-center mb-6">
+                <p className="text-muted-foreground">
+                  {loading ? 'Загрузка...' : `Найдено товаров: ${pagination.total}`}
+                </p>
+                <SortSelector />
+              </div>
+
+              {loading ? (
+                <div className="text-center py-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+                  <p className="mt-4 text-muted-foreground">Загрузка товаров...</p>
+                </div>
+              ) : Array.isArray(filteredProducts) && filteredProducts.length > 0 ? (
+                <>
+                  <ProductGrid
+                    products={filteredProducts}
+                    pagination={pagination}
+                    searchParams={{}}
+                    loadingMore={loadingMore}
+                    hasMore={currentPage < pagination.totalPages}
+                  />
+                  {currentPage < pagination.totalPages && (
+                    <div id="scroll-sentinel-home" className="h-10 flex items-center justify-center mt-6">
+                      {loadingMore && (
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                      )}
+                    </div>
+                  )}
+                  {currentPage >= pagination.totalPages && filteredProducts.length > 0 && (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <p>Все товары загружены</p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground">Товары не найдены. Попробуйте изменить фильтры.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+export default function VannayaPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    }>
+      <VannayaContent />
+    </Suspense>
+  );
+}

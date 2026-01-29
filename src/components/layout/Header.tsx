@@ -357,6 +357,9 @@ export function Header() {
           <Link href="/podarki" className="hover:text-primary transition-colors">
             Подарки
           </Link>
+          <Link href="/vannaya-komnata" className="hover:text-primary transition-colors">
+            Ванная комната
+          </Link>
           <Link href="/dealers" className="hover:text-primary transition-colors">
             Дилерам
           </Link>
@@ -481,6 +484,13 @@ export function Header() {
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 Подарки
+              </Link>
+              <Link 
+                href="/vannaya-komnata" 
+                className="block py-2 hover:text-primary transition-colors border-b"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Ванная комната
               </Link>
               <Link 
                 href="/dealers" 
