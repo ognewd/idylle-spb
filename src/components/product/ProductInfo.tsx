@@ -234,7 +234,7 @@ export function ProductInfo({ product, className }: ProductInfoProps) {
           <div className="space-y-2 flex flex-col items-start">
             {blocks.map((b, i) => (
               <div key={i} className={cn('py-2 px-4 rounded-md', b.maxW)} style={{ backgroundColor: b.bg }}>
-                <span className={cn('font-medium', b.headerCl)}>{b.header} </span>
+                <span className={cn(b.headerCl)}>{b.header} </span>
                 <span className={cn('text-sm', b.contentCl)}>{b.content}</span>
               </div>
             ))}

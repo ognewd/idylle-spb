@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
   Search,
@@ -14,6 +14,8 @@ import {
   Menu,
   X,
   LogOut,
+  Phone,
+  Mail,
 } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
 import { useWishlist } from '@/contexts/WishlistContext';
@@ -37,6 +39,7 @@ export function Header() {
   const { items: wishlistItems } = useWishlist();
   const { data: session } = useSession();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     let ticking = false;
@@ -139,39 +142,51 @@ export function Header() {
     setIsUserMenuOpen(false);
   };
 
-  const navLink =
-    'text-gray-800 text-[13px] tracking-wide hover:text-black hover:underline transition-colors duration-200';
-
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-gray-100">
-      {/* При скролле — одна строка: поиск слева, меню по центру, иконки справа */}
+      {/* При скролле — компактная строка: лого | поиск | иконки */}
       {isScrolled ? (
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-12 sm:h-14 gap-2">
-            {/* Слева: на мобиле лого, на десктопе поиск */}
-            <div className="flex items-center flex-shrink-0 gap-2">
-              <Link href="/" className="md:hidden flex-shrink-0">
-                <Image src="/logo-idylle.png" alt="Idylle" width={120} height={45} className="h-8 w-auto max-w-[100px]" />
-              </Link>
-              <button
-                type="button"
-                onClick={() => setIsSearchOpen(!isSearchOpen)}
-                className="hidden md:block flex-shrink-0 p-2 text-gray-800 hover:text-black transition-colors"
-                aria-label="Поиск"
-              >
-                <Search className="size-5" strokeWidth={1.5} />
-              </button>
+          <div className="flex items-center justify-between h-12 sm:h-14 gap-4">
+            <Link href="/" className="flex-shrink-0">
+              <Image src="/logo-idylle.png" alt="Idylle" width={100} height={38} className="h-8 w-auto" />
+            </Link>
+            <div className="hidden md:flex flex-1 max-w-md mx-auto">
+              <form onSubmit={handleSearch} className="relative w-full">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" strokeWidth={1.5} />
+                <input
+                  type="text"
+                  placeholder="Найти аромат..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={() => searchQuery.length >= 2 && setShowSearchResults(true)}
+                  onBlur={() => setTimeout(() => setShowSearchResults(false), 150)}
+                  className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 bg-gray-50/80 text-gray-900 placeholder:text-gray-400 text-sm focus:outline-none focus:border-gray-300"
+                />
+                {showSearchResults && (searchResults.length > 0 || isSearching) && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-100 shadow-lg max-h-72 overflow-y-auto z-50 rounded-lg">
+                    {isSearching ? <div className="p-4 text-center text-gray-500 text-sm">Поиск...</div> : searchResults.length > 0 ? (
+                      <>
+                        {searchResults.map((product) => (
+                          <button key={product.id} type="button" onClick={() => handleResultClick(product.slug)} className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 text-left">
+                            <div className="relative w-9 h-9 flex-shrink-0 rounded overflow-hidden">
+                              <Image src={product.image} alt={product.name} fill className="object-cover" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium text-gray-900 truncate">{product.name}</div>
+                              <div className="text-xs text-gray-500">{product.brand} • {new Intl.NumberFormat('ru-RU').format(product.price)} ₽</div>
+                            </div>
+                          </button>
+                        ))}
+                        <div className="border-t border-gray-100 p-2">
+                          <button type="button" onClick={() => { setShowSearchResults(false); router.push(`/catalog?search=${encodeURIComponent(searchQuery)}`); }} className="w-full text-center text-sm text-gray-600 hover:text-black">Все результаты</button>
+                        </div>
+                      </>
+                    ) : <div className="p-4 text-center text-gray-500 text-sm">Ничего не найдено</div>}
+                  </div>
+                )}
+              </form>
             </div>
-            <nav className="hidden md:flex items-center justify-center gap-x-4 lg:gap-x-6 flex-1 min-w-0 [&>a]:mr-4 [&>a]:last:mr-0 lg:[&>a]:mr-6">
-              <Link href="/business" className={navLink}>Ароматы для бизнеса</Link>
-              <Link href="/aromaty-dlya-doma" className={navLink}>Ароматы для дома</Link>
-              <Link href="/uyut-i-interer" className={navLink}>Уют и интерьер</Link>
-              <Link href="/podarki" className={navLink}>Подарки</Link>
-              <Link href="/vannaya-komnata" className={navLink}>Ванная комната</Link>
-              <Link href="/dealers" className={navLink}>Дилерам</Link>
-              <Link href="/promotions" className={navLink}>Акции</Link>
-              <Link href="/sale" className={`${navLink} text-red-600 hover:text-red-700`}>SALE</Link>
-            </nav>
             <div className="flex items-center gap-0 flex-shrink-0">
               <button
                 type="button"
@@ -183,7 +198,7 @@ export function Header() {
               </button>
               <Link href="/wishlist" className="relative p-2 text-gray-800 hover:text-black" aria-label="Избранное">
                 <Heart className="size-5" strokeWidth={1.5} />
-                {wishlistItems.length > 0 && <span className="absolute top-1 right-1 size-4 rounded-full bg-gray-800 text-white text-[10px] flex items-center justify-center">{wishlistItems.length}</span>}
+                {wishlistItems.length > 0 && <span className="absolute top-1 right-1 size-4 rounded-full bg-rose-500 text-white text-[10px] flex items-center justify-center">{wishlistItems.length}</span>}
               </Link>
               <Link href="/cart" className="relative p-2 text-gray-800 hover:text-black" aria-label="Корзина">
                 <ShoppingCart className="size-5" strokeWidth={1.5} />
@@ -221,65 +236,119 @@ export function Header() {
         </div>
       ) : (
         <>
-      {/* Промо-баннер — минимализм */}
+      {/* Тёмная верхняя полоса: контакты слева, Доставка/Оплата/Гарантии справа */}
+      <div className="bg-[#333333] text-white">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs sm:text-sm">
+            <div className="flex flex-wrap items-center gap-4 sm:gap-6">
+              <a href="tel:88005008729" className="flex items-center gap-1.5 hover:text-gray-200 transition-colors">
+                <Phone className="size-3.5 sm:size-4" />
+                8 (800) 500-87-29
+              </a>
+              <a href="mailto:info@idylle.spb.ru" className="flex items-center gap-1.5 hover:text-gray-200 transition-colors">
+                <Mail className="size-3.5 sm:size-4" />
+                info@idylle.spb.ru
+              </a>
+            </div>
+            <div className="flex items-center gap-2 text-gray-300">
+              <Link href="/delivery" className="hover:text-white transition-colors">Доставка</Link>
+              <span className="text-gray-500">•</span>
+              <Link href="/delivery" className="hover:text-white transition-colors">Оплата</Link>
+              <span className="text-gray-500">•</span>
+              <Link href="/about" className="hover:text-white transition-colors">Гарантии</Link>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Промо-баннер — скрыт если закрыт */}
       {!promoClosed && (
         <div className="bg-[#f5f5f5] border-b border-gray-100">
           <div className="max-w-5xl mx-auto px-4 py-2.5 flex items-center">
             <div className="flex-1 text-center">
-              <p className="text-gray-800 text-sm">
-                Получите подарок при заказе от 5000₽ по коду IDYLLE10
-              </p>
+              <p className="text-gray-800 text-sm">Получите подарок при заказе от 5000₽ по коду IDYLLE10</p>
             </div>
-            <button
-              type="button"
-              onClick={closePromo}
-              className="flex-shrink-0 p-1.5 text-gray-500 hover:text-black transition-colors"
-              aria-label="Закрыть"
-            >
+            <button type="button" onClick={closePromo} className="flex-shrink-0 p-1.5 text-gray-500 hover:text-black transition-colors" aria-label="Закрыть">
               <X className="size-4" />
             </button>
           </div>
         </div>
       )}
 
-      {/* Основной ряд: на мобиле — лого слева, иконки справа; на десктопе — поиск | лого по центру | О нас + иконки */}
+      {/* Основной ряд: лого+слоган слева | поиск по центру | иконки справа */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="relative flex items-center justify-between h-14 sm:h-16 md:h-20 gap-2">
-          {/* Слева — поиск (только десктоп) */}
-          <div className="hidden md:flex items-center flex-shrink-0 w-12">
+        <div className="flex items-center justify-between h-14 sm:h-16 md:h-20 gap-4">
+          {/* Слева — логотип + слоган */}
+          <Link href="/" className="flex items-center gap-2 flex-shrink-0">
+            <Image
+              src="/logo-idylle.png"
+              alt="Idylle"
+              width={140}
+              height={52}
+              className="h-9 w-auto sm:h-10 md:h-11"
+              priority
+            />
+            <span className="hidden sm:block text-sm text-gray-500 font-normal">Ароматы для дома</span>
+          </Link>
+
+          {/* Центр — развёрнутый поиск (только десктоп) */}
+          <div className="hidden md:flex flex-1 max-w-xl mx-auto px-4">
+            <form onSubmit={handleSearch} className="relative w-full">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" strokeWidth={1.5} />
+              <input
+                type="text"
+                placeholder="Найти аромат, свечу или диффузор..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={() => searchQuery.length >= 2 && setShowSearchResults(true)}
+                onBlur={() => setTimeout(() => setShowSearchResults(false), 150)}
+                className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-200 bg-gray-50/80 text-gray-900 placeholder:text-gray-400 text-sm focus:outline-none focus:border-gray-300 focus:bg-white"
+              />
+              {showSearchResults && (searchResults.length > 0 || isSearching) && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-100 shadow-lg max-h-80 overflow-y-auto z-50 rounded-lg">
+                  {isSearching ? (
+                    <div className="p-4 text-center text-gray-500 text-sm">Поиск...</div>
+                  ) : searchResults.length > 0 ? (
+                    <>
+                      {searchResults.map((product) => (
+                        <button
+                          key={product.id}
+                          type="button"
+                          onClick={() => handleResultClick(product.slug)}
+                          className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 text-left"
+                        >
+                          <div className="relative w-10 h-10 flex-shrink-0 rounded overflow-hidden">
+                            <Image src={product.image} alt={product.name} fill className="object-cover" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium text-gray-900 truncate">{product.name}</div>
+                            <div className="text-xs text-gray-500">{product.brand} • {product.category}</div>
+                            <div className="text-sm text-gray-700 mt-0.5">{new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 0 }).format(product.price)} ₽</div>
+                          </div>
+                        </button>
+                      ))}
+                      <div className="border-t border-gray-100 p-2">
+                        <button type="button" onClick={() => { setShowSearchResults(false); router.push(`/catalog?search=${encodeURIComponent(searchQuery)}`); }} className="w-full text-center text-sm text-gray-600 hover:text-black">Все результаты</button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="p-4 text-center text-gray-500 text-sm">Ничего не найдено</div>
+                  )}
+                </div>
+              )}
+            </form>
+          </div>
+
+          {/* Справа — поиск (мобиле) + иконки */}
+          <div className="flex items-center gap-0 flex-shrink-0">
             <button
               type="button"
               onClick={() => setIsSearchOpen(!isSearchOpen)}
-              className="p-2 text-gray-800 hover:text-black transition-colors"
+              className="md:hidden p-2 text-gray-800 hover:text-black transition-colors"
               aria-label="Поиск"
             >
               <Search className="size-5" strokeWidth={1.5} />
             </button>
-          </div>
-
-          {/* Логотип: на мобиле слева, на десктопе по центру */}
-          <Link
-            href="/"
-            className="flex-shrink-0 md:absolute md:left-1/2 md:-translate-x-1/2"
-          >
-            <Image
-              src="/logo-idylle.png"
-              alt="Idylle"
-              width={180}
-              height={67}
-              className="h-9 w-auto max-w-[120px] sm:h-10 sm:max-w-[140px] md:h-12 md:max-w-none"
-              priority
-            />
-          </Link>
-
-          {/* Справа — ссылки О нас/Доставка/Контакты над иконками */}
-          <div className="hidden md:flex flex-col items-end gap-1 flex-shrink-0">
-            <div className="flex items-center gap-4 text-[11px] text-gray-500 tracking-wide">
-              <Link href="/about" className="hover:text-black transition-colors">О нас</Link>
-              <Link href="/delivery" className="hover:text-black transition-colors">Доставка</Link>
-              <Link href="/contacts" className="hover:text-black transition-colors">Контакты</Link>
-            </div>
-            <div className="flex items-center gap-0">
             <Link
               href="/wishlist"
               className="relative p-2 text-gray-800 hover:text-black transition-colors"
@@ -287,7 +356,7 @@ export function Header() {
             >
               <Heart className="size-5" strokeWidth={1.5} />
               {wishlistItems.length > 0 && (
-                <span className="absolute top-1 right-1 size-4 rounded-full bg-gray-800 text-white text-[10px] flex items-center justify-center">
+                <span className="absolute top-1 right-1 size-4 rounded-full bg-rose-500 text-white text-[10px] flex items-center justify-center">
                   {wishlistItems.length}
                 </span>
               )}
@@ -370,73 +439,35 @@ export function Header() {
             </button>
             </div>
           </div>
-          {/* На мобиле — лого уже слева; справа поиск + иконки с нормальными размерами */}
-          <div className="flex md:hidden items-center gap-0 flex-shrink-0 ml-auto">
-            <button
-              type="button"
-              onClick={() => setIsSearchOpen(!isSearchOpen)}
-              className="p-2 text-gray-800 hover:text-black transition-colors"
-              aria-label="Поиск"
-            >
-              <Search className="size-5" strokeWidth={1.5} />
-            </button>
-            <Link href="/wishlist" className="relative p-2 text-gray-800 hover:text-black" aria-label="Избранное">
-              <Heart className="size-5" strokeWidth={1.5} />
-              {wishlistItems.length > 0 && (
-                <span className="absolute top-1 right-1 size-4 rounded-full bg-gray-800 text-white text-[10px] flex items-center justify-center">{wishlistItems.length}</span>
-              )}
-            </Link>
-            <Link href="/cart" className="relative p-2 text-gray-800 hover:text-black" aria-label="Корзина">
-              <ShoppingCart className="size-5" strokeWidth={1.5} />
-              {totalItems > 0 && (
-                <span className="absolute top-1 right-1 size-4 rounded-full bg-gray-800 text-white text-[10px] flex items-center justify-center">{totalItems}</span>
-              )}
-            </Link>
-            <div className="relative user-menu-container">
-              <button type="button" onClick={() => setIsUserMenuOpen(!isUserMenuOpen)} className="p-2 text-gray-800 hover:text-black" aria-label="Профиль">
-                <User className="size-5" strokeWidth={1.5} />
-              </button>
-              {isUserMenuOpen && (
-                <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-100 shadow-lg py-2 z-50">
-                  {session?.user ? (
-                    <>
-                      <div className="px-4 py-2 border-b border-gray-100">
-                        <p className="text-sm font-medium text-gray-900 truncate">{session.user.name || session.user.email}</p>
-                        <p className="text-xs text-gray-500 truncate">{session.user.email}</p>
-                      </div>
-                      <Link href="/account" onClick={() => setIsUserMenuOpen(false)} className="block px-4 py-2 text-sm text-gray-800 hover:bg-gray-50">Личный кабинет</Link>
-                      <button type="button" onClick={handleLogout} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2">
-                        <LogOut className="size-4" /> Выйти
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <Link href="/auth/signin" onClick={() => setIsUserMenuOpen(false)} className="block px-4 py-2 text-sm text-gray-800 hover:bg-gray-50">Войти</Link>
-                      <Link href="/auth/signup" onClick={() => setIsUserMenuOpen(false)} className="block px-4 py-2 text-sm text-gray-800 hover:bg-gray-50">Регистрация</Link>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-            <button type="button" className="p-2 text-gray-800 hover:text-black" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} aria-label={isMobileMenuOpen ? 'Закрыть меню' : 'Меню'}>
-              {isMobileMenuOpen ? <X className="size-5" strokeWidth={1.5} /> : <Menu className="size-5" strokeWidth={1.5} />}
-            </button>
-          </div>
         </div>
-      </div>
 
-      {/* Навигация — одна строка, простые ссылки */}
+      {/* Навигация — скруглённые кнопки, активное состояние, красная Акции */}
       <nav className="border-t border-gray-100 bg-white">
         <div className="max-w-6xl mx-auto px-4">
-          <div className="hidden md:flex flex-wrap items-center justify-center gap-x-6 gap-y-2 lg:gap-x-8 py-4 [&>a]:mr-6 [&>a]:last:mr-0">
-            <Link href="/business" className={navLink}>Ароматы для бизнеса</Link>
-            <Link href="/aromaty-dlya-doma" className={navLink}>Ароматы для дома</Link>
-            <Link href="/uyut-i-interer" className={navLink}>Уют и интерьер</Link>
-            <Link href="/podarki" className={navLink}>Подарки</Link>
-            <Link href="/vannaya-komnata" className={navLink}>Ванная комната</Link>
-            <Link href="/dealers" className={navLink}>Дилерам</Link>
-            <Link href="/promotions" className={navLink}>Акции</Link>
-            <Link href="/sale" className={`${navLink} text-red-600 hover:text-red-700`}>SALE</Link>
+          <div className="hidden md:flex flex-wrap items-center justify-center gap-2 py-4">
+            <Link
+              href="/"
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                pathname === '/' ? 'bg-gray-200 text-gray-800' : 'text-gray-800 hover:bg-gray-100'
+              }`}
+            >
+              Главная
+            </Link>
+            <Link
+              href="/catalog"
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                pathname?.startsWith('/catalog') ? 'bg-black text-white hover:bg-gray-900' : 'text-gray-800 hover:bg-gray-100'
+              }`}
+            >
+              Каталог
+            </Link>
+            <Link href="/aromaty-dlya-doma" className="px-4 py-2 rounded-lg text-sm font-medium text-gray-800 hover:bg-gray-100 transition-colors">Ароматы для дома</Link>
+            <Link href="/business" className="px-4 py-2 rounded-lg text-sm font-medium text-gray-800 hover:bg-gray-100 transition-colors">Ароматы для бизнеса</Link>
+            <Link href="/uyut-i-interer" className="px-4 py-2 rounded-lg text-sm font-medium text-gray-800 hover:bg-gray-100 transition-colors">Уют и интерьер</Link>
+            <Link href="/podarki" className="px-4 py-2 rounded-lg text-sm font-medium text-gray-800 hover:bg-gray-100 transition-colors">Подарки</Link>
+            <Link href="/promotions" className="px-4 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">Акции</Link>
+            <Link href="/sale" className="px-4 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">SALE</Link>
+            <Link href="/about" className="px-4 py-2 rounded-lg text-sm font-medium text-gray-800 hover:bg-gray-100 transition-colors">О нас</Link>
           </div>
         </div>
       </nav>

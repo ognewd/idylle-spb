@@ -264,14 +264,17 @@ export function ProductCard({
           </h3>
         </Link>
 
-        {/* Details */}
-        <div className="flex items-center gap-2 mb-3 text-xs text-neutral-600">
-          {product.volume && <span>{product.volume}</span>}
+        {/* Details: объём и нота аромата в стиле блоков нот на странице товара */}
+        <div className="flex flex-wrap items-center gap-2 mb-3">
+          {product.volume && (
+            <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-neutral-100 text-neutral-700">
+              {product.volume}
+            </span>
+          )}
           {product.aromaFamily && (
-            <>
-              <span>•</span>
-              <span>{product.aromaFamily}</span>
-            </>
+            <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-amber-100 text-amber-900">
+              {product.aromaFamily}
+            </span>
           )}
         </div>
 

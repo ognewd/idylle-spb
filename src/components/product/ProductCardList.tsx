@@ -201,15 +201,15 @@ export function ProductCardList({ product, className }: ProductCardListProps) {
               </h3>
             </Link>
 
-            {/* Details */}
-            <div className="flex flex-wrap items-center gap-2 mb-3 text-sm text-neutral-600">
+            {/* Details: объём и нота аромата в стиле блоков нот на странице товара */}
+            <div className="flex flex-wrap items-center gap-2 mb-3">
               {product.volume && (
-                <span className="bg-neutral-100 px-2 py-1 rounded">
+                <span className="inline-flex items-center px-2 py-1 rounded-md text-sm font-medium bg-neutral-100 text-neutral-700">
                   {product.volume}
                 </span>
               )}
               {product.aromaFamily && (
-                <span className="bg-neutral-100 px-2 py-1 rounded">
+                <span className="inline-flex items-center px-2 py-1 rounded-md text-sm font-medium bg-amber-100 text-amber-900">
                   {product.aromaFamily}
                 </span>
               )}

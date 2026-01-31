@@ -227,27 +227,22 @@ export function QuickView({ product, isOpen, onClose, onAddToCart }: QuickViewPr
 
             <Separator />
 
-            {/* Product Details */}
-            <div className="space-y-2 text-sm">
+            {/* Product Details: объём и нота аромата в том же стиле, что в карточках */}
+            <div className="flex flex-wrap items-center gap-2 text-sm">
               {product.volume && (
-                <div>
-                  <span className="text-muted-foreground">Объем: </span>
-                  <span className="font-medium">{product.volume}</span>
-                </div>
+                <span className="inline-flex items-center px-2 py-1 rounded-md font-medium bg-neutral-100 text-neutral-700">
+                  {product.volume}
+                </span>
               )}
               {product.aromaFamily && (
-                <div>
-                  <span className="text-muted-foreground">Семейство: </span>
-                  <span className="font-medium">{product.aromaFamily}</span>
-                </div>
+                <span className="inline-flex items-center px-2 py-1 rounded-md font-medium bg-amber-100 text-amber-900">
+                  {product.aromaFamily}
+                </span>
               )}
               {product.gender && (
-                <div>
-                  <span className="text-muted-foreground">Для: </span>
-                  <span className="font-medium">
-                    {product.gender === 'men' ? 'Мужской' : product.gender === 'women' ? 'Женский' : 'Унисекс'}
-                  </span>
-                </div>
+                <span className="inline-flex items-center px-2 py-1 rounded-md font-medium bg-neutral-100 text-neutral-700">
+                  {product.gender === 'men' ? 'Мужской' : product.gender === 'women' ? 'Женский' : 'Унисекс'}
+                </span>
               )}
             </div>
 
