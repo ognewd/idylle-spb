@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { MapPin, BookOpen } from 'lucide-react';
 
@@ -19,49 +20,144 @@ type HeroSectionProps = {
   product?: HeroProduct | null;
 };
 
+interface FragranceParticle {
+  id: number;
+  x: number;
+  y: number;
+  timestamp: number;
+}
+
 export function HeroSection({ product }: HeroSectionProps) {
+  const [particles, setParticles] = useState<FragranceParticle[]>([]);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [hasMouseMoved, setHasMouseMoved] = useState(false);
+  const particleIdRef = useRef(0);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    if (!hasMouseMoved) {
+      setHasMouseMoved(true);
+    }
+
+    setMousePosition({ x, y });
+
+    const newParticle: FragranceParticle = {
+      id: particleIdRef.current++,
+      x,
+      y,
+      timestamp: Date.now(),
+    };
+
+    setParticles((prev) => [...prev, newParticle]);
+  };
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now();
+      setParticles((prev) => prev.filter((p) => now - p.timestamp < 3000));
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, []);
+
   return (
-    <section className="relative min-h-[600px] bg-gradient-to-br from-[#FFF9F0] via-[#F8F8F8] to-[#FFF9F0] py-16 lg:py-20 overflow-hidden">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section
+      className="relative min-h-[600px] bg-gradient-to-br from-slate-800 via-slate-700 to-gray-800 py-16 lg:py-20 overflow-hidden"
+      onMouseMove={handleMouseMove}
+    >
+      {/* Темный радиальный градиент для контраста в зоне распыления */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_800px_600px_at_70%_50%,rgba(15,23,42,0.4),transparent)]" />
+
+      {/* Интерактивные частицы аромата от курсора */}
+      {particles.map((particle) => (
+        <div
+          key={particle.id}
+          className="mouse-fragrance-particle"
+          style={{
+            left: `${particle.x}px`,
+            top: `${particle.y}px`,
+          }}
+        />
+      ))}
+
+      {/* Светящийся след за курсором */}
+      {hasMouseMoved && (
+        <div
+          className="mouse-glow-trail"
+          style={{
+            left: `${mousePosition.x}px`,
+            top: `${mousePosition.y}px`,
+          }}
+        />
+      )}
+
+      {/* Эффект распространения аромата — волны дыма и свечение */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="smoke-stream smoke-stream-1" />
+        <div className="smoke-stream smoke-stream-2" />
+        <div className="smoke-stream smoke-stream-3" />
+        <div className="smoke-stream smoke-stream-4" />
+        <div className="smoke-stream smoke-stream-5" />
+        <div className="smoke-stream smoke-stream-6" />
+
+        {/* Свечение только слева (за текстом), чтобы не было пятна у карточки */}
+        <div className="fragrance-glow w-[600px] h-[600px] bg-slate-200/8 top-1/4 left-0 -translate-x-1/4" />
+        <div className="fragrance-glow w-[500px] h-[500px] bg-gray-100/10 top-1/3 left-[10%]" style={{ animationDelay: '1s' }} />
+        <div className="fragrance-glow w-96 h-96 bg-slate-300/7 top-1/2 left-[5%]" style={{ animationDelay: '2s' }} />
+        <div className="fragrance-glow w-[550px] h-[550px] bg-gray-200/9 top-2/5 left-[15%]" style={{ animationDelay: '1.5s' }} />
+        <div className="fragrance-glow w-[450px] h-[450px] bg-slate-100/6 top-[35%] left-0" style={{ animationDelay: '0.5s' }} />
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="grid lg:grid-cols-5 gap-12 lg:gap-16 items-center">
-          {/* Левая колонка — текст (3 колонки из 5 = 60%) */}
-          <div className="lg:col-span-3 space-y-8 animate-fade-in z-10">
-            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-light text-[#1a1a1a] leading-[1.1] tracking-tight">
+          {/* Левая колонка — текст с эффектами */}
+          <div className="lg:col-span-3 space-y-8 animate-fade-in z-10 relative">
+            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-light text-white leading-[1.1] tracking-tight">
               Мир ароматов{' '}
-              <span className="text-[#D4830F] font-normal">начинается</span>{' '}
+              <span className="text-[#D4830F] font-normal relative inline-block">
+                начинается
+                <span className="absolute inset-0 blur-xl bg-amber-400/30 -z-10" />
+              </span>{' '}
               здесь
             </h1>
-            <p className="text-lg sm:text-xl text-[#6B7280] max-w-xl leading-relaxed">
+
+            <p className="text-lg sm:text-xl text-gray-300 max-w-xl leading-relaxed">
               Уникальные парфюмерные коллекции от ведущих мировых брендов. Люкс в каждой ноте.
             </p>
+
             <div className="flex flex-wrap gap-4">
               <Link
                 href="/catalog"
-                className="inline-flex items-center gap-2 bg-[#1a1a1a] hover:bg-[#D4830F] text-white px-8 py-4 rounded-full font-medium transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
+                className="inline-flex items-center gap-2 bg-white hover:bg-[#D4830F] text-[#1a1a1a] hover:text-white px-8 py-4 rounded-full font-medium transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 relative overflow-hidden group"
               >
-                <BookOpen className="size-5" />
-                <span>В каталог</span>
+                <span className="absolute inset-0 shimmer-effect group-hover:opacity-100 opacity-0" />
+                <BookOpen className="size-5 relative z-10" />
+                <span className="relative z-10">В каталог</span>
               </Link>
               <Link
                 href="/brands"
-                className="inline-flex items-center gap-2 bg-white hover:bg-gray-50 text-[#1a1a1a] border-2 border-gray-200 hover:border-[#D4830F] hover:text-[#D4830F] px-8 py-4 rounded-full font-medium transition-all duration-300"
+                className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white border-2 border-white/30 hover:border-[#D4830F] hover:text-[#D4830F] px-8 py-4 rounded-full font-medium transition-all duration-300 backdrop-blur-sm"
               >
                 <span>Наши бренды</span>
               </Link>
             </div>
+
             <div className="flex items-start gap-3 pt-4">
               <MapPin className="size-5 text-[#D4830F] flex-shrink-0 mt-1" />
               <div className="space-y-1">
-                <p className="font-semibold text-[#1a1a1a]">Наш бутик</p>
-                <p className="text-sm text-[#6B7280]">
+                <p className="font-semibold text-white">Наш бутик</p>
+                <p className="text-sm text-gray-300">
                   Невский пр., 114-116, ТЦ Невский центр, 4 этаж
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Правая колонка — карточка товара (как в шаблоне) */}
-          <div className="lg:col-span-2 flex justify-center lg:justify-end animate-slide-up">
+          {/* Правая колонка — карточка товара */}
+          <div className="lg:col-span-2 flex justify-center lg:justify-end animate-slide-up relative z-10">
             {product ? (
               <Link
                 href={`/catalog/${product.slug}`}
@@ -113,10 +209,6 @@ export function HeroSection({ product }: HeroSectionProps) {
           </div>
         </div>
       </div>
-
-      {/* Декоративные элементы фона */}
-      <div className="absolute top-20 right-10 w-72 h-72 bg-[#FFE4B5] rounded-full blur-3xl opacity-20 animate-float pointer-events-none" />
-      <div className="absolute bottom-20 left-10 w-96 h-96 bg-[#FFA500] rounded-full blur-3xl opacity-10 animate-float-delayed pointer-events-none" />
     </section>
   );
 }

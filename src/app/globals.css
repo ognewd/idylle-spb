@@ -379,3 +379,247 @@
 .animate-float-delayed {
   animation: float-delayed 10s ease-in-out infinite;
 }
+
+/* ============================================
+   Hero: интерактивные эффекты с мышкой
+   ============================================ */
+
+.mouse-fragrance-particle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.8) 0%, rgba(226, 232, 240, 0.4) 50%, transparent 100%);
+  border-radius: 50%;
+  pointer-events: none;
+  animation: particle-rise 3s ease-out forwards;
+  transform-origin: center;
+  filter: blur(2px);
+}
+
+@keyframes particle-rise {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: translate(10px, -80px) scale(2);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-15px, -150px) scale(3);
+    filter: blur(20px);
+  }
+}
+
+.mouse-fragrance-particle:nth-child(odd) {
+  animation-duration: 2.5s;
+}
+
+.mouse-fragrance-particle:nth-child(even) {
+  animation-duration: 3.5s;
+}
+
+.mouse-glow-trail {
+  position: absolute;
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(
+    circle,
+    rgba(226, 232, 240, 0.3) 0%,
+    rgba(203, 213, 225, 0.15) 30%,
+    rgba(248, 250, 252, 0.08) 50%,
+    transparent 70%
+  );
+  border-radius: 50%;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  filter: blur(30px);
+  transition: left 0.15s ease-out, top 0.15s ease-out;
+  opacity: 0.7;
+}
+
+/* ============================================
+   Hero: волны дыма
+   ============================================ */
+
+.smoke-stream {
+  position: absolute;
+  width: 120px;
+  height: 80px;
+  border-radius: 40% 60% 50% 50%;
+  pointer-events: none;
+  right: 25%;
+  top: 45%;
+  opacity: 0; /* Скрыты до старта анимации — убирает пятно при загрузке */
+}
+
+.smoke-stream-1 {
+  background: linear-gradient(
+    135deg,
+    rgba(248, 250, 252, 0.25) 0%,
+    rgba(226, 232, 240, 0.18) 25%,
+    rgba(203, 213, 225, 0.12) 50%,
+    rgba(241, 245, 249, 0.08) 75%,
+    transparent 100%
+  );
+  animation: smoke-flow-1 12s ease-out infinite;
+}
+
+.smoke-stream-2 {
+  background: linear-gradient(
+    120deg,
+    rgba(226, 232, 240, 0.22) 0%,
+    rgba(248, 250, 252, 0.16) 25%,
+    rgba(203, 213, 225, 0.11) 50%,
+    rgba(241, 245, 249, 0.06) 75%,
+    transparent 100%
+  );
+  animation: smoke-flow-2 12s ease-out infinite;
+  animation-delay: 2s;
+}
+
+.smoke-stream-3 {
+  background: linear-gradient(
+    140deg,
+    rgba(241, 245, 249, 0.2) 0%,
+    rgba(226, 232, 240, 0.15) 25%,
+    rgba(248, 250, 252, 0.1) 50%,
+    rgba(203, 213, 225, 0.07) 75%,
+    transparent 100%
+  );
+  animation: smoke-flow-3 12s ease-out infinite;
+  animation-delay: 4s;
+}
+
+.smoke-stream-4 {
+  background: linear-gradient(
+    130deg,
+    rgba(203, 213, 225, 0.19) 0%,
+    rgba(241, 245, 249, 0.14) 25%,
+    rgba(226, 232, 240, 0.11) 50%,
+    rgba(248, 250, 252, 0.06) 75%,
+    transparent 100%
+  );
+  animation: smoke-flow-4 12s ease-out infinite;
+  animation-delay: 6s;
+}
+
+.smoke-stream-5 {
+  background: linear-gradient(
+    125deg,
+    rgba(248, 250, 252, 0.21) 0%,
+    rgba(203, 213, 225, 0.15) 25%,
+    rgba(241, 245, 249, 0.12) 50%,
+    rgba(226, 232, 240, 0.05) 75%,
+    transparent 100%
+  );
+  animation: smoke-flow-5 12s ease-out infinite;
+  animation-delay: 8s;
+}
+
+.smoke-stream-6 {
+  background: linear-gradient(
+    115deg,
+    rgba(226, 232, 240, 0.23) 0%,
+    rgba(248, 250, 252, 0.16) 25%,
+    rgba(203, 213, 225, 0.12) 50%,
+    rgba(241, 245, 249, 0.05) 75%,
+    transparent 100%
+  );
+  animation: smoke-flow-6 12s ease-out infinite;
+  animation-delay: 10s;
+}
+
+/* Дым: без резкого пятна при загрузке — держим opacity 0 до 30%, затем лёгкое появление (max 0.15) */
+@keyframes smoke-flow-1 {
+  0% { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 0; filter: blur(20px); }
+  30% { opacity: 0; }
+  45% { opacity: 0.12; }
+  100% { transform: translate(-400px, -300px) scale(3.5) rotate(180deg); opacity: 0; filter: blur(50px); }
+}
+
+@keyframes smoke-flow-2 {
+  0% { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 0; filter: blur(20px); }
+  30% { opacity: 0; }
+  45% { opacity: 0.1; }
+  100% { transform: translate(-350px, -280px) scale(3.2) rotate(160deg); opacity: 0; filter: blur(45px); }
+}
+
+@keyframes smoke-flow-3 {
+  0% { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 0; filter: blur(20px); }
+  30% { opacity: 0; }
+  45% { opacity: 0.11; }
+  100% { transform: translate(-420px, -320px) scale(3.8) rotate(200deg); opacity: 0; filter: blur(55px); }
+}
+
+@keyframes smoke-flow-4 {
+  0% { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 0; filter: blur(20px); }
+  30% { opacity: 0; }
+  45% { opacity: 0.1; }
+  100% { transform: translate(-380px, -290px) scale(3.3) rotate(170deg); opacity: 0; filter: blur(48px); }
+}
+
+@keyframes smoke-flow-5 {
+  0% { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 0; filter: blur(20px); }
+  30% { opacity: 0; }
+  45% { opacity: 0.12; }
+  100% { transform: translate(-410px, -310px) scale(3.6) rotate(190deg); opacity: 0; filter: blur(52px); }
+}
+
+@keyframes smoke-flow-6 {
+  0% { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 0; filter: blur(20px); }
+  30% { opacity: 0; }
+  45% { opacity: 0.11; }
+  100% { transform: translate(-390px, -295px) scale(3.4) rotate(175deg); opacity: 0; filter: blur(49px); }
+}
+
+/* ============================================
+   Hero: деликатное свечение
+   ============================================ */
+
+/* Свечение: только слева от контента, начальная прозрачность — без пятна у карточки */
+.fragrance-glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
+  opacity: 0;
+  animation: glow-pulse 8s ease-in-out infinite;
+}
+
+@keyframes glow-pulse {
+  0% { transform: scale(1) translate(0, 0); opacity: 0; }
+  15% { transform: scale(1) translate(0, 0); opacity: 0.4; }
+  50% { transform: scale(1.2) translate(-20px, -20px); opacity: 0.7; }
+  85% { transform: scale(1) translate(0, 0); opacity: 0.4; }
+  100% { transform: scale(1) translate(0, 0); opacity: 0; }
+}
+
+/* ============================================
+   Кнопка: shimmer при наведении
+   ============================================ */
+
+.shimmer-effect {
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
+  transition: opacity 0.3s;
+}
+
+.group:hover .shimmer-effect {
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
