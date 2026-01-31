@@ -102,7 +102,7 @@ export default function AdminDashboard() {
     // Секция A: Каталог
     {
       title: 'Товары',
-      description: 'Управление каталогом товаров',
+      description: 'Управление каталогом. Список или таблица с массовыми изменениями',
       icon: Package,
       href: '/admin/products',
       color: 'bg-blue-500',

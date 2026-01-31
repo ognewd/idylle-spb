@@ -25,18 +25,22 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    // Get pagination parameters
+    // Get pagination and filter parameters
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100);
     const skip = (page - 1) * limit;
     const search = searchParams.get('search') || '';
+    const categoryId = searchParams.get('category');
+    const sortField = searchParams.get('sortField') || 'createdAt';
+    const sortOrder = searchParams.get('sortOrder') || 'desc';
 
-    // Build where clause for search
+    // Build where clause
     const where: any = {};
     if (search) {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
+        { slug: { contains: search, mode: 'insensitive' } },
         { description: { contains: search, mode: 'insensitive' } },
         { shortDescription: { contains: search, mode: 'insensitive' } },
         { manufacturerSku: { contains: search, mode: 'insensitive' } },
@@ -49,8 +53,23 @@ export async function GET(request: NextRequest) {
         { productCategories: { some: { category: { name: { contains: search, mode: 'insensitive' } } } } },
       ];
     }
+    if (categoryId === 'none') {
+      where.productCategories = { none: {} };
+    } else if (categoryId) {
+      where.productCategories = {
+        some: { categoryId },
+      };
+    }
 
-    // Get total count with search
+    // Build orderBy
+    const orderBy: any = {};
+    if (['name', 'price', 'stock', 'createdAt'].includes(sortField)) {
+      orderBy[sortField] = sortOrder === 'asc' ? 'asc' : 'desc';
+    } else {
+      orderBy.createdAt = 'desc';
+    }
+
+    // Get total count
     const total = await prisma.product.count({ where });
 
     const products = await prisma.product.findMany({
@@ -71,7 +90,7 @@ export async function GET(request: NextRequest) {
           orderBy: { sortOrder: 'asc' },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy,
     });
 
     return NextResponse.json({

@@ -12,7 +12,6 @@ import {
   Edit, 
   Trash2, 
   Search,
-  ArrowLeft,
   Package,
   Eye,
   EyeOff,
@@ -245,22 +244,13 @@ export default function AdminProductsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
+      {/* Header (назад и «Товары» — в layout) */}
       <header className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
-            <div className="flex items-center space-x-4">
-              <Button 
-                variant="ghost" 
-                onClick={() => router.push('/admin')}
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Назад
-              </Button>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">Управление товарами</h1>
-                <p className="text-gray-600">Всего товаров: {totalProducts || products.length}</p>
-              </div>
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">Список</h2>
+              <p className="text-gray-600 text-sm">Всего товаров: {totalProducts || products.length}</p>
             </div>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => router.push('/admin/products/import')}>

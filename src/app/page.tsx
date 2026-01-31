@@ -10,9 +10,9 @@ const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 
 // Дефолтные фото для секции категорий, если в БД у категории нет image
 const DEFAULT_CATEGORY_IMAGES = [
-  'https://images.unsplash.com/photo-1617351165959-471f874b60a9?w=800&q=80', // ароматы/дом
-  'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=800&q=80', // ванная
-  'https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=800&q=80', // подарки
+  'https://images.unsplash.com/photo-1600566752355-35792bedcfea?w=800&q=80', // ароматы/дом - спа атмосфера с диффузором
+  'https://images.unsplash.com/photo-1617351165959-471f874b60a9?w=800&q=80', // ванная
+  'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=800&q=80', // подарки - элегантная подарочная упаковка с бантом
 ];
 
 async function getFeaturedProducts(limit: number) {
@@ -45,8 +45,22 @@ async function getCategories(limit = 6) {
     if (!res.ok) return [];
     const data = await res.json();
     const list = Array.isArray(data) ? data : data.categories || [];
-    return list
-      .filter((c: any) => !c.parentId)
+    
+    // Приоритетные категории для главной страницы
+    const featuredSlugs = ['aromaty-dlya-doma', 'vannaya-komnata', 'podarki'];
+    
+    // Сначала берем категории из приоритетного списка
+    const allCategories = list.filter((c: any) => !c.parentId);
+    const featured = featuredSlugs
+      .map(slug => allCategories.find((c: any) => c.slug === slug))
+      .filter(Boolean);
+    
+    // Если не хватает категорий, добавляем остальные
+    const remaining = allCategories
+      .filter((c: any) => !featuredSlugs.includes(c.slug))
+      .slice(0, limit - featured.length);
+    
+    return [...featured, ...remaining]
       .slice(0, limit)
       .map((c: any) => ({
         id: c.id,
