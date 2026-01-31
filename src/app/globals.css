@@ -261,3 +261,121 @@
 .particle-13 { width: 27px; height: 27px; left: 25%; top: 15%; animation: particleFloat 15s ease-in-out infinite; animation-delay: -4.2s; }
 .particle-14 { width: 46px; height: 46px; left: 75%; top: 60%; animation: particleFloatReverse 19s ease-in-out infinite; animation-delay: -1.8s; }
 .particle-15 { width: 33px; height: 33px; left: 45%; top: 85%; animation: particleFloatHorizontal 16s ease-in-out infinite; animation-delay: -3.8s; }
+
+/* Aroma Boutique redesign: float animations for hero slider */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-20px); }
+}
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+.animate-float-delay-1 {
+  animation: float 6s ease-in-out infinite;
+  animation-delay: 1s;
+}
+.animate-float-delay-2 {
+  animation: float 6s ease-in-out infinite;
+  animation-delay: 2s;
+}
+
+/* Slick slider dots (Aroma redesign / Figma) */
+.slick-dots li button:before {
+  color: #d97706;
+  opacity: 0.5;
+}
+.slick-dots li.slick-active button:before {
+  color: #d97706;
+  opacity: 1;
+}
+
+/* Hero product slider — точки как в Figma: маленькие кружки, активная темнее и чуть больше */
+.hero-product-slider.slick-dotted {
+  padding-bottom: 1.5rem;
+}
+.hero-product-slider .slick-dots {
+  bottom: 0;
+}
+.hero-product-slider .slick-dots li {
+  margin: 0 4px;
+}
+.hero-product-slider .slick-dots li button:before {
+  font-size: 8px;
+  color: #f59e0b;
+  opacity: 0.4;
+}
+.hero-product-slider .slick-dots li.slick-active button:before {
+  font-size: 10px;
+  color: #d97706;
+  opacity: 1;
+}
+
+/* Figma: fade-in, slide-up, bounce-slow, float, float-delayed */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bounce-slow {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(20px, -20px) scale(1.1);
+  }
+}
+
+@keyframes float-delayed {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(-30px, 20px) scale(1.05);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.8s ease-out;
+}
+
+.animate-slide-up {
+  animation: slide-up 1s ease-out 0.2s both;
+}
+
+.animate-bounce-slow {
+  animation: bounce-slow 3s ease-in-out infinite;
+}
+
+.animate-float {
+  animation: float 8s ease-in-out infinite;
+}
+
+.animate-float-delayed {
+  animation: float-delayed 10s ease-in-out infinite;
+}

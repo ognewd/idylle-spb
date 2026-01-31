@@ -31,7 +31,7 @@ export function ProductImageCarousel({ images, name, className }: ProductImageCa
 
   if (images.length === 0) {
     return (
-      <div className={cn("bg-muted rounded-lg flex items-center justify-center", className)} style={{ minHeight: '400px', aspectRatio: '4/3' }}>
+      <div className={cn("bg-muted rounded-lg flex items-center justify-center min-h-[240px] max-h-[320px]", className)}>
         <div className="flex flex-col items-center justify-center text-muted-foreground space-y-3">
           <ImageIcon className="h-20 w-20 opacity-50" />
           <p className="text-lg text-center px-4">Изображение еще не добавлено</p>
@@ -42,14 +42,13 @@ export function ProductImageCarousel({ images, name, className }: ProductImageCa
 
   return (
     <div className={cn("space-y-3", className)}>
-      {/* Main Image */}
-      <div className="relative bg-white overflow-visible group flex items-center justify-center" style={{ minHeight: '400px' }}>
-        <div className="relative w-full max-w-full">
+      {/* Main Image — компактный блок под пропорции фото, без лишнего спейса */}
+      <div className="relative bg-white overflow-visible group flex items-center justify-center min-h-[240px] max-h-[420px] w-full">
+        <div className="relative w-full h-full flex items-center justify-center">
           <img
             src={getImageUrl(images[currentIndex])}
             alt={`${name} - изображение ${currentIndex + 1}`}
-            className="w-full h-auto max-w-full"
-            style={{ objectFit: 'contain' }}
+            className="max-w-full max-h-[380px] w-auto h-auto object-contain"
           />
         </div>
 

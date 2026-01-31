@@ -1,4 +1,5 @@
 import { notFound, redirect } from 'next/navigation';
+import { headers } from 'next/headers';
 import { ProductImageCarousel } from '@/components/product/ProductImageCarousel';
 import { ProductInfo } from '@/components/product/ProductInfo';
 import { RelatedProducts } from '@/components/product/RelatedProducts';
@@ -76,10 +77,8 @@ interface ProductPageProps {
   };
 }
 
-async function getProduct(slug: string): Promise<{ product: Product; relatedProducts: Product[]; canonicalSlug?: string } | null> {
+async function getProduct(slug: string, baseUrl: string): Promise<{ product: Product; relatedProducts: Product[]; canonicalSlug?: string } | null> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-    
     const response = await fetch(`${baseUrl}/api/products/${slug}`, {
       cache: 'no-store', // Ensure fresh data
       headers: {
@@ -99,8 +98,11 @@ async function getProduct(slug: string): Promise<{ product: Product; relatedProd
 }
 
 export default async function ProductPage({ params }: ProductPageProps) {
-  const data = await getProduct(params.slug);
-  
+  const headersList = headers();
+  const host = headersList.get('host') || headersList.get('x-forwarded-host');
+  const baseUrl = host ? `${headersList.get('x-forwarded-proto') || 'http'}://${host}` : (process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000');
+  const data = await getProduct(params.slug, baseUrl);
+
   if (!data) {
     notFound();
   }

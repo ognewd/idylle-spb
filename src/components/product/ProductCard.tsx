@@ -192,6 +192,11 @@ export function ProductCard({
                   alt={product.name}
                   className="w-full h-auto max-w-full"
                   style={{ objectFit: 'contain' }}
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    target.onerror = null;
+                    target.src = '/placeholder-product.jpg';
+                  }}
                 />
               </div>
             </div>
