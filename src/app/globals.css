@@ -384,25 +384,25 @@
    Hero: интерактивные эффекты с мышкой
    ============================================ */
 
-/* Частицы и след — «капля на солнце» (радужное/перламутровое свечение) */
+/* Частицы и след — «капля на солнце» (поярче) */
 .mouse-fragrance-particle {
   position: absolute;
-  width: 10px;
-  height: 10px;
+  width: 14px;
+  height: 14px;
   background: radial-gradient(
     circle at 30% 30%,
-    rgba(255, 200, 150, 0.9) 0%,
-    rgba(255, 180, 200, 0.6) 25%,
-    rgba(200, 220, 255, 0.5) 50%,
-    rgba(180, 200, 255, 0.3) 75%,
+    rgba(255, 210, 160, 1) 0%,
+    rgba(255, 190, 210, 0.85) 25%,
+    rgba(210, 230, 255, 0.75) 50%,
+    rgba(200, 210, 255, 0.5) 75%,
     transparent 100%
   );
   border-radius: 50%;
   pointer-events: none;
   animation: particle-rise 3s ease-out forwards;
   transform-origin: center;
-  filter: blur(1px);
-  box-shadow: 0 0 12px rgba(255, 200, 150, 0.5);
+  filter: blur(0.5px);
+  box-shadow: 0 0 18px rgba(255, 200, 150, 0.75), 0 0 8px rgba(255, 220, 200, 0.5);
 }
 
 @keyframes particle-rise {
@@ -411,7 +411,7 @@
     transform: translate(0, 0) scale(1);
   }
   50% {
-    opacity: 0.7;
+    opacity: 0.9;
     transform: translate(10px, -80px) scale(2);
   }
   100% {
@@ -425,11 +425,12 @@
   animation-duration: 2.5s;
   background: radial-gradient(
     circle at 70% 30%,
-    rgba(200, 255, 220, 0.8) 0%,
-    rgba(180, 230, 255, 0.5) 40%,
-    rgba(230, 200, 255, 0.3) 70%,
+    rgba(210, 255, 230, 1) 0%,
+    rgba(200, 240, 255, 0.75) 40%,
+    rgba(240, 210, 255, 0.5) 70%,
     transparent 100%
   );
+  box-shadow: 0 0 18px rgba(200, 255, 220, 0.6), 0 0 8px rgba(180, 240, 255, 0.4);
 }
 
 .mouse-fragrance-particle:nth-child(even) {
@@ -438,23 +439,23 @@
 
 .mouse-glow-trail {
   position: absolute;
-  width: 220px;
-  height: 220px;
+  width: 260px;
+  height: 260px;
   background: radial-gradient(
     circle at 50% 50%,
-    rgba(255, 220, 180, 0.35) 0%,
-    rgba(255, 190, 200, 0.25) 20%,
-    rgba(200, 210, 255, 0.2) 40%,
-    rgba(180, 230, 255, 0.15) 55%,
-    rgba(220, 200, 255, 0.1) 70%,
+    rgba(255, 230, 200, 0.55) 0%,
+    rgba(255, 200, 220, 0.45) 20%,
+    rgba(220, 230, 255, 0.38) 40%,
+    rgba(200, 240, 255, 0.28) 55%,
+    rgba(230, 210, 255, 0.2) 70%,
     transparent 85%
   );
   border-radius: 50%;
   pointer-events: none;
   transform: translate(-50%, -50%);
-  filter: blur(35px);
+  filter: blur(32px);
   transition: left 0.15s ease-out, top 0.15s ease-out;
-  opacity: 0.85;
+  opacity: 1;
 }
 
 /* ============================================

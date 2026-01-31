@@ -452,7 +452,7 @@ export function Header() {
                   placeholder="Поиск"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-3 pr-10 py-2.5 border border-gray-200 text-sm focus:outline-none focus:border-gray-400"
+                  className="w-full pl-3 pr-10 py-2.5 border border-gray-200 text-base focus:outline-none focus:border-gray-400"
                 />
                 <Button type="submit" variant="ghost" size="sm" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0">
                   <Search className="size-4" />
@@ -490,7 +490,7 @@ export function Header() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onFocus={() => searchQuery.length >= 2 && setShowSearchResults(true)}
                 onBlur={() => setTimeout(() => setShowSearchResults(false), 150)}
-                className="w-full pl-4 pr-10 py-2.5 border border-gray-200 text-gray-900 placeholder:text-gray-400 text-sm focus:outline-none focus:border-gray-400"
+                className="w-full pl-4 pr-10 py-2.5 border border-gray-200 text-gray-900 placeholder:text-gray-400 text-base focus:outline-none focus:border-gray-400"
                 autoFocus
               />
               <Button type="submit" variant="ghost" size="sm" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0 text-gray-600">
