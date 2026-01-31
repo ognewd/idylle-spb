@@ -147,15 +147,21 @@ export function Header() {
       {/* При скролле — одна строка: поиск слева, меню по центру, иконки справа */}
       {isScrolled ? (
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-14 gap-4">
-            <button
-              type="button"
-              onClick={() => setIsSearchOpen(!isSearchOpen)}
-              className="flex-shrink-0 p-2 text-gray-800 hover:text-black transition-colors"
-              aria-label="Поиск"
-            >
-              <Search className="size-5" strokeWidth={1.5} />
-            </button>
+          <div className="flex items-center justify-between h-12 sm:h-14 gap-2">
+            {/* Слева: на мобиле лого, на десктопе поиск */}
+            <div className="flex items-center flex-shrink-0 gap-2">
+              <Link href="/" className="md:hidden flex-shrink-0">
+                <Image src="/logo-idylle.png" alt="Idylle" width={120} height={45} className="h-8 w-auto max-w-[100px]" />
+              </Link>
+              <button
+                type="button"
+                onClick={() => setIsSearchOpen(!isSearchOpen)}
+                className="hidden md:block flex-shrink-0 p-2 text-gray-800 hover:text-black transition-colors"
+                aria-label="Поиск"
+              >
+                <Search className="size-5" strokeWidth={1.5} />
+              </button>
+            </div>
             <nav className="hidden md:flex items-center justify-center gap-4 lg:gap-6 flex-1 min-w-0">
               <Link href="/business" className={navLink}>Ароматы для бизнеса</Link>
               <Link href="/aromaty-dlya-doma" className={navLink}>Ароматы для дома</Link>
@@ -167,6 +173,14 @@ export function Header() {
               <Link href="/sale" className={`${navLink} text-red-600 hover:text-red-700`}>SALE</Link>
             </nav>
             <div className="flex items-center gap-0 flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsSearchOpen(!isSearchOpen)}
+                className="md:hidden p-2 text-gray-800 hover:text-black transition-colors"
+                aria-label="Поиск"
+              >
+                <Search className="size-5" strokeWidth={1.5} />
+              </button>
               <Link href="/wishlist" className="relative p-2 text-gray-800 hover:text-black" aria-label="Избранное">
                 <Heart className="size-5" strokeWidth={1.5} />
                 {wishlistItems.length > 0 && <span className="absolute top-1 right-1 size-4 rounded-full bg-gray-800 text-white text-[10px] flex items-center justify-center">{wishlistItems.length}</span>}
@@ -228,11 +242,11 @@ export function Header() {
         </div>
       )}
 
-      {/* Основной ряд: поиск (иконка) | логотип по центру | иконки */}
+      {/* Основной ряд: на мобиле — лого слева, иконки справа; на десктопе — поиск | лого по центру | О нас + иконки */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 md:h-20">
-          {/* Слева — иконка поиска */}
-          <div className="flex items-center w-10 md:w-12">
+        <div className="relative flex items-center justify-between h-14 sm:h-16 md:h-20 gap-2">
+          {/* Слева — поиск (только десктоп) */}
+          <div className="hidden md:flex items-center flex-shrink-0 w-12">
             <button
               type="button"
               onClick={() => setIsSearchOpen(!isSearchOpen)}
@@ -243,20 +257,23 @@ export function Header() {
             </button>
           </div>
 
-          {/* Центр — логотип */}
-          <Link href="/" className="absolute left-1/2 -translate-x-1/2 flex-shrink-0">
+          {/* Логотип: на мобиле слева, на десктопе по центру */}
+          <Link
+            href="/"
+            className="flex-shrink-0 md:absolute md:left-1/2 md:-translate-x-1/2"
+          >
             <Image
               src="/logo-idylle.png"
               alt="Idylle"
               width={180}
               height={67}
-              className="h-10 md:h-12 w-auto"
+              className="h-9 w-auto max-w-[120px] sm:h-10 sm:max-w-[140px] md:h-12 md:max-w-none"
               priority
             />
           </Link>
 
           {/* Справа — ссылки О нас/Доставка/Контакты над иконками */}
-          <div className="hidden md:flex flex-col items-end gap-1">
+          <div className="hidden md:flex flex-col items-end gap-1 flex-shrink-0">
             <div className="flex items-center gap-4 text-[11px] text-gray-500 tracking-wide">
               <Link href="/about" className="hover:text-black transition-colors">О нас</Link>
               <Link href="/delivery" className="hover:text-black transition-colors">Доставка</Link>
@@ -345,16 +362,24 @@ export function Header() {
             </div>
             <button
               type="button"
-              className="md:hidden p-2 text-gray-800 hover:text-black"
+              className="md:hidden p-1.5 text-gray-800 hover:text-black -m-1.5"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               aria-label={isMobileMenuOpen ? 'Закрыть меню' : 'Меню'}
             >
-              {isMobileMenuOpen ? <X className="size-5" strokeWidth={1.5} /> : <Menu className="size-5" strokeWidth={1.5} />}
+              {isMobileMenuOpen ? <X className="size-4" strokeWidth={1.5} /> : <Menu className="size-4" strokeWidth={1.5} />}
             </button>
             </div>
           </div>
-          {/* На мобиле — только иконки без ссылок сверху */}
-          <div className="flex md:hidden items-center justify-end gap-0">
+          {/* На мобиле — лого уже слева; справа поиск + иконки с нормальными размерами */}
+          <div className="flex md:hidden items-center gap-0 flex-shrink-0 ml-auto">
+            <button
+              type="button"
+              onClick={() => setIsSearchOpen(!isSearchOpen)}
+              className="p-2 text-gray-800 hover:text-black transition-colors"
+              aria-label="Поиск"
+            >
+              <Search className="size-5" strokeWidth={1.5} />
+            </button>
             <Link href="/wishlist" className="relative p-2 text-gray-800 hover:text-black" aria-label="Избранное">
               <Heart className="size-5" strokeWidth={1.5} />
               {wishlistItems.length > 0 && (
@@ -393,7 +418,7 @@ export function Header() {
                 </div>
               )}
             </div>
-            <button type="button" className="md:hidden p-2 text-gray-800 hover:text-black" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} aria-label={isMobileMenuOpen ? 'Закрыть меню' : 'Меню'}>
+            <button type="button" className="p-2 text-gray-800 hover:text-black" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} aria-label={isMobileMenuOpen ? 'Закрыть меню' : 'Меню'}>
               {isMobileMenuOpen ? <X className="size-5" strokeWidth={1.5} /> : <Menu className="size-5" strokeWidth={1.5} />}
             </button>
           </div>
