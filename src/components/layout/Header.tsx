@@ -236,26 +236,24 @@ export function Header() {
         </div>
       ) : (
         <>
-      {/* Тёмная верхняя полоса: контакты слева, Доставка/Оплата/Гарантии справа */}
-      <div className="bg-[#333333] text-white">
+      {/* Верхняя полоса: телефон и email слева, О нас / Доставка / Контакты справа (без фона) */}
+      <div className="border-b border-gray-100">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs sm:text-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-[11px] sm:text-xs text-gray-500 tracking-wide">
             <div className="flex flex-wrap items-center gap-4 sm:gap-6">
-              <a href="tel:88005008729" className="flex items-center gap-1.5 hover:text-gray-200 transition-colors">
+              <a href="tel:88005008729" className="flex items-center gap-1.5 hover:text-black transition-colors">
                 <Phone className="size-3.5 sm:size-4" />
                 8 (800) 500-87-29
               </a>
-              <a href="mailto:info@idylle.spb.ru" className="flex items-center gap-1.5 hover:text-gray-200 transition-colors">
+              <a href="mailto:info@idylle.spb.ru" className="flex items-center gap-1.5 hover:text-black transition-colors">
                 <Mail className="size-3.5 sm:size-4" />
                 info@idylle.spb.ru
               </a>
             </div>
-            <div className="flex items-center gap-2 text-gray-300">
-              <Link href="/delivery" className="hover:text-white transition-colors">Доставка</Link>
-              <span className="text-gray-500">•</span>
-              <Link href="/delivery" className="hover:text-white transition-colors">Оплата</Link>
-              <span className="text-gray-500">•</span>
-              <Link href="/about" className="hover:text-white transition-colors">Гарантии</Link>
+            <div className="flex items-center gap-4">
+              <Link href="/about" className="hover:text-black transition-colors">О нас</Link>
+              <Link href="/delivery" className="hover:text-black transition-colors">Доставка</Link>
+              <Link href="/contacts" className="hover:text-black transition-colors">Контакты</Link>
             </div>
           </div>
         </div>
@@ -279,7 +277,7 @@ export function Header() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-14 sm:h-16 md:h-20 gap-4">
           {/* Слева — логотип + слоган */}
-          <Link href="/" className="flex items-center gap-2 flex-shrink-0">
+          <Link href="/" className="flex-shrink-0">
             <Image
               src="/logo-idylle.png"
               alt="Idylle"
@@ -288,7 +286,6 @@ export function Header() {
               className="h-9 w-auto sm:h-10 md:h-11"
               priority
             />
-            <span className="hidden sm:block text-sm text-gray-500 font-normal">Ароматы для дома</span>
           </Link>
 
           {/* Центр — развёрнутый поиск (только десктоп) */}
