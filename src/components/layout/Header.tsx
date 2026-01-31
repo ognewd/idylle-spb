@@ -162,7 +162,7 @@ export function Header() {
                 <Search className="size-5" strokeWidth={1.5} />
               </button>
             </div>
-            <nav className="hidden md:flex items-center justify-center gap-4 lg:gap-6 flex-1 min-w-0">
+            <nav className="hidden md:flex items-center justify-center gap-x-4 lg:gap-x-6 flex-1 min-w-0 [&>a]:mr-4 [&>a]:last:mr-0 lg:[&>a]:mr-6">
               <Link href="/business" className={navLink}>Ароматы для бизнеса</Link>
               <Link href="/aromaty-dlya-doma" className={navLink}>Ароматы для дома</Link>
               <Link href="/uyut-i-interer" className={navLink}>Уют и интерьер</Link>
@@ -426,9 +426,9 @@ export function Header() {
       </div>
 
       {/* Навигация — одна строка, простые ссылки */}
-      <nav className="border-t border-gray-100">
+      <nav className="border-t border-gray-100 bg-white">
         <div className="max-w-6xl mx-auto px-4">
-          <div className="hidden md:flex items-center justify-center gap-6 lg:gap-8 py-4 flex-wrap">
+          <div className="hidden md:flex flex-wrap items-center justify-center gap-x-6 gap-y-2 lg:gap-x-8 py-4 [&>a]:mr-6 [&>a]:last:mr-0">
             <Link href="/business" className={navLink}>Ароматы для бизнеса</Link>
             <Link href="/aromaty-dlya-doma" className={navLink}>Ароматы для дома</Link>
             <Link href="/uyut-i-interer" className={navLink}>Уют и интерьер</Link>

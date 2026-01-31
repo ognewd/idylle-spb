@@ -392,12 +392,7 @@ function GiftsContent() {
             {/* Products Grid */}
             <div className="flex-1">
               {/* Sort and Results Count */}
-              <div className="flex justify-between items-center mb-6">
-                <p className="text-muted-foreground">
-                  {loading ? 'Загрузка...' : `Найдено товаров: ${pagination.total}`}
-                </p>
-                <SortSelector />
-              </div>
+              <SortSelector totalProducts={pagination.total} />
 
               {/* Products */}
               {loading ? (

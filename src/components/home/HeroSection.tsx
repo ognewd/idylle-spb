@@ -65,7 +65,7 @@ export function HeroSection({ product }: HeroSectionProps) {
 
   return (
     <section
-      className="relative min-h-[600px] bg-gradient-to-br from-[#FFF9F0] via-[#F8F8F8] to-[#FFF9F0] py-16 lg:py-20 overflow-hidden"
+      className="relative min-h-[600px] bg-[#FFF9F0] bg-gradient-to-br from-[#FFF9F0] via-[#F5F0E8] to-[#FFF9F0] py-16 lg:py-20 overflow-hidden"
       onMouseMove={handleMouseMove}
     >
 
@@ -92,8 +92,8 @@ export function HeroSection({ product }: HeroSectionProps) {
         />
       )}
 
-      {/* Эффект распространения аромата — волны дыма и свечение */}
-      <div className="absolute inset-0 pointer-events-none">
+      {/* Эффект распространения аромата — волны дыма и свечение (под контентом) */}
+      <div className="absolute inset-0 pointer-events-none z-0">
         <div className="smoke-stream smoke-stream-1" />
         <div className="smoke-stream smoke-stream-2" />
         <div className="smoke-stream smoke-stream-3" />
@@ -101,12 +101,10 @@ export function HeroSection({ product }: HeroSectionProps) {
         <div className="smoke-stream smoke-stream-5" />
         <div className="smoke-stream smoke-stream-6" />
 
-        {/* Свечение только слева (за текстом), чтобы не было пятна у карточки */}
-        <div className="fragrance-glow w-[600px] h-[600px] bg-slate-200/8 top-1/4 left-0 -translate-x-1/4" />
-        <div className="fragrance-glow w-[500px] h-[500px] bg-gray-100/10 top-1/3 left-[10%]" style={{ animationDelay: '1s' }} />
-        <div className="fragrance-glow w-96 h-96 bg-slate-300/7 top-1/2 left-[5%]" style={{ animationDelay: '2s' }} />
-        <div className="fragrance-glow w-[550px] h-[550px] bg-gray-200/9 top-2/5 left-[15%]" style={{ animationDelay: '1.5s' }} />
-        <div className="fragrance-glow w-[450px] h-[450px] bg-slate-100/6 top-[35%] left-0" style={{ animationDelay: '0.5s' }} />
+        {/* Лёгкое свечение слева — низкая непрозрачность, чтобы не перекрывать фон */}
+        <div className="fragrance-glow w-[600px] h-[600px] bg-amber-100/20 top-1/4 left-0 -translate-x-1/4" />
+        <div className="fragrance-glow w-[500px] h-[500px] bg-amber-50/15 top-1/3 left-[10%]" style={{ animationDelay: '1s' }} />
+        <div className="fragrance-glow w-96 h-96 bg-amber-100/10 top-1/2 left-[5%]" style={{ animationDelay: '2s' }} />
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">

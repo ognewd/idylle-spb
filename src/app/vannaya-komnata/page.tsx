@@ -386,12 +386,7 @@ function VannayaContent() {
             </aside>
 
             <div className="flex-1">
-              <div className="flex justify-between items-center mb-6">
-                <p className="text-muted-foreground">
-                  {loading ? 'Загрузка...' : `Найдено товаров: ${pagination.total}`}
-                </p>
-                <SortSelector />
-              </div>
+              <SortSelector totalProducts={pagination.total} />
 
               {loading ? (
                 <div className="text-center py-12">

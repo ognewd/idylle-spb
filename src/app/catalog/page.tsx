@@ -379,44 +379,47 @@ function CatalogContent() {
         </div>
       )}
       
-      <div className="flex flex-col lg:flex-row gap-8 mt-6">
-        {/* Filters Sidebar */}
-        <aside className="lg:w-64 flex-shrink-0 lg:sticky lg:top-[11rem] lg:self-start lg:max-h-[calc(100vh-11rem)] lg:overflow-y-auto lg:bg-white lg:rounded-lg lg:shadow-sm lg:p-2 lg:-mr-2">
-          <ProductFilters filters={filters} />
-        </aside>
+      {/* Одна общая граница: фильтры + товары */}
+      <div className="mt-6 rounded-xl border border-neutral-200 bg-white overflow-hidden p-4 lg:p-0">
+        <div className="flex flex-col lg:flex-row lg:items-stretch">
+          {/* Левая колонка — фильтры */}
+          <aside className="lg:w-64 lg:min-w-[16rem] flex-shrink-0 lg:border-r lg:border-neutral-200 lg:sticky lg:top-24 lg:self-start lg:py-6">
+            <ProductFilters filters={filters} embedded />
+          </aside>
 
-        {/* Main Content */}
-        <main className="flex-1">
-          {/* Sort Bar with View Mode Toggle */}
-          <SortSelector 
-            currentSort={searchParams.get('sort') || 'newest'}
-            totalProducts={pagination.total}
-            viewMode={viewMode}
-            onViewModeChange={setViewMode}
-          />
-
-          <div
-            className={`relative transition-opacity duration-300 ${isTransitioning ? 'opacity-60' : 'opacity-100'}`}
-          >
-            {isTransitioning && (
-              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                <div className="flex items-center gap-2 rounded-full bg-background/80 px-4 py-2 shadow">
-                  <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-primary" />
-                  <span className="text-sm text-muted-foreground">Обновляем товары...</span>
-                </div>
-              </div>
-            )}
-
-            <ProductGrid
-              products={products}
-              pagination={pagination}
-              searchParams={Object.fromEntries(searchParams.entries())}
+          {/* Правая колонка — сортировка + сетка товаров */}
+          <main className="flex-1 min-w-0 flex flex-col">
+            <SortSelector 
+              currentSort={searchParams.get('sort') || 'newest'}
+              totalProducts={pagination.total}
               viewMode={viewMode}
-              loadingMore={loadingMore}
-              hasMore={pagination.page < pagination.totalPages}
+              onViewModeChange={setViewMode}
+              embedded
             />
-          </div>
-        </main>
+
+            <div
+              className={`relative flex-1 transition-opacity duration-300 px-4 pb-4 lg:px-6 lg:pb-6 ${isTransitioning ? 'opacity-60' : 'opacity-100'}`}
+            >
+              {isTransitioning && (
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                  <div className="flex items-center gap-2 rounded-full bg-background/80 px-4 py-2 shadow">
+                    <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-primary" />
+                    <span className="text-sm text-muted-foreground">Обновляем товары...</span>
+                  </div>
+                </div>
+              )}
+
+              <ProductGrid
+                products={products}
+                pagination={pagination}
+                searchParams={Object.fromEntries(searchParams.entries())}
+                viewMode={viewMode}
+                loadingMore={loadingMore}
+                hasMore={pagination.page < pagination.totalPages}
+              />
+            </div>
+          </main>
+        </div>
       </div>
     </div>
   );

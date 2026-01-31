@@ -33,9 +33,11 @@ interface ProductFiltersProps {
   filters: FilterGroup[];
   className?: string;
   basePath?: string;
+  /** Встроенный режим: без своей рамки, внутри общей границы каталога */
+  embedded?: boolean;
 }
 
-export function ProductFilters({ filters, className, basePath = '/catalog' }: ProductFiltersProps) {
+export function ProductFilters({ filters, className, basePath = '/catalog', embedded }: ProductFiltersProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeFilters, setActiveFilters] = useState<Record<string, any>>({});
   const [isMounted, setIsMounted] = useState(false);
@@ -278,72 +280,61 @@ export function ProductFilters({ filters, className, basePath = '/catalog' }: Pr
 
   const FilterContent = () => (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <h2 className="font-semibold text-lg">Фильтры</h2>
-          {getActiveFilterCount() > 0 && (
-            <Badge variant="secondary" className="rounded-full">
-              {getActiveFilterCount()}
-            </Badge>
-          )}
-        </div>
+      {/* Header with clear "Фильтры" title */}
+      <div className="flex items-center justify-between pb-4 border-b border-neutral-200">
+        <h2 className="font-bold text-xl">Фильтры</h2>
         {getActiveFilterCount() > 0 && (
           <Button
             variant="ghost"
             size="sm"
             onClick={clearAllFilters}
-            className="text-neutral-600 hover:text-neutral-900"
+            className="text-xs text-neutral-600 hover:text-neutral-900 h-auto p-1"
           >
             Сбросить
           </Button>
         )}
       </div>
 
-      <ScrollArea className="h-[calc(100vh-250px)]">
-        <div className="space-y-6 pr-4">
-          {/* In Stock Toggle */}
-          <div className="flex items-center justify-between">
-            <Label htmlFor="in-stock" className="text-sm font-medium cursor-pointer">
-              Только в наличии
-            </Label>
-            <Switch
-              id="in-stock"
-              checked={inStockOnly}
-              onCheckedChange={handleInStockChange}
-            />
-          </div>
-
-          <Separator />
-
-          {filters.map((filter, index) => {
-            // Check if filter has any options with count > 0
-            const hasResults = filter.options 
-              ? filter.options.some(option => (option.count ?? 0) > 0)
-              : true;
-            
-            if (!hasResults) return null;
-
-            return (
-              <div key={filter.id}>
-                <div className="flex items-center justify-between mb-3">
-                  <Label className="text-sm font-medium">{filter.name}</Label>
-                  {activeFilters[filter.id] && (
-                    <button
-                      onClick={() => updateFilter(filter.id, null)}
-                      className="text-xs text-neutral-500 hover:text-neutral-900"
-                    >
-                      Очистить
-                    </button>
-                  )}
-                </div>
-                {renderFilter(filter)}
-                {index < filters.length - 1 && <Separator className="mt-6" />}
-              </div>
-            );
-          })}
+      <div className="space-y-6">
+        {/* In Stock Toggle */}
+        <div className="flex items-center justify-between">
+          <Label htmlFor="in-stock" className="text-sm font-medium cursor-pointer">
+            Только в наличии
+          </Label>
+          <Switch
+            id="in-stock"
+            checked={inStockOnly}
+            onCheckedChange={handleInStockChange}
+          />
         </div>
-      </ScrollArea>
+
+        {filters.map((filter, index) => {
+          // Check if filter has any options with count > 0
+          const hasResults = filter.options 
+            ? filter.options.some(option => (option.count ?? 0) > 0)
+            : true;
+          
+          if (!hasResults) return null;
+
+          return (
+            <div key={filter.id}>
+              {index > 0 && <Separator className="mb-6" />}
+              <div className="flex items-center justify-between mb-3">
+                <Label className="text-sm font-semibold">{filter.name}</Label>
+                {activeFilters[filter.id] && (
+                  <button
+                    onClick={() => updateFilter(filter.id, null)}
+                    className="text-xs text-neutral-500 hover:text-neutral-900"
+                  >
+                    Очистить
+                  </button>
+                )}
+              </div>
+              {renderFilter(filter)}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 
@@ -474,7 +465,7 @@ export function ProductFilters({ filters, className, basePath = '/catalog' }: Pr
 
       {/* Desktop Filter Sidebar */}
       <div className={cn("hidden lg:block", className)}>
-        <div className="bg-white rounded-lg border border-neutral-200 p-6 sticky top-24">
+        <div className={cn("p-6", !embedded && "bg-white rounded-lg border border-neutral-200")}>
           <FilterContent />
         </div>
       </div>

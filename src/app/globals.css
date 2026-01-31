@@ -609,9 +609,9 @@
 
 @keyframes glow-pulse {
   0% { transform: scale(1) translate(0, 0); opacity: 0; }
-  15% { transform: scale(1) translate(0, 0); opacity: 0.4; }
-  50% { transform: scale(1.2) translate(-20px, -20px); opacity: 0.7; }
-  85% { transform: scale(1) translate(0, 0); opacity: 0.4; }
+  15% { transform: scale(1) translate(0, 0); opacity: 0.15; }
+  50% { transform: scale(1.2) translate(-20px, -20px); opacity: 0.25; }
+  85% { transform: scale(1) translate(0, 0); opacity: 0.15; }
   100% { transform: scale(1) translate(0, 0); opacity: 0; }
 }
 
