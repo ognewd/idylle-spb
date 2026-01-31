@@ -375,12 +375,6 @@ export default function AdminProductsPage() {
                       <span className="text-sm">{product.productType}</span>
                     </div>
                   )}
-                  {product.purpose && (
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Назначение:</span>
-                      <span className="text-sm">{product.purpose}</span>
-                    </div>
-                  )}
                   {product.country && (
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-600">Страна:</span>
