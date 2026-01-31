@@ -20,7 +20,7 @@ const newsletterSchema = z.object({
 type NewsletterFormData = z.infer<typeof newsletterSchema>;
 
 interface NewsletterSubscriptionProps {
-  variant?: 'default' | 'inline' | 'footer';
+  variant?: 'default' | 'inline' | 'footer' | 'footerDark';
   className?: string;
 }
 
@@ -75,7 +75,18 @@ export function NewsletterSubscription({
     }
   };
 
+  const isDark = variant === 'footerDark';
+
   if (isSuccess) {
+    if (isDark) {
+      return (
+        <div className={cn('text-center p-6 bg-green-900/30 border border-green-500/50 rounded-xl', className)}>
+          <CheckCircle className="h-8 w-8 text-green-400 mx-auto mb-2" />
+          <h3 className="text-lg font-semibold text-green-200 mb-1">Подписка оформлена!</h3>
+          <p className="text-green-300/90">Проверьте вашу почту и подтвердите подписку</p>
+        </div>
+      );
+    }
     return (
       <div className={cn("text-center p-6 bg-green-50 border border-green-200 rounded-lg", className)}>
         <CheckCircle className="h-8 w-8 text-green-600 mx-auto mb-2" />
@@ -108,6 +119,70 @@ export function NewsletterSubscription({
           Подписаться
         </Button>
       </form>
+    );
+  }
+
+  if (variant === 'footerDark') {
+    return (
+      <div className={cn('space-y-4', className)}>
+        <div className="flex items-center justify-center gap-2 text-gray-200">
+          <Mail className="h-5 w-5 text-[#D4830F]" />
+          <h3 className="font-semibold text-lg">Подписка на новости</h3>
+        </div>
+        <p className="text-center text-gray-400 text-sm max-w-md mx-auto">
+          Получайте эксклюзивные предложения и новости о новых поступлениях
+        </p>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 max-w-md mx-auto">
+          <div>
+            <input
+              {...register('email')}
+              type="email"
+              placeholder="Ваш email"
+              className={cn(
+                'w-full px-4 py-3 rounded-xl border-2 bg-white/10 border-white/20 text-white placeholder:text-gray-400',
+                'focus:outline-none focus:ring-2 focus:ring-[#D4830F] focus:border-[#D4830F] transition-all',
+                errors.email && 'border-red-400/60'
+              )}
+            />
+            {errors.email && (
+              <p className="text-sm text-red-400 mt-1">{errors.email.message}</p>
+            )}
+          </div>
+          <div className="flex items-start gap-3">
+            <Checkbox
+              id="acceptMarketing-dark"
+              checked={acceptMarketing}
+              onCheckedChange={(checked) => setValue('acceptMarketing', checked as boolean)}
+              className={cn(
+                'border-white/30 data-[state=checked]:bg-[#D4830F] data-[state=checked]:border-[#D4830F] mt-0.5',
+                errors.acceptMarketing && 'border-red-400/60'
+              )}
+            />
+            <Label
+              htmlFor="acceptMarketing-dark"
+              className="text-sm text-gray-300 leading-snug cursor-pointer"
+            >
+              Я согласен получать новости и специальные предложения
+            </Label>
+          </div>
+          {errors.acceptMarketing && (
+            <p className="text-sm text-red-400">{errors.acceptMarketing.message}</p>
+          )}
+          {error && (
+            <div className="rounded-lg bg-red-900/30 border border-red-500/50 px-3 py-2 text-sm text-red-200">
+              {error}
+            </div>
+          )}
+          <Button
+            type="submit"
+            className="w-full bg-gradient-to-r from-[#D4830F] to-amber-500 text-white hover:opacity-90 hover:shadow-lg hover:shadow-[#D4830F]/30 py-3 rounded-xl font-medium transition-all"
+            disabled={isLoading}
+          >
+            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Подписаться
+          </Button>
+        </form>
+      </div>
     );
   }
 

@@ -147,12 +147,14 @@ export function Footer() {
           </div>
         </div>
 
-        {/* Newsletter Subscription */}
-        <div className="mt-12 pt-8 border-t">
-          <div className="max-w-md mx-auto">
-            <NewsletterSubscription variant="footer" />
+        {/* Newsletter Subscription — тёмный блок в стиле шапки */}
+        <section className="mt-12 rounded-xl overflow-hidden bg-gradient-to-r from-slate-900 via-gray-900 to-slate-900 relative border border-white/10 shadow-xl shadow-black/20">
+          <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-[#D4830F]/50 to-transparent" />
+          <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-12">
+            <NewsletterSubscription variant="footerDark" />
           </div>
-        </div>
+          <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-[#D4830F]/30 to-transparent" />
+        </section>
 
         {/* Bottom Bar */}
         <div className="mt-12 pt-8 border-t">
