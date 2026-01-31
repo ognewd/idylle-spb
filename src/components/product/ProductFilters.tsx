@@ -1,14 +1,16 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import { Slider } from '@/components/ui/slider';
+import { Switch } from '@/components/ui/switch';
+import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { X, Filter, ChevronDown, ChevronUp } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { X, SlidersHorizontal, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface FilterOption {
@@ -38,14 +40,13 @@ export function ProductFilters({ filters, className, basePath = '/catalog' }: Pr
   const [activeFilters, setActiveFilters] = useState<Record<string, any>>({});
   const [isMounted, setIsMounted] = useState(false);
   const [expandedFilters, setExpandedFilters] = useState<Record<string, boolean>>({});
+  const [inStockOnly, setInStockOnly] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     setIsMounted(true);
-    
-    // Cleanup debounce timer on unmount
     return () => {
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
@@ -65,15 +66,18 @@ export function ProductFilters({ filters, className, basePath = '/catalog' }: Pr
       params.price = [parseFloat(priceMin), parseFloat(priceMax)];
     }
     
+    // Handle in stock filter
+    const inStock = searchParams.get('filter_inStock');
+    setInStockOnly(inStock === 'true');
+    
     // Handle other filters
     searchParams.forEach((value, key) => {
-      if (key.startsWith('filter_') && !key.includes('price_min') && !key.includes('price_max')) {
+      if (key.startsWith('filter_') && !key.includes('price_min') && !key.includes('price_max') && key !== 'filter_inStock') {
         const filterKey = key.replace('filter_', '');
-        // Always treat filter values as arrays for multi-select support
         if (value.includes(',')) {
           params[filterKey] = value.split(',');
         } else {
-          params[filterKey] = [value]; // Wrap single values in array
+          params[filterKey] = [value];
         }
       }
     });
@@ -94,20 +98,19 @@ export function ProductFilters({ filters, className, basePath = '/catalog' }: Pr
 
     setActiveFilters(newFilters);
     
-    // If debounce is true, wait before updating URL
     if (debounce) {
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
       }
       debounceTimerRef.current = setTimeout(() => {
-        updateURL(newFilters);
-      }, 300); // 300ms delay
+        updateURL(newFilters, inStockOnly);
+      }, 300);
     } else {
-      updateURL(newFilters);
+      updateURL(newFilters, inStockOnly);
     }
   };
 
-  const updateURL = (filters: Record<string, any>) => {
+  const updateURL = (filters: Record<string, any>, stockFilter: boolean) => {
     if (!isMounted) return;
     
     const params = new URLSearchParams(searchParams);
@@ -122,24 +125,33 @@ export function ProductFilters({ filters, className, basePath = '/catalog' }: Pr
     // Add new filter params
     Object.entries(filters).forEach(([key, value]) => {
       if (key === 'price' && Array.isArray(value)) {
-        // Special handling for price range
         params.set('filter_price_min', value[0].toString());
         params.set('filter_price_max', value[1].toString());
       } else if (Array.isArray(value) && value.length > 0) {
-        // For multi-select filters (like brands)
         params.set(`filter_${key}`, value.join(','));
       } else if (!Array.isArray(value)) {
         params.set(`filter_${key}`, value);
       }
     });
 
+    // Add in stock filter
+    if (stockFilter) {
+      params.set('filter_inStock', 'true');
+    }
+
     router.push(`${basePath}?${params.toString()}`, { scroll: false });
+  };
+
+  const handleInStockChange = (checked: boolean) => {
+    setInStockOnly(checked);
+    updateURL(activeFilters, checked);
   };
 
   const clearAllFilters = () => {
     if (!isMounted) return;
     
     setActiveFilters({});
+    setInStockOnly(false);
     const params = new URLSearchParams(searchParams);
     Array.from(params.keys()).forEach(key => {
       if (key.startsWith('filter_')) {
@@ -150,7 +162,105 @@ export function ProductFilters({ filters, className, basePath = '/catalog' }: Pr
   };
 
   const getActiveFilterCount = () => {
-    return Object.keys(activeFilters).length;
+    let count = Object.keys(activeFilters).length;
+    if (inStockOnly) count++;
+    return count;
+  };
+
+  const renderCheckboxFilter = (filter: FilterGroup) => {
+    const validOptions = (filter.options || [])
+      .filter(opt => (opt.count ?? 0) > 0)
+      .sort((a, b) => (b.count ?? 0) - (a.count ?? 0));
+    
+    const isExpanded = expandedFilters[filter.id] || false;
+    const hasMoreThan5 = validOptions.length > 5;
+    const displayedOptions = hasMoreThan5 && !isExpanded 
+      ? validOptions.slice(0, 5) 
+      : validOptions;
+
+    return (
+      <div className="space-y-3">
+        {displayedOptions.map((option) => {
+          const isChecked = Array.isArray(activeFilters[filter.id])
+            ? activeFilters[filter.id].includes(option.id)
+            : activeFilters[filter.id] === option.id;
+
+          return (
+            <div key={option.id} className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id={`${filter.id}-${option.id}`}
+                  checked={isChecked}
+                  onCheckedChange={(checked) => {
+                    const current = activeFilters[filter.id] || [];
+                    const currentArray = Array.isArray(current) ? current : [];
+                    
+                    if (checked) {
+                      if (!currentArray.includes(option.id)) {
+                        const newValue = [...currentArray, option.id];
+                        updateFilter(filter.id, newValue);
+                      }
+                    } else {
+                      const newValue = currentArray.filter((v: string) => v !== option.id);
+                      updateFilter(filter.id, newValue.length > 0 ? newValue : null);
+                    }
+                  }}
+                />
+                <Label
+                  htmlFor={`${filter.id}-${option.id}`}
+                  className="text-sm cursor-pointer hover:text-neutral-900"
+                >
+                  {option.name}
+                </Label>
+              </div>
+              <span className="text-xs text-neutral-400">({option.count})</span>
+            </div>
+          );
+        })}
+        {hasMoreThan5 && (
+          <button
+            onClick={() => setExpandedFilters(prev => ({ ...prev, [filter.id]: !isExpanded }))}
+            className="text-xs text-neutral-500 hover:text-neutral-900 flex items-center gap-1"
+          >
+            {isExpanded ? (
+              <>Свернуть <ChevronUp className="h-3 w-3" /></>
+            ) : (
+              <>Показать все ({validOptions.length}) <ChevronDown className="h-3 w-3" /></>
+            )}
+          </button>
+        )}
+      </div>
+    );
+  };
+
+  const renderPriceFilter = (filter: FilterGroup) => {
+    const rangeValue = activeFilters[filter.id] || [filter.min || 0, filter.max || 100000];
+    const [localRange, setLocalRange] = useState(rangeValue);
+    
+    useEffect(() => {
+      setLocalRange(rangeValue);
+    }, [rangeValue[0], rangeValue[1]]);
+
+    return (
+      <div className="space-y-4">
+        <Label className="text-sm font-medium block">
+          {localRange[0].toLocaleString('ru-RU')} ₽ — {localRange[1].toLocaleString('ru-RU')} ₽
+        </Label>
+        <Slider
+          min={filter.min || 0}
+          max={filter.max || 100000}
+          step={filter.step || 100}
+          value={localRange}
+          onValueChange={(value) => setLocalRange(value)}
+          onValueCommit={(value) => updateFilter(filter.id, value)}
+          className="mb-2"
+        />
+        <div className="flex justify-between text-xs text-neutral-500">
+          <span>{(filter.min || 0).toLocaleString('ru-RU')} ₽</span>
+          <span>{(filter.max || 100000).toLocaleString('ru-RU')} ₽</span>
+        </div>
+      </div>
+    );
   };
 
   const renderFilter = (filter: FilterGroup) => {
@@ -158,141 +268,9 @@ export function ProductFilters({ filters, className, basePath = '/catalog' }: Pr
     
     switch (filter.type) {
       case 'checkbox':
-        // Сортируем опции по количеству (по убыванию) и фильтруем нулевые
-        const validOptions = (filter.options || [])
-          .filter(opt => (opt.count ?? 0) > 0)
-          .sort((a, b) => (b.count ?? 0) - (a.count ?? 0));
-        
-        const isExpanded = expandedFilters[filter.id] || false;
-        const hasMoreThan5 = validOptions.length > 5;
-        const displayedOptions = hasMoreThan5 && !isExpanded 
-          ? validOptions.slice(0, 5) 
-          : validOptions;
-
-        return (
-          <div className="space-y-3">
-            {displayedOptions.map((option) => {
-              const isChecked = Array.isArray(activeFilters[filter.id])
-                ? activeFilters[filter.id].includes(option.id)
-                : activeFilters[filter.id] === option.id;
-
-              return (
-                <div key={option.id} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`${filter.id}-${option.id}`}
-                    checked={isChecked}
-                    onCheckedChange={(checked) => {
-                      const current = activeFilters[filter.id] || [];
-                      const currentArray = Array.isArray(current) ? current : [];
-                      
-                      if (checked) {
-                        // Добавляем элемент, если его еще нет
-                        if (!currentArray.includes(option.id)) {
-                          const newValue = [...currentArray, option.id];
-                          updateFilter(filter.id, newValue);
-                        }
-                      } else {
-                        // Удаляем элемент
-                        const newValue = currentArray.filter((v: string) => v !== option.id);
-                        updateFilter(filter.id, newValue.length > 0 ? newValue : null);
-                      }
-                    }}
-                  />
-                  <Label htmlFor={`${filter.id}-${option.id}`} className="text-sm font-normal cursor-pointer flex-1 flex items-center justify-between">
-                    <span>{option.name}</span>
-                    {option.count !== undefined && (
-                      <Badge variant="secondary" className="text-xs">
-                        {option.count}
-                      </Badge>
-                    )}
-                  </Label>
-                </div>
-              );
-            })}
-            {hasMoreThan5 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full text-xs text-muted-foreground hover:text-foreground"
-                onClick={() => setExpandedFilters(prev => ({ ...prev, [filter.id]: !isExpanded }))}
-              >
-                {isExpanded ? (
-                  <>
-                    Свернуть <ChevronUp className="h-3 w-3 ml-1" />
-                  </>
-                ) : (
-                  <>
-                    Показать все ({validOptions.length}) <ChevronDown className="h-3 w-3 ml-1" />
-                  </>
-                )}
-              </Button>
-            )}
-          </div>
-        );
-
+        return renderCheckboxFilter(filter);
       case 'range':
-        const rangeValue = activeFilters[filter.id] || [filter.min || 0, filter.max || 1000];
-        const [localMin, setLocalMin] = useState(rangeValue[0]);
-        const [localMax, setLocalMax] = useState(rangeValue[1]);
-        
-        useEffect(() => {
-          setLocalMin(rangeValue[0]);
-          setLocalMax(rangeValue[1]);
-        }, [rangeValue[0], rangeValue[1]]);
-        
-        const applyPriceFilter = () => {
-          const min = parseInt(localMin.toString()) || filter.min || 0;
-          const max = parseInt(localMax.toString()) || filter.max || 1000;
-          if (min >= (filter.min || 0) && max <= (filter.max || 1000) && min <= max) {
-            updateFilter(filter.id, [min, max]);
-          }
-        };
-        
-        return (
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label htmlFor={`${filter.id}-min`} className="text-xs text-muted-foreground">
-                  От
-                </Label>
-                <Input
-                  id={`${filter.id}-min`}
-                  type="number"
-                  value={localMin}
-                  onChange={(e) => setLocalMin(e.target.value)}
-                  min={filter.min || 0}
-                  max={filter.max || 1000}
-                  className="h-9"
-                  placeholder={`${filter.min || 0} ₽`}
-                />
-              </div>
-              <div>
-                <Label htmlFor={`${filter.id}-max`} className="text-xs text-muted-foreground">
-                  До
-                </Label>
-                <Input
-                  id={`${filter.id}-max`}
-                  type="number"
-                  value={localMax}
-                  onChange={(e) => setLocalMax(e.target.value)}
-                  min={filter.min || 0}
-                  max={filter.max || 1000}
-                  className="h-9"
-                  placeholder={`${filter.max || 1000} ₽`}
-                />
-              </div>
-            </div>
-            <Button 
-              onClick={applyPriceFilter} 
-              size="sm" 
-              className="w-full"
-              variant="secondary"
-            >
-              Применить
-            </Button>
-          </div>
-        );
-
+        return renderPriceFilter(filter);
       default:
         return null;
     }
@@ -300,80 +278,90 @@ export function ProductFilters({ filters, className, basePath = '/catalog' }: Pr
 
   const FilterContent = () => (
     <div className="space-y-6">
-      {getActiveFilterCount() > 0 && (
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-muted-foreground">
-            Активных фильтров: {getActiveFilterCount()}
-          </span>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <h2 className="font-semibold text-lg">Фильтры</h2>
+          {getActiveFilterCount() > 0 && (
+            <Badge variant="secondary" className="rounded-full">
+              {getActiveFilterCount()}
+            </Badge>
+          )}
+        </div>
+        {getActiveFilterCount() > 0 && (
           <Button
             variant="ghost"
             size="sm"
             onClick={clearAllFilters}
-            className="text-xs"
+            className="text-neutral-600 hover:text-neutral-900"
           >
-            <X className="h-3 w-3 mr-1" />
-            Очистить все
+            Сбросить
           </Button>
-        </div>
-      )}
+        )}
+      </div>
 
-      {filters.map((filter, index) => {
-        // Check if filter has any options with count > 0
-        const hasResults = filter.options 
-          ? filter.options.some(option => (option.count ?? 0) > 0)
-          : true; // Show filters without options (like price range)
-        
-        // Don't render filter if it has no results
-        if (!hasResults) return null;
-
-        // Первый блок фильтра прилипает к верху сайдбара при прокрутке — опции сверху всегда видны
-        const isSticky = index === 0;
-
-        return (
-          <div 
-            key={filter.id} 
-            className={cn(
-              isSticky && "lg:sticky lg:top-0 lg:z-10 lg:bg-white lg:shadow-md lg:rounded-lg lg:p-2 lg:-m-2"
-            )}
-          >
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium">{filter.name}</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                {renderFilter(filter)}
-              </CardContent>
-            </Card>
+      <ScrollArea className="h-[calc(100vh-250px)]">
+        <div className="space-y-6 pr-4">
+          {/* In Stock Toggle */}
+          <div className="flex items-center justify-between">
+            <Label htmlFor="in-stock" className="text-sm font-medium cursor-pointer">
+              Только в наличии
+            </Label>
+            <Switch
+              id="in-stock"
+              checked={inStockOnly}
+              onCheckedChange={handleInStockChange}
+            />
           </div>
-        );
-      })}
+
+          <Separator />
+
+          {filters.map((filter, index) => {
+            // Check if filter has any options with count > 0
+            const hasResults = filter.options 
+              ? filter.options.some(option => (option.count ?? 0) > 0)
+              : true;
+            
+            if (!hasResults) return null;
+
+            return (
+              <div key={filter.id}>
+                <div className="flex items-center justify-between mb-3">
+                  <Label className="text-sm font-medium">{filter.name}</Label>
+                  {activeFilters[filter.id] && (
+                    <button
+                      onClick={() => updateFilter(filter.id, null)}
+                      className="text-xs text-neutral-500 hover:text-neutral-900"
+                    >
+                      Очистить
+                    </button>
+                  )}
+                </div>
+                {renderFilter(filter)}
+                {index < filters.length - 1 && <Separator className="mt-6" />}
+              </div>
+            );
+          })}
+        </div>
+      </ScrollArea>
     </div>
   );
 
   if (!isMounted) {
     return (
       <div className={cn("hidden lg:block", className)}>
-        <div className="space-y-6">
-          {filters.map((filter) => (
-            <Card key={filter.id}>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium">{filter.name}</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="space-y-3">
-                  {filter.options?.map((option) => (
-                    <div key={option.id} className="flex items-center space-x-2">
-                      <div className="h-4 w-4 border rounded animate-pulse bg-muted" />
-                      <div className="flex-1 flex items-center justify-between">
-                        <div className="h-4 w-20 bg-muted animate-pulse rounded" />
-                        <div className="h-4 w-8 bg-muted animate-pulse rounded" />
-                      </div>
-                    </div>
-                  ))}
+        <div className="bg-white rounded-lg border border-neutral-200 p-6">
+          <div className="animate-pulse space-y-4">
+            <div className="h-6 bg-neutral-200 rounded w-24"></div>
+            <div className="space-y-3">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <div className="h-4 w-4 bg-neutral-200 rounded"></div>
+                  <div className="h-4 bg-neutral-200 rounded flex-1"></div>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -389,10 +377,10 @@ export function ProductFilters({ filters, className, basePath = '/catalog' }: Pr
           className="w-full justify-between"
         >
           <span className="flex items-center">
-            <Filter className="h-4 w-4 mr-2" />
+            <SlidersHorizontal className="h-4 w-4 mr-2" />
             Фильтры
             {getActiveFilterCount() > 0 && (
-              <Badge variant="secondary" className="ml-2">
+              <Badge variant="secondary" className="ml-2 rounded-full">
                 {getActiveFilterCount()}
               </Badge>
             )}
@@ -402,36 +390,77 @@ export function ProductFilters({ filters, className, basePath = '/catalog' }: Pr
 
       {/* Mobile Filter Panel */}
       {isOpen && (
-        <div 
-          className="lg:hidden fixed inset-0 z-50 bg-background"
-          onClick={(e) => {
-            // Prevent closing when clicking inside the panel
-            if (e.target === e.currentTarget) {
-              setIsOpen(false);
-            }
-          }}
-        >
+        <div className="lg:hidden fixed inset-0 z-50 bg-background">
           <div className="flex flex-col h-full">
-            <div className="flex items-center justify-between p-4 border-b flex-shrink-0">
-              <h2 className="text-lg font-semibold">Фильтры</h2>
-              <Button variant="ghost" size="sm" onClick={() => setIsOpen(false)}>
-                <X className="h-4 w-4" />
-              </Button>
+            <div className="flex items-center justify-between p-4 border-b border-neutral-200 flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-semibold">Фильтры</h2>
+                {getActiveFilterCount() > 0 && (
+                  <Badge variant="secondary" className="rounded-full">
+                    {getActiveFilterCount()}
+                  </Badge>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {getActiveFilterCount() > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearAllFilters}
+                    className="text-neutral-600"
+                  >
+                    Сбросить всё
+                  </Button>
+                )}
+                <Button variant="ghost" size="sm" onClick={() => setIsOpen(false)}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
-            <div 
-              className="flex-1 overflow-y-auto p-4"
-              onWheel={(e) => {
-                // Prevent page scroll when scrolling filters on mobile
-                e.stopPropagation();
-              }}
-              onTouchMove={(e) => {
-                // Prevent page scroll on touch devices
-                e.stopPropagation();
-              }}
-            >
-              <FilterContent />
+            <div className="flex-1 overflow-y-auto p-4">
+              <div className="space-y-6">
+                {/* In Stock Toggle */}
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="mobile-in-stock" className="text-sm font-medium">
+                    Только в наличии
+                  </Label>
+                  <Switch
+                    id="mobile-in-stock"
+                    checked={inStockOnly}
+                    onCheckedChange={handleInStockChange}
+                  />
+                </div>
+
+                <Separator />
+
+                {filters.map((filter, index) => {
+                  const hasResults = filter.options 
+                    ? filter.options.some(option => (option.count ?? 0) > 0)
+                    : true;
+                  
+                  if (!hasResults) return null;
+
+                  return (
+                    <div key={filter.id}>
+                      <div className="flex items-center justify-between mb-3">
+                        <Label className="text-sm font-medium">{filter.name}</Label>
+                        {activeFilters[filter.id] && (
+                          <button
+                            onClick={() => updateFilter(filter.id, null)}
+                            className="text-xs text-neutral-500 hover:text-neutral-900"
+                          >
+                            Очистить
+                          </button>
+                        )}
+                      </div>
+                      {renderFilter(filter)}
+                      {index < filters.length - 1 && <Separator className="mt-6" />}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-            <div className="p-4 border-t flex-shrink-0">
+            <div className="p-4 border-t border-neutral-200 flex-shrink-0">
               <Button
                 className="w-full"
                 onClick={() => setIsOpen(false)}
@@ -445,7 +474,9 @@ export function ProductFilters({ filters, className, basePath = '/catalog' }: Pr
 
       {/* Desktop Filter Sidebar */}
       <div className={cn("hidden lg:block", className)}>
-        <FilterContent />
+        <div className="bg-white rounded-lg border border-neutral-200 p-6 sticky top-24">
+          <FilterContent />
+        </div>
       </div>
     </>
   );

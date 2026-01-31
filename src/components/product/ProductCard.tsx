@@ -1,13 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Heart, ShoppingCart, Eye, Star, Image as ImageIcon } from 'lucide-react';
+import { Heart, ShoppingCart, Star, Image as ImageIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCart } from '@/contexts/CartContext';
 import { useWishlist } from '@/contexts/WishlistContext';
@@ -75,7 +73,6 @@ export function ProductCard({
   const { addItem } = useCart();
   const { isInWishlist: wishlistHas, toggle } = useWishlist();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [isHovered, setIsHovered] = useState(false);
   
   // Handle variants
   const hasVariants = product.variants && product.variants.length > 0;
@@ -103,10 +100,6 @@ export function ProductCard({
 
   const isOutOfStock = currentStock === 0;
 
-  const handleImageHover = (index: number) => {
-    setCurrentImageIndex(index);
-  };
-
   const handleAddToWishlist = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -126,7 +119,6 @@ export function ProductCard({
     e.preventDefault();
     e.stopPropagation();
     
-    // Add to cart using context
     const imageUrl = product.images && product.images.length > 0
       ? (typeof product.images[0] === 'string' 
         ? product.images[0] 
@@ -145,7 +137,6 @@ export function ProductCard({
       } : undefined,
     });
     
-    // Also call the callback if provided
     if (hasVariants && selectedVariant) {
       onAddToCart?.(product.id, selectedVariant.id);
     } else {
@@ -160,107 +151,76 @@ export function ProductCard({
     }
   };
 
-  const handleQuickView = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    onQuickView?.(product.id);
-  };
+  const primaryImage = product.images && product.images.length > 0
+    ? (typeof product.images[currentImageIndex] === 'string' 
+      ? product.images[currentImageIndex] as string
+      : product.images[currentImageIndex]?.url)
+    : null;
 
   return (
-    <Card
-      className={cn(
-        "group relative overflow-visible transition-all duration-300",
-        className
-      )}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      {/* Product Image Section */}
-      <div className={cn("relative bg-white flex items-center justify-center", {
-        "bg-muted p-2 min-h-[300px]": !(product.images && product.images.length > 0)
-      })}>
-        {product.images && product.images.length > 0 ? (
-          <Link href={`/catalog/${product.slug}`} className="block w-full py-4">
-            <div className="relative w-full flex items-center justify-center" style={{ minHeight: '300px' }}>
-              <div className="relative w-full" style={{ aspectRatio: 'auto', height: 'auto' }}>
-                <img
-                  src={getImageUrl(
-                    typeof product.images[currentImageIndex] === 'string' 
-                      ? product.images[currentImageIndex] as string
-                      : product.images[currentImageIndex]?.url
-                  )}
-                  alt={product.name}
-                  className="w-full h-auto max-w-full"
-                  style={{ objectFit: 'contain' }}
-                  onError={(e) => {
-                    const target = e.currentTarget;
-                    target.onerror = null;
-                    target.src = '/placeholder-product.jpg';
-                  }}
-                />
-              </div>
-            </div>
+    <div className={cn(
+      "group bg-white border border-neutral-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow duration-300",
+      className
+    )}>
+      {/* Image */}
+      <div className="relative aspect-square overflow-hidden bg-neutral-100">
+        {primaryImage ? (
+          <Link href={`/catalog/${product.slug}`} className="block w-full h-full">
+            <img
+              src={getImageUrl(primaryImage)}
+              alt={product.name}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              onError={(e) => {
+                const target = e.currentTarget;
+                target.onerror = null;
+                target.src = '/placeholder-product.jpg';
+              }}
+            />
           </Link>
         ) : (
-          <div className="flex flex-col items-center justify-center text-muted-foreground space-y-3 p-2 h-full">
+          <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
             <ImageIcon className="h-16 w-16 opacity-50" />
-            <p className="text-sm text-center px-4">Изображение еще не добавлено</p>
+            <p className="text-sm text-center px-4 mt-2">Нет изображения</p>
           </div>
         )}
-
+        
         {/* Badges */}
-        <div className="absolute top-2 left-2 flex flex-col gap-1 pointer-events-none">
+        <div className="absolute top-3 left-3 flex flex-col gap-2">
           {product.isFeatured && (
-            <Badge variant="default" className="text-xs">
-              Хит
+            <Badge className="bg-orange-500 hover:bg-orange-600">
+              Хит продаж
             </Badge>
           )}
           {discountPercentage > 0 && (
-            <Badge 
-              variant="destructive" 
-              className="text-xs"
-              title={product.seasonalDiscount ? product.seasonalDiscount.name : undefined}
-            >
+            <Badge variant="destructive">
               -{discountPercentage}%
-              {product.seasonalDiscount && ' 🎉'}
-            </Badge>
-          )}
-          {isOutOfStock && (
-            <Badge variant="secondary" className="text-xs">
-              Нет в наличии
             </Badge>
           )}
         </div>
 
-        {/* Action Buttons */}
-        <div
-          className={cn(
-            "absolute top-2 right-2 flex flex-col gap-2 transition-opacity duration-300",
-            isHovered ? "opacity-100" : "opacity-0"
-          )}
-        >
+        {/* Quick Actions */}
+        <div className="absolute top-3 right-3 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
           <Button
-            variant="secondary"
             size="icon"
-            className="h-8 w-8 shadow-md"
+            variant="secondary"
+            className="size-9 rounded-full shadow-lg"
             onClick={handleAddToWishlist}
           >
-            <Heart
-              className={cn(
-                "h-4 w-4",
-                wishlistHas(product.id) ? "fill-red-500 text-red-500" : ""
-              )}
-            />
-          </Button>
-          <Button
-            variant="secondary"
-            size="icon"
-            className="h-8 w-8 shadow-md"
-            onClick={handleQuickView}
-          >
-            <Eye className="h-4 w-4" />
+            <Heart className={cn(
+              "size-4",
+              wishlistHas(product.id) ? "fill-red-500 text-red-500" : ""
+            )} />
           </Button>
         </div>
+
+        {/* Stock Status */}
+        {isOutOfStock && (
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+            <Badge variant="secondary" className="text-base">
+              Нет в наличии
+            </Badge>
+          </div>
+        )}
 
         {/* Image Navigation Dots */}
         {product.images && product.images.length > 1 && (
@@ -286,62 +246,51 @@ export function ProductCard({
         )}
       </div>
 
-      {/* Product Info Section */}
-      <CardContent className="p-4">
+      {/* Content */}
+      <div className="p-4">
         {/* Brand */}
         <Link
           href={`/catalog?brand=${product.brand.slug}`}
-          className="text-xs text-muted-foreground hover:text-primary transition-colors"
+          className="text-xs text-neutral-500 hover:text-neutral-900 transition-colors"
           onClick={(e) => e.stopPropagation()}
         >
           {product.brand.name}
         </Link>
 
-        {/* Product Name */}
+        {/* Name */}
         <Link href={`/catalog/${product.slug}`}>
-          <h3 className="font-medium text-sm mt-1 line-clamp-2 group-hover:text-primary transition-colors">
+          <h3 className="font-medium text-sm mt-1 mb-2 line-clamp-2 min-h-[2.5rem] hover:text-primary transition-colors">
             {product.name}
           </h3>
         </Link>
 
-        {/* Product Details */}
-        <div className="flex flex-wrap gap-2 mt-2 text-xs text-muted-foreground">
-          {product.volume && (
-            <span>{product.volume}</span>
-          )}
+        {/* Details */}
+        <div className="flex items-center gap-2 mb-3 text-xs text-neutral-600">
+          {product.volume && <span>{product.volume}</span>}
           {product.aromaFamily && (
-            <span>• {product.aromaFamily}</span>
-          )}
-          {product.gender && (
-            <span>• {product.gender === 'men' ? 'Мужской' : product.gender === 'women' ? 'Женский' : 'Унисекс'}</span>
+            <>
+              <span>•</span>
+              <span>{product.aromaFamily}</span>
+            </>
           )}
         </div>
 
         {/* Rating */}
-        {product.rating && product.reviewCount && (
-          <div className="flex items-center gap-1 mt-2">
-            <div className="flex items-center">
-              {[...Array(5)].map((_, i) => (
-                <Star
-                  key={i}
-                  className={cn(
-                    "h-3 w-3",
-                    i < Math.floor(product.rating!)
-                      ? "fill-yellow-400 text-yellow-400"
-                      : "text-muted-foreground"
-                  )}
-                />
-              ))}
+        {product.rating !== undefined && product.reviewCount !== undefined && product.reviewCount > 0 && (
+          <div className="flex items-center gap-1 mb-3">
+            <div className="flex items-center gap-0.5">
+              <Star className="size-3.5 fill-yellow-400 text-yellow-400" />
+              <span className="text-sm font-medium">{product.rating.toFixed(1)}</span>
             </div>
-            <span className="text-xs text-muted-foreground">
-              ({product.reviewCount})
+            <span className="text-xs text-neutral-500">
+              ({product.reviewCount} отзывов)
             </span>
           </div>
         )}
 
-        {/* Variant Selector - only if product has variants */}
+        {/* Variant Selector */}
         {hasVariants && (
-          <div className="mt-3">
+          <div className="mb-3">
             <Select
               value={selectedVariant?.id}
               onValueChange={handleVariantChange}
@@ -360,45 +309,40 @@ export function ProductCard({
           </div>
         )}
 
-        {/* Price */}
-        <div className="flex items-center gap-2 mt-3">
-          <span className="font-semibold text-lg">
-            {currentPrice.toLocaleString('ru-RU')} ₽
-          </span>
-          {(currentComparePrice || product.originalPrice) && (
-            <span className="text-sm text-muted-foreground line-through">
-              {(product.originalPrice || currentComparePrice)!.toLocaleString('ru-RU')} ₽
-            </span>
-          )}
+        {/* Price & Action */}
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-lg font-bold">{currentPrice.toLocaleString('ru-RU')} ₽</span>
+              {(currentComparePrice || product.originalPrice) && (
+                <span className="text-sm text-neutral-400 line-through">
+                  {(product.originalPrice || currentComparePrice)!.toLocaleString('ru-RU')} ₽
+                </span>
+              )}
+            </div>
+            {/* Stock warning */}
+            {currentStock > 0 && currentStock < 10 && (
+              <p className="text-xs text-orange-600 mt-0.5">
+                Осталось {currentStock} шт.
+              </p>
+            )}
+            {/* Seasonal Discount Info */}
+            {product.seasonalDiscount && (
+              <p className="text-xs text-green-600 font-medium mt-0.5">
+                🎉 {product.seasonalDiscount.name}
+              </p>
+            )}
+          </div>
+          <Button
+            size="icon"
+            className="size-9 rounded-full flex-shrink-0"
+            disabled={isOutOfStock}
+            onClick={handleAddToCart}
+          >
+            <ShoppingCart className="size-4" />
+          </Button>
         </div>
-        
-        {/* Seasonal Discount Info */}
-        {product.seasonalDiscount && (
-          <p className="text-xs text-green-600 mt-1 font-medium">
-            🎉 {product.seasonalDiscount.name}
-          </p>
-        )}
-
-        {/* Stock Status - зарезервировано место для одинакового выравнивания */}
-        <div className="min-h-[20px] mt-1">
-          {currentStock > 0 && currentStock < 10 && (
-            <p className="text-xs text-orange-600">
-              Осталось {currentStock} шт.
-            </p>
-          )}
-        </div>
-
-        {/* Add to Cart Button - Always Visible */}
-        <Button
-          className="w-full mt-3"
-          disabled={isOutOfStock}
-          onClick={handleAddToCart}
-          size="sm"
-        >
-          <ShoppingCart className="h-4 w-4 mr-2" />
-          {isOutOfStock ? 'Нет в наличии' : 'В корзину'}
-        </Button>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

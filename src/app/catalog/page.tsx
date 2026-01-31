@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, Suspense, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ProductFilters } from '@/components/product/ProductFilters';
-import { ProductGrid } from '@/components/product/ProductGrid';
+import { ProductGrid, ViewMode } from '@/components/product/ProductGrid';
 import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
 import { SortSelector } from '@/components/product/SortSelector';
 
@@ -273,6 +273,7 @@ function CatalogContent() {
   const [selectedCategory, setSelectedCategory] = useState<any>(null);
   const [categoryContent, setCategoryContent] = useState<string | null>(null);
   const [categoryDescription, setCategoryDescription] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
 
   // Load category content when category is selected
   useEffect(() => {
@@ -386,18 +387,13 @@ function CatalogContent() {
 
         {/* Main Content */}
         <main className="flex-1">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-            <div>
-              <h1 className="text-2xl font-bold">
-                {selectedCategory ? selectedCategory.name : 'Каталог товаров'}
-              </h1>
-              <p className="text-muted-foreground mt-1">
-                Найдено товаров: {pagination.total}
-              </p>
-            </div>
-            
-            <SortSelector currentSort="newest" />
-          </div>
+          {/* Sort Bar with View Mode Toggle */}
+          <SortSelector 
+            currentSort={searchParams.get('sort') || 'newest'}
+            totalProducts={pagination.total}
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+          />
 
           <div
             className={`relative transition-opacity duration-300 ${isTransitioning ? 'opacity-60' : 'opacity-100'}`}
@@ -415,6 +411,7 @@ function CatalogContent() {
               products={products}
               pagination={pagination}
               searchParams={Object.fromEntries(searchParams.entries())}
+              viewMode={viewMode}
               loadingMore={loadingMore}
               hasMore={pagination.page < pagination.totalPages}
             />
