@@ -65,7 +65,7 @@ export function HeroSection({ product }: HeroSectionProps) {
 
   return (
     <section
-      className="relative min-h-[600px] bg-[#FFF9F0] bg-gradient-to-br from-[#FFF9F0] via-[#F5F0E8] to-[#FFF9F0] py-16 lg:py-20 overflow-hidden"
+      className="relative min-h-[600px] bg-[#FFFCF9] bg-gradient-to-br from-[#FFFCF9] via-[#FBF8F5] to-[#FFFCF9] py-16 lg:py-20 overflow-hidden"
       onMouseMove={handleMouseMove}
     >
 
