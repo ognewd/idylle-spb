@@ -65,11 +65,9 @@ export function HeroSection({ product }: HeroSectionProps) {
 
   return (
     <section
-      className="relative min-h-[600px] bg-gradient-to-br from-slate-800 via-slate-700 to-gray-800 py-16 lg:py-20 overflow-hidden"
+      className="relative min-h-[600px] bg-gradient-to-br from-[#FFF9F0] via-[#F8F8F8] to-[#FFF9F0] py-16 lg:py-20 overflow-hidden"
       onMouseMove={handleMouseMove}
     >
-      {/* Темный радиальный градиент для контраста в зоне распыления */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_800px_600px_at_70%_50%,rgba(15,23,42,0.4),transparent)]" />
 
       {/* Интерактивные частицы аромата от курсора */}
       {particles.map((particle) => (
@@ -115,7 +113,7 @@ export function HeroSection({ product }: HeroSectionProps) {
         <div className="grid lg:grid-cols-5 gap-12 lg:gap-16 items-center">
           {/* Левая колонка — текст с эффектами */}
           <div className="lg:col-span-3 space-y-8 animate-fade-in z-10 relative">
-            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-light text-white leading-[1.1] tracking-tight">
+            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-light text-[#1a1a1a] leading-[1.1] tracking-tight">
               Мир ароматов{' '}
               <span className="text-[#D4830F] font-normal relative inline-block">
                 начинается
@@ -124,14 +122,14 @@ export function HeroSection({ product }: HeroSectionProps) {
               здесь
             </h1>
 
-            <p className="text-lg sm:text-xl text-gray-300 max-w-xl leading-relaxed">
+            <p className="text-lg sm:text-xl text-[#6B7280] max-w-xl leading-relaxed">
               Уникальные парфюмерные коллекции от ведущих мировых брендов. Люкс в каждой ноте.
             </p>
 
             <div className="flex flex-wrap gap-4">
               <Link
                 href="/catalog"
-                className="inline-flex items-center gap-2 bg-white hover:bg-[#D4830F] text-[#1a1a1a] hover:text-white px-8 py-4 rounded-full font-medium transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 relative overflow-hidden group"
+                className="inline-flex items-center gap-2 bg-[#1a1a1a] hover:bg-[#D4830F] text-white px-8 py-4 rounded-full font-medium transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 relative overflow-hidden group"
               >
                 <span className="absolute inset-0 shimmer-effect group-hover:opacity-100 opacity-0" />
                 <BookOpen className="size-5 relative z-10" />
@@ -139,7 +137,7 @@ export function HeroSection({ product }: HeroSectionProps) {
               </Link>
               <Link
                 href="/brands"
-                className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white border-2 border-white/30 hover:border-[#D4830F] hover:text-[#D4830F] px-8 py-4 rounded-full font-medium transition-all duration-300 backdrop-blur-sm"
+                className="inline-flex items-center gap-2 bg-white hover:bg-gray-50 text-[#1a1a1a] border-2 border-gray-200 hover:border-[#D4830F] hover:text-[#D4830F] px-8 py-4 rounded-full font-medium transition-all duration-300"
               >
                 <span>Наши бренды</span>
               </Link>
@@ -148,8 +146,8 @@ export function HeroSection({ product }: HeroSectionProps) {
             <div className="flex items-start gap-3 pt-4">
               <MapPin className="size-5 text-[#D4830F] flex-shrink-0 mt-1" />
               <div className="space-y-1">
-                <p className="font-semibold text-white">Наш бутик</p>
-                <p className="text-sm text-gray-300">
+                <p className="font-semibold text-[#1a1a1a]">Наш бутик</p>
+                <p className="text-sm text-[#6B7280]">
                   Невский пр., 114-116, ТЦ Невский центр, 4 этаж
                 </p>
               </div>
@@ -209,6 +207,10 @@ export function HeroSection({ product }: HeroSectionProps) {
           </div>
         </div>
       </div>
+
+      {/* Декоративные элементы фона */}
+      <div className="absolute top-20 right-10 w-72 h-72 bg-[#FFE4B5] rounded-full blur-3xl opacity-20 animate-float pointer-events-none" />
+      <div className="absolute bottom-20 left-10 w-96 h-96 bg-[#FFA500] rounded-full blur-3xl opacity-10 animate-float-delayed pointer-events-none" />
     </section>
   );
 }
