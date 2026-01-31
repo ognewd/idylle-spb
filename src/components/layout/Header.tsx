@@ -6,7 +6,6 @@ import { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
   Search,
   ShoppingCart,
@@ -104,15 +103,13 @@ export function Header() {
 
   return (
     <header
-      className={`sticky top-0 z-50 transition-all duration-500 ${
-        isScrolled
-          ? 'bg-white/95 backdrop-blur-xl shadow-xl shadow-black/5'
-          : 'bg-white/80 backdrop-blur-md'
+      className={`sticky top-0 z-50 transition-all duration-500 bg-gradient-to-r from-slate-900 via-gray-900 to-slate-900 ${
+        isScrolled ? 'shadow-2xl shadow-black/30' : 'shadow-xl shadow-black/20'
       }`}
     >
-      {/* Top bar */}
+      {/* Top bar — тёмная версия */}
       <div
-        className={`border-b border-gray-100/50 transition-all duration-500 ${
+        className={`border-b border-white/10 transition-all duration-500 ${
           isScrolled ? 'max-h-0 overflow-hidden opacity-0' : 'max-h-20 opacity-100'
         }`}
       >
@@ -121,24 +118,24 @@ export function Header() {
             <div className="flex items-center gap-6">
               <a
                 href="tel:8-800-500-87-29"
-                className="flex items-center gap-2 text-gray-600 hover:text-[#D4830F] transition-all duration-300 group"
+                className="flex items-center gap-2 text-gray-400 hover:text-[#D4830F] transition-all duration-300 group"
               >
                 <Phone className="size-4 group-hover:scale-110 transition-transform" />
                 <span>8-800-500-87-29</span>
               </a>
-              <span className="flex items-center gap-2 text-gray-600">
+              <span className="flex items-center gap-2 text-gray-400">
                 <MapPin className="size-4" />
                 <span>Санкт-Петербург, Невский пр., 114-116</span>
               </span>
             </div>
             <div className="hidden md:flex items-center gap-4">
-              <Link href="/about" className="text-gray-600 hover:text-[#D4830F] transition-colors">
+              <Link href="/about" className="text-gray-400 hover:text-[#D4830F] transition-colors">
                 О нас
               </Link>
-              <Link href="/delivery" className="text-gray-600 hover:text-[#D4830F] transition-colors">
+              <Link href="/delivery" className="text-gray-400 hover:text-[#D4830F] transition-colors">
                 Доставка
               </Link>
-              <Link href="/contacts" className="text-gray-600 hover:text-[#D4830F] transition-colors">
+              <Link href="/contacts" className="text-gray-400 hover:text-[#D4830F] transition-colors">
                 Контакты
               </Link>
             </div>
@@ -146,22 +143,22 @@ export function Header() {
         </div>
       </div>
 
-      {/* Main header */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      {/* Main header — тёмная версия */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 border-b border-white/10">
         <div className="flex items-center justify-between py-4">
-          {/* Logo */}
-          <Link href="/" className="flex-shrink-0">
+          {/* Logo — светлый (инвертированный) с золотым свечением при hover */}
+          <Link href="/" className="flex-shrink-0 group cursor-pointer">
             <Image
               src="/logo-idylle.png"
-              alt="Idylle"
+              alt="AROMA Boutique IDYLLE"
               width={220}
               height={82}
-              className="h-14 w-auto"
+              className="h-12 w-auto transition-all duration-300 group-hover:drop-shadow-[0_0_20px_rgba(212,131,15,0.6)] brightness-0 invert"
               priority
             />
           </Link>
 
-          {/* Search bar - Desktop */}
+          {/* Search bar — glassmorphism на тёмном фоне */}
           <div className="hidden md:flex flex-1 max-w-2xl mx-12">
             <form onSubmit={handleSearch} className="relative w-full group">
               <input
@@ -171,16 +168,16 @@ export function Header() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onFocus={() => searchQuery.length >= 2 && setShowSearchResults(true)}
                 onBlur={() => setTimeout(() => setShowSearchResults(false), 200)}
-                className="w-full pl-4 pr-12 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D4830F] focus:border-transparent transition-all bg-white/50 backdrop-blur-sm group-hover:bg-white/80"
+                className="w-full pl-5 pr-14 py-3.5 border-2 border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4830F] focus:border-[#D4830F] transition-all bg-white/10 backdrop-blur-md group-hover:bg-white/15 group-hover:border-[#D4830F]/50 text-white placeholder:text-gray-400"
               />
               <Button
                 type="submit"
-                className="absolute right-2 top-1/2 -translate-y-1/2 bg-gray-900 text-white p-2 rounded-md hover:bg-[#D4830F] transition-all duration-300 hover:scale-105 h-8 w-8"
+                className="absolute right-2 top-1/2 -translate-y-1/2 bg-gradient-to-r from-[#D4830F] to-amber-500 text-white p-2.5 rounded-lg transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-[#D4830F]/40 h-9 w-9"
               >
                 <Search className="size-5" />
               </Button>
               {showSearchResults && (searchResults.length > 0 || isSearching) && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-lg border border-gray-200 max-h-96 overflow-y-auto z-50">
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-200 max-h-96 overflow-y-auto z-50 text-gray-900">
                   {isSearching ? (
                     <div className="p-4 text-center text-gray-500">Поиск...</div>
                   ) : searchResults.length > 0 ? (
@@ -232,26 +229,26 @@ export function Header() {
             </form>
           </div>
 
-          {/* Actions */}
-          <div className="flex items-center gap-2 sm:gap-4">
+          {/* Actions — светлые иконки на тёмном фоне */}
+          <div className="flex items-center gap-2 sm:gap-3">
             <Link
               href="/wishlist"
-              className="relative p-2 hover:bg-amber-50 rounded-lg transition-all duration-300 group"
+              className="relative p-2.5 hover:bg-white/10 rounded-xl transition-all duration-300 group"
             >
-              <Heart className="size-6 text-gray-700 group-hover:text-[#D4830F] group-hover:scale-110 transition-all" />
+              <Heart className="size-6 text-gray-300 group-hover:text-[#D4830F] group-hover:scale-110 transition-all" />
               {wishlistItems.length > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs size-5 flex items-center justify-center rounded-full">
+                <span className="absolute -top-1 -right-1 bg-gradient-to-r from-red-500 to-red-600 text-white text-xs size-5 flex items-center justify-center rounded-full font-medium shadow-lg shadow-red-500/30">
                   {wishlistItems.length}
                 </span>
               )}
             </Link>
             <Link
               href="/cart"
-              className="p-2 hover:bg-amber-50 rounded-lg transition-all duration-300 group relative"
+              className="p-2.5 hover:bg-white/10 rounded-xl transition-all duration-300 group relative"
             >
-              <ShoppingCart className="size-6 text-gray-700 group-hover:text-[#D4830F] group-hover:scale-110 transition-all" />
+              <ShoppingCart className="size-6 text-gray-300 group-hover:text-[#D4830F] group-hover:scale-110 transition-all" />
               {totalItems > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs size-5 flex items-center justify-center rounded-full">
+                <span className="absolute -top-1 -right-1 bg-gradient-to-r from-red-500 to-red-600 text-white text-xs size-5 flex items-center justify-center rounded-full font-medium shadow-lg shadow-red-500/30">
                   {totalItems}
                 </span>
               )}
@@ -260,18 +257,16 @@ export function Header() {
               <button
                 type="button"
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                className="p-2 hover:bg-amber-50 rounded-lg transition-all duration-300 group"
+                className="p-2.5 hover:bg-white/10 rounded-xl transition-all duration-300 group"
               >
-                <User className="size-6 text-gray-700 group-hover:text-[#D4830F] group-hover:scale-110 transition-all" />
+                <User className="size-6 text-gray-300 group-hover:text-[#D4830F] group-hover:scale-110 transition-all" />
               </button>
               {isUserMenuOpen && (
-                <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-200 py-2 z-50 text-gray-900">
                   {session?.user ? (
                     <>
                       <div className="px-4 py-2 border-b border-gray-200">
-                        <p className="text-sm font-medium text-gray-900">
-                          {session.user.name || session.user.email}
-                        </p>
+                        <p className="text-sm font-medium">{session.user.name || session.user.email}</p>
                         <p className="text-xs text-gray-500">{session.user.email}</p>
                       </div>
                       <Link
@@ -313,7 +308,7 @@ export function Header() {
             </div>
             <button
               type="button"
-              className="md:hidden p-2 hover:bg-amber-50 rounded-lg"
+              className="md:hidden p-2.5 hover:bg-white/10 rounded-xl text-gray-300"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               aria-label="Меню"
             >
@@ -323,7 +318,7 @@ export function Header() {
         </div>
       </div>
 
-      {/* Navigation — тёмное меню */}
+      {/* Navigation — тёмная навигация */}
       <nav className="bg-gradient-to-r from-slate-900 via-gray-900 to-slate-900 relative">
         <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-[#D4830F]/50 to-transparent" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -376,51 +371,51 @@ export function Header() {
         <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-[#D4830F]/30 to-transparent" />
       </nav>
 
-      {/* Mobile menu */}
+      {/* Mobile menu — тёмная версия */}
       {isMobileMenuOpen && (
-        <div className="md:hidden border-t bg-white">
+        <div className="md:hidden border-t border-white/10 bg-slate-900/98">
           <div className="max-w-7xl mx-auto px-4 py-4 space-y-4">
             <form onSubmit={handleSearch} className="relative">
               <div className="relative">
-                <Input
+                <input
                   type="text"
                   placeholder="Поиск ароматов"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pr-10"
+                  className="w-full pl-4 pr-12 py-3 bg-white/10 border-2 border-white/20 rounded-xl text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#D4830F] focus:border-[#D4830F]"
                 />
                 <Button
                   type="submit"
                   size="sm"
-                  className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 p-0 bg-gradient-to-r from-[#D4830F] to-amber-500 text-white rounded-lg hover:opacity-90"
                 >
                   <Search className="size-4" />
                 </Button>
               </div>
             </form>
             <nav className="space-y-1">
-              <Link href="/business" onClick={() => setIsMobileMenuOpen(false)} className="block py-2 text-gray-700 hover:text-[#D4830F] border-b">
+              <Link href="/business" onClick={() => setIsMobileMenuOpen(false)} className="block py-2.5 text-gray-300 hover:text-[#D4830F] border-b border-white/10 transition-colors">
                 Ароматы для бизнеса
               </Link>
-              <Link href="/aromaty-dlya-doma" onClick={() => setIsMobileMenuOpen(false)} className="block py-2 text-gray-700 hover:text-[#D4830F] border-b">
+              <Link href="/aromaty-dlya-doma" onClick={() => setIsMobileMenuOpen(false)} className="block py-2.5 text-gray-300 hover:text-[#D4830F] border-b border-white/10 transition-colors">
                 Ароматы для дома
               </Link>
-              <Link href="/uyut-i-interer" onClick={() => setIsMobileMenuOpen(false)} className="block py-2 text-gray-700 hover:text-[#D4830F] border-b">
+              <Link href="/uyut-i-interer" onClick={() => setIsMobileMenuOpen(false)} className="block py-2.5 text-gray-300 hover:text-[#D4830F] border-b border-white/10 transition-colors">
                 Уют и интерьер
               </Link>
-              <Link href="/podarki" onClick={() => setIsMobileMenuOpen(false)} className="block py-2 text-gray-700 hover:text-[#D4830F] border-b">
+              <Link href="/podarki" onClick={() => setIsMobileMenuOpen(false)} className="block py-2.5 text-gray-300 hover:text-[#D4830F] border-b border-white/10 transition-colors">
                 Подарки
               </Link>
-              <Link href="/vannaya-komnata" onClick={() => setIsMobileMenuOpen(false)} className="block py-2 text-gray-700 hover:text-[#D4830F] border-b">
+              <Link href="/vannaya-komnata" onClick={() => setIsMobileMenuOpen(false)} className="block py-2.5 text-gray-300 hover:text-[#D4830F] border-b border-white/10 transition-colors">
                 Ванная комната
               </Link>
-              <Link href="/dealers" onClick={() => setIsMobileMenuOpen(false)} className="block py-2 text-gray-700 hover:text-[#D4830F] border-b">
+              <Link href="/dealers" onClick={() => setIsMobileMenuOpen(false)} className="block py-2.5 text-gray-300 hover:text-[#D4830F] border-b border-white/10 transition-colors">
                 Дилерам
               </Link>
-              <Link href="/promotions" onClick={() => setIsMobileMenuOpen(false)} className="block py-2 font-semibold text-[#D4830F]">
+              <Link href="/promotions" onClick={() => setIsMobileMenuOpen(false)} className="block py-2.5 font-semibold text-[#D4830F] border-b border-white/10">
                 Акции
               </Link>
-              <Link href="/sale" onClick={() => setIsMobileMenuOpen(false)} className="block py-2 font-semibold text-red-600">
+              <Link href="/sale" onClick={() => setIsMobileMenuOpen(false)} className="block py-2.5 font-semibold text-red-400 hover:text-red-300 border-b border-white/10">
                 Распродажа
               </Link>
             </nav>
