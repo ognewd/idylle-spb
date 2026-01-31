@@ -1,0 +1,306 @@
+'use client';
+
+import { useState } from 'react';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Heart, ShoppingCart, Star, Image as ImageIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useCart } from '@/contexts/CartContext';
+import { useWishlist } from '@/contexts/WishlistContext';
+import { getImageUrl } from '@/lib/image-url';
+
+interface ProductVariant {
+  id: string;
+  name: string;
+  value: string;
+  price: number;
+  comparePrice?: number;
+  stock: number;
+  sku?: string;
+  isDefault?: boolean;
+}
+
+interface Product {
+  id: string;
+  name: string;
+  slug: string;
+  price: number;
+  comparePrice?: number;
+  originalPrice?: number;
+  seasonalDiscount?: {
+    id: string;
+    name: string;
+    discount: number;
+  };
+  images: Array<{
+    url: string;
+    alt?: string;
+    isPrimary: boolean;
+  }> | string[];
+  brand: {
+    name: string;
+    slug: string;
+  };
+  volume?: string;
+  aromaFamily?: string;
+  gender?: string;
+  stock: number;
+  isFeatured?: boolean;
+  rating?: number;
+  reviewCount?: number;
+  variants?: ProductVariant[];
+}
+
+interface ProductCardListProps {
+  product: Product;
+  className?: string;
+}
+
+export function ProductCardList({ product, className }: ProductCardListProps) {
+  const { addItem } = useCart();
+  const { isInWishlist: wishlistHas, toggle } = useWishlist();
+  
+  const hasVariants = product.variants && product.variants.length > 0;
+  
+  const getDefaultVariant = () => {
+    if (!hasVariants) return null;
+    const sorted = [...product.variants!].sort((a, b) => a.price - b.price);
+    return sorted[0];
+  };
+  
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(getDefaultVariant());
+
+  const currentPrice = selectedVariant ? selectedVariant.price : product.price;
+  const currentComparePrice = selectedVariant ? selectedVariant.comparePrice : product.comparePrice;
+  const currentStock = selectedVariant ? selectedVariant.stock : product.stock;
+
+  const discountPercentage = product.seasonalDiscount
+    ? product.seasonalDiscount.discount
+    : currentComparePrice
+    ? Math.round(((currentComparePrice - currentPrice) / currentComparePrice) * 100)
+    : 0;
+
+  const isOutOfStock = currentStock === 0;
+
+  const handleAddToWishlist = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    toggle({
+      id: product.id,
+      slug: product.slug,
+      name: product.name,
+      image: product.images && product.images.length > 0
+        ? (typeof product.images[0] === 'string' ? product.images[0] : product.images[0]?.url || '/placeholder-product.jpg')
+        : '/placeholder-product.jpg',
+      price: currentPrice,
+    });
+  };
+
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const imageUrl = product.images && product.images.length > 0
+      ? (typeof product.images[0] === 'string' 
+        ? product.images[0] 
+        : product.images[0]?.url || '/placeholder-product.jpg')
+      : '/placeholder-product.jpg';
+      
+    addItem({
+      id: selectedVariant ? `${product.id}-${selectedVariant.id}` : product.id,
+      productId: product.id,
+      name: product.name,
+      price: currentPrice,
+      image: imageUrl,
+      variant: selectedVariant ? {
+        id: selectedVariant.id,
+        volume: selectedVariant.value,
+      } : undefined,
+    });
+  };
+
+  const handleVariantChange = (variantId: string) => {
+    const variant = product.variants?.find(v => v.id === variantId);
+    if (variant) {
+      setSelectedVariant(variant);
+    }
+  };
+
+  const primaryImage = product.images && product.images.length > 0
+    ? (typeof product.images[0] === 'string' 
+      ? product.images[0] as string
+      : product.images[0]?.url)
+    : null;
+
+  return (
+    <div className={cn(
+      "group bg-white border border-neutral-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow duration-300",
+      className
+    )}>
+      <div className="flex flex-col sm:flex-row gap-4 p-4">
+        {/* Image */}
+        <div className="relative w-full sm:w-48 aspect-square flex-shrink-0 overflow-hidden bg-neutral-100 rounded-lg">
+          {primaryImage ? (
+            <Link href={`/catalog/${product.slug}`} className="block w-full h-full">
+              <img
+                src={getImageUrl(primaryImage)}
+                alt={product.name}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                onError={(e) => {
+                  const target = e.currentTarget;
+                  target.onerror = null;
+                  target.src = '/placeholder-product.jpg';
+                }}
+              />
+            </Link>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+              <ImageIcon className="h-12 w-12 opacity-50" />
+            </div>
+          )}
+          
+          {/* Badges */}
+          <div className="absolute top-2 left-2 flex flex-col gap-1">
+            {product.isFeatured && (
+              <Badge className="bg-orange-500 hover:bg-orange-600 text-xs">
+                Хит
+              </Badge>
+            )}
+            {discountPercentage > 0 && (
+              <Badge variant="destructive" className="text-xs">
+                -{discountPercentage}%
+              </Badge>
+            )}
+          </div>
+
+          {/* Stock Status */}
+          {isOutOfStock && (
+            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+              <Badge variant="secondary">
+                Нет в наличии
+              </Badge>
+            </div>
+          )}
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 flex flex-col justify-between min-w-0">
+          <div>
+            {/* Brand & Name */}
+            <Link
+              href={`/catalog?brand=${product.brand.slug}`}
+              className="text-xs text-neutral-500 hover:text-neutral-900"
+            >
+              {product.brand.name}
+            </Link>
+            <Link href={`/catalog/${product.slug}`}>
+              <h3 className="font-medium text-base mb-2 hover:text-primary transition-colors">
+                {product.name}
+              </h3>
+            </Link>
+
+            {/* Details */}
+            <div className="flex flex-wrap items-center gap-2 mb-3 text-sm text-neutral-600">
+              {product.volume && (
+                <span className="bg-neutral-100 px-2 py-1 rounded">
+                  {product.volume}
+                </span>
+              )}
+              {product.aromaFamily && (
+                <span className="bg-neutral-100 px-2 py-1 rounded">
+                  {product.aromaFamily}
+                </span>
+              )}
+            </div>
+
+            {/* Rating */}
+            {product.rating !== undefined && product.reviewCount !== undefined && product.reviewCount > 0 && (
+              <div className="flex items-center gap-2 mb-3">
+                <div className="flex items-center gap-1">
+                  {[...Array(5)].map((_, i) => (
+                    <Star
+                      key={i}
+                      className={cn(
+                        "size-4",
+                        i < Math.floor(product.rating!)
+                          ? 'fill-yellow-400 text-yellow-400'
+                          : 'text-neutral-300'
+                      )}
+                    />
+                  ))}
+                </div>
+                <span className="text-sm font-medium">{product.rating.toFixed(1)}</span>
+                <span className="text-sm text-neutral-500">
+                  ({product.reviewCount} отзывов)
+                </span>
+              </div>
+            )}
+
+            {/* Variant Selector */}
+            {hasVariants && (
+              <div className="mb-3 max-w-xs">
+                <Select
+                  value={selectedVariant?.id}
+                  onValueChange={handleVariantChange}
+                >
+                  <SelectTrigger className="w-full h-9 text-sm">
+                    <SelectValue placeholder="Выберите объем" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {product.variants!.map((variant) => (
+                      <SelectItem key={variant.id} value={variant.id}>
+                        {variant.value}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+
+          {/* Price & Actions */}
+          <div className="flex items-center justify-between gap-4 pt-3 border-t border-neutral-100">
+            <div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold">{currentPrice.toLocaleString('ru-RU')} ₽</span>
+                {(currentComparePrice || product.originalPrice) && (
+                  <span className="text-sm text-neutral-400 line-through">
+                    {(product.originalPrice || currentComparePrice)!.toLocaleString('ru-RU')} ₽
+                  </span>
+                )}
+              </div>
+              {product.seasonalDiscount && (
+                <p className="text-xs text-green-600 font-medium mt-0.5">
+                  🎉 {product.seasonalDiscount.name}
+                </p>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="icon"
+                className="size-10"
+                onClick={handleAddToWishlist}
+              >
+                <Heart className={cn(
+                  "size-4",
+                  wishlistHas(product.id) ? "fill-red-500 text-red-500" : ""
+                )} />
+              </Button>
+              <Button
+                className="gap-2"
+                disabled={isOutOfStock}
+                onClick={handleAddToCart}
+              >
+                <ShoppingCart className="size-4" />
+                В корзину
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
