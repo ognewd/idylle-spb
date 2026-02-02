@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getCdekCredentials } from '@/lib/cdek/credentials';
 
 /**
  * GET /api/cdek/cities?query=...
@@ -14,8 +15,7 @@ import { NextRequest, NextResponse } from 'next/server';
 let tokenCache: { token: string; expiresAt: number } | null = null;
 
 async function getCdekToken(): Promise<string> {
-  const CDEK_CLIENT_ID = process.env.CDEK_CLIENT_ID || 'wqGwiQx0gg8mLtiEKsUinjVSICCjtTEP';
-  const CDEK_CLIENT_SECRET = process.env.CDEK_CLIENT_SECRET || 'RmAmgvSgSl1yirlz9QupbzOJVqhCxcP5';
+  const { clientId, clientSecret } = await getCdekCredentials();
 
   // Проверяем кэш
   if (tokenCache && tokenCache.expiresAt > Date.now() + 60000) {
@@ -23,7 +23,7 @@ async function getCdekToken(): Promise<string> {
   }
 
   // Получаем токен используя ТОЧНО указанный URL
-  const tokenUrl = `https://api.edu.cdek.ru/v2/oauth/token?grant_type=client_credentials&client_id=${CDEK_CLIENT_ID}&client_secret=${CDEK_CLIENT_SECRET}`;
+  const tokenUrl = `https://api.edu.cdek.ru/v2/oauth/token?grant_type=client_credentials&client_id=${clientId}&client_secret=${clientSecret}`;
 
   const response = await fetch(tokenUrl, {
     method: 'POST',

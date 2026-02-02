@@ -4,6 +4,7 @@
  */
 
 import { CdekAuthResponse, CdekError } from './types';
+import { getCdekCredentials } from './credentials';
 
 interface TokenCache {
   token: string;
@@ -14,28 +15,22 @@ let tokenCache: TokenCache | null = null;
 
 /**
  * Получить access token для API СДЕК
- * Токен кэшируется и автоматически обновляется при истечении
+ * Токен кэшируется и автоматически обновляется при истечении.
+ * Учётные данные берутся из настроек админки (БД) или из переменных окружения.
  */
 export async function getCdekAccessToken(): Promise<string> {
-  const CDEK_CLIENT_ID = process.env.CDEK_CLIENT_ID;
-  const CDEK_CLIENT_SECRET = process.env.CDEK_CLIENT_SECRET;
-  const CDEK_API_URL = process.env.CDEK_TEST_MODE === 'true' 
+  const { clientId, clientSecret } = await getCdekCredentials();
+  const CDEK_API_URL = process.env.CDEK_TEST_MODE === 'true'
     ? process.env.CDEK_API_TEST_URL || 'https://api.edu.cdek.ru/v2'
     : process.env.CDEK_API_URL || 'https://api.cdek.ru/v2';
 
-  if (!CDEK_CLIENT_ID || !CDEK_CLIENT_SECRET) {
-    throw new Error('CDEK_CLIENT_ID и CDEK_CLIENT_SECRET должны быть установлены в переменных окружения');
-  }
-
   // Проверяем кэш токена
   if (tokenCache && tokenCache.expiresAt > Date.now() + 60000) {
-    // Токен еще действителен (с запасом 1 минута)
     return tokenCache.token;
   }
 
   try {
-    // Формируем Basic Auth заголовок
-    const credentials = Buffer.from(`${CDEK_CLIENT_ID}:${CDEK_CLIENT_SECRET}`).toString('base64');
+    const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
 
     const response = await fetch(`${CDEK_API_URL}/oauth/token?grant_type=client_credentials`, {
       method: 'POST',

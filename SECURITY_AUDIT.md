@@ -29,18 +29,11 @@
 
 ---
 
-### 3. Учётные данные CDEK в коде (fallback)
+### 3. ~~Учётные данные CDEK в коде (fallback)~~ (исправлено)
 
-**Файл:** `src/app/api/cdek/cities/route.ts`
+**Было:** В `src/app/api/cdek/cities/route.ts` и тестовых скриптах использовались хардкодные fallback-значения для CDEK_CLIENT_ID и CDEK_CLIENT_SECRET.
 
-**Проблема:** Хардкод запасных значений:
-```ts
-process.env.CDEK_CLIENT_ID || 'wqGwiQx0gg8mLtiEKsUinjVSICCjtTEP'
-process.env.CDEK_CLIENT_SECRET || 'RmAmgvSgSl1yirlz9QupbzOJVqhCxcP5'
-```
-Эти значения попадают в репозиторий и могут использоваться кем угодно (злоупотребление API CDEK, списание средств).
-
-**Рекомендация:** Удалить fallback. Использовать только переменные окружения; при их отсутствии возвращать 503 или явную ошибку конфигурации.
+**Сделано:** Добавлен хелпер `getCdekCredentials()` (`@/lib/cdek/credentials.ts`), который читает учётные данные из таблицы `Settings` (ключи CDEK_CLIENT_ID, CDEK_CLIENT_SECRET) или из переменных окружения; хардкодных значений нет. В админке добавлена страница «Доставка (СДЕК)» (`/admin/delivery`) и API `GET/POST /api/admin/cdek` (с JWT) для задания и сохранения учётных данных. Маршруты `/api/cdek/cities` и `@/lib/cdek/auth.ts` используют `getCdekCredentials()`; при отсутствии данных возвращается/бросается явная ошибка конфигурации.
 
 ---
 

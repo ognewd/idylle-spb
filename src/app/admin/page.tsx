@@ -22,7 +22,8 @@ import {
   FileText,
   CheckSquare,
   Wrench,
-  Star
+  Star,
+  Truck
 } from 'lucide-react';
 import { hasAccessToSection } from '@/lib/admin-permissions';
 
@@ -153,6 +154,15 @@ export default function AdminDashboard() {
       href: '/admin/seasonal-discounts',
       color: 'bg-pink-500',
       section: 'seasonal-discounts' as const,
+      sectionName: 'Продажи' as const,
+    },
+    {
+      title: 'Доставка (СДЕК)',
+      description: 'Учётные данные API СДЕК для автокомплита городов и расчёта доставки',
+      icon: Truck,
+      href: '/admin/delivery',
+      color: 'bg-emerald-500',
+      section: 'orders' as const,
       sectionName: 'Продажи' as const,
     },
     // Секция C: Коммуникации и контент
