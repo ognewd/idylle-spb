@@ -5,6 +5,7 @@ import { existsSync } from 'fs';
 import { writeFile, mkdir } from 'fs/promises';
 import { prisma } from '@/lib/prisma';
 import { generateSlug } from '@/lib/transliterate';
+import { getJwtSecret } from '@/lib/admin-auth';
 
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.webp'];
@@ -80,9 +81,11 @@ function verifyAdminToken(request: NextRequest) {
     return null;
   }
 
+  const secret = getJwtSecret();
+  if (!secret) return null;
   const token = authHeader.substring(7);
   try {
-    const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET || 'fallback-secret') as any;
+    const decoded = jwt.verify(token, secret) as any;
     return decoded;
   } catch {
     return null;

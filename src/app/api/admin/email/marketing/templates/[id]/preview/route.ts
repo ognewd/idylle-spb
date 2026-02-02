@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { prisma } from '@/lib/prisma';
+import { getJwtSecret } from '@/lib/admin-auth';
 import { renderMarketingEmail } from '@/lib/email-marketing-renderer';
 
 // Helper to verify admin token
@@ -10,9 +11,11 @@ const verifyAdminToken = async (request: NextRequest) => {
     return { error: 'Unauthorized', status: 401 };
   }
 
+  const secret = getJwtSecret();
+  if (!secret) return { error: 'Unauthorized', status: 500 };
   const token = authHeader.substring(7);
   try {
-    const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET || 'fallback-secret') as any;
+    const decoded = jwt.verify(token, secret) as any;
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
     });

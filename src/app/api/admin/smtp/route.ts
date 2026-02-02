@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { testSMTPConnection, sendMail } from '@/lib/mail';
 import { prisma } from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
+import { getJwtSecret } from '@/lib/admin-auth';
 
 function verifyAdminToken(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
@@ -10,9 +11,10 @@ function verifyAdminToken(request: NextRequest) {
   if (!token) {
     return null;
   }
-
+  const secret = getJwtSecret();
+  if (!secret) return null;
   try {
-    const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET || 'fallback-secret') as any;
+    const decoded = jwt.verify(token, secret) as any;
     if (decoded.role !== 'admin' && decoded.role !== 'super_admin') {
       return null;
     }

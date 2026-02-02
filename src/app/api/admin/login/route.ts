@@ -2,13 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { prisma } from '@/lib/prisma';
+import { getJwtSecret } from '@/lib/admin-auth';
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('Admin login request received');
     const { email, password } = await request.json();
-
-    console.log('Email:', email);
 
     if (!email || !password) {
       return NextResponse.json(
@@ -17,8 +15,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find admin user
-    console.log('Searching for user in database...');
     const user = await prisma.user.findUnique({
       where: { email },
       select: {
@@ -31,8 +27,6 @@ export async function POST(request: NextRequest) {
         allowedAdminSections: true,
       },
     });
-    
-    console.log('User found:', user ? 'Yes' : 'No');
 
     if (!user || user.role !== 'admin' && user.role !== 'super_admin') {
       return NextResponse.json(
@@ -57,15 +51,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate JWT token
+    const secret = getJwtSecret();
+    if (!secret) {
+      return NextResponse.json(
+        { error: 'Внутренняя ошибка сервера' },
+        { status: 500 }
+      );
+    }
+
     const token = jwt.sign(
-      { 
-        userId: user.id, 
-        email: user.email, 
+      {
+        userId: user.id,
+        email: user.email,
         role: user.role,
         allowedAdminSections: user.allowedAdminSections || [],
       },
-      process.env.NEXTAUTH_SECRET || 'fallback-secret',
+      secret,
       { expiresIn: '24h' }
     );
 

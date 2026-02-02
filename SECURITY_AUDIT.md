@@ -21,19 +21,11 @@
 
 ---
 
-### 2. Fallback-секрет JWT в коде
+### 2. ~~Fallback-секрет JWT в коде~~ (исправлено)
 
-**Файлы:** множество (admin-auth.ts, admin/login/route.ts, admin/orders, pages, products, и т.д.)
+**Было:** Везде использовался `process.env.NEXTAUTH_SECRET || 'fallback-secret'`.
 
-**Проблема:** Везде используется:
-```ts
-process.env.NEXTAUTH_SECRET || 'fallback-secret'
-```
-Если на проде не задан `NEXTAUTH_SECRET`, подпись JWT будет предсказуемой. Зная `fallback-secret`, можно подделывать токены администратора.
-
-**Рекомендация:**
-- Убрать fallback: при отсутствии `NEXTAUTH_SECRET` возвращать 500 и не запускать приложение.
-- Убедиться, что на проде задана длинная случайная строка (например, `openssl rand -base64 32`).
+**Сделано:** В `@/lib/admin-auth.ts` добавлена функция `getJwtSecret()` без fallback. Все admin API используют её; при отсутствии `NEXTAUTH_SECRET` возвращается 500. В `admin/login/route.ts` при выдаче JWT также проверяется секрет. Логи с email в login убраны.
 
 ---
 

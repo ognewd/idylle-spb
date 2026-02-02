@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
+import { getJwtSecret } from '@/lib/admin-auth';
 
 // GET /api/admin/products/[id] - Получить товар по ID
 export async function GET(
@@ -25,8 +26,9 @@ export async function GET(
     const token = authHeader.substring(7);
     console.log('[GET /api/admin/products/[id]] Token length:', token.length);
     
+    const secret = getJwtSecret();
+    if (!secret) return NextResponse.json({ error: 'Unauthorized' }, { status: 500 });
     try {
-      const secret = process.env.NEXTAUTH_SECRET || 'fallback-secret';
       const decoded = jwt.verify(token, secret) as any;
       console.log('[GET /api/admin/products/[id]] Token decoded, userId:', decoded.userId);
       
@@ -107,10 +109,11 @@ export async function PUT(
     }
 
     const token = authHeader.substring(7);
-    
+    const secret = getJwtSecret();
+    if (!secret) return NextResponse.json({ error: 'Unauthorized' }, { status: 500 });
     try {
-      const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET || 'fallback-secret') as any;
-      
+      const decoded = jwt.verify(token, secret) as any;
+
       const user = await prisma.user.findUnique({
         where: { id: decoded.userId },
       });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { prisma } from '@/lib/prisma';
+import { getJwtSecret } from '@/lib/admin-auth';
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,9 +11,10 @@ export async function GET(request: NextRequest) {
     }
 
     const token = authHeader.substring(7);
-    
+    const secret = getJwtSecret();
+    if (!secret) return NextResponse.json({ error: 'Unauthorized' }, { status: 500 });
     try {
-      const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET || 'fallback-secret') as any;
+      const decoded = jwt.verify(token, secret) as any;
       
       const user = await prisma.user.findUnique({
         where: { id: decoded.userId },

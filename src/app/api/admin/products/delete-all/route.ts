@@ -1,16 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { prisma } from '@/lib/prisma';
+import { getJwtSecret } from '@/lib/admin-auth';
 
 function verifyAdminToken(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return null;
   }
-
+  const secret = getJwtSecret();
+  if (!secret) return null;
   const token = authHeader.substring(7);
   try {
-    const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET || 'fallback-secret') as any;
+    const decoded = jwt.verify(token, secret) as any;
     return decoded;
   } catch {
     return null;
