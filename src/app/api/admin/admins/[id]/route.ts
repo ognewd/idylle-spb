@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
+import { verifyAdminToken } from '@/lib/admin-auth';
 
-const prisma = new PrismaClient();
-
-// Получить информацию об администраторе
+// Получить информацию об администраторе (только для авторизованных админов)
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const authResult = await verifyAdminToken(request);
+  if (authResult.error) {
+    return NextResponse.json({ error: authResult.error }, { status: authResult.status });
+  }
+
   try {
     const admin = await prisma.user.findUnique({
       where: {
@@ -47,11 +51,16 @@ export async function GET(
   }
 }
 
-// Обновить администратора (статус или права доступа)
+// Обновить администратора (статус или права доступа) — только для авторизованных админов
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const authResult = await verifyAdminToken(request);
+  if (authResult.error) {
+    return NextResponse.json({ error: authResult.error }, { status: authResult.status });
+  }
+
   try {
     const body = await request.json();
     const { isActive, allowedAdminSections } = body;
@@ -114,11 +123,16 @@ export async function PATCH(
   }
 }
 
-// Удалить администратора
+// Удалить администратора — только для авторизованных админов
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const authResult = await verifyAdminToken(request);
+  if (authResult.error) {
+    return NextResponse.json({ error: authResult.error }, { status: authResult.status });
+  }
+
   try {
     // Проверяем, что это не последний администратор
     const adminCount = await prisma.user.count({

@@ -58,10 +58,12 @@ export function AdminsTable({ admins, onUpdateAdmin }: AdminsTableProps) {
     setLoadingStates(prev => ({ ...prev, [adminId]: true }));
     
     try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('admin_token') : null;
       const response = await fetch(`/api/admin/admins/${adminId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` }),
         },
         body: JSON.stringify({ isActive: !currentStatus }),
       });
@@ -88,8 +90,10 @@ export function AdminsTable({ admins, onUpdateAdmin }: AdminsTableProps) {
     setDeleteStates(prev => ({ ...prev, [adminId]: true }));
     
     try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('admin_token') : null;
       const response = await fetch(`/api/admin/admins/${adminId}`, {
         method: 'DELETE',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
 
       const result = await response.json();

@@ -55,10 +55,12 @@ export function AddAdminModal({ isOpen, onClose, onSuccess }: AddAdminModalProps
     setError('');
 
     try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('admin_token') : null;
       const response = await fetch('/api/admin/admins', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` }),
         },
         body: JSON.stringify(formData),
       });

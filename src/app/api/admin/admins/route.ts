@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { prisma } from '@/lib/prisma';
+import { verifyAdminToken } from '@/lib/admin-auth';
 
-const prisma = new PrismaClient();
-
-// Получить список всех администраторов
+// Получить список всех администраторов (только для авторизованных админов)
 export async function GET(request: NextRequest) {
+  const authResult = await verifyAdminToken(request);
+  if (authResult.error) {
+    return NextResponse.json({ error: authResult.error }, { status: authResult.status });
+  }
+
   try {
-    console.log('DEBUG: Starting GET /api/admin/admins');
-    console.log('DEBUG: DATABASE_URL:', process.env.DATABASE_URL?.substring(0, 50) + '...');
-    
     const admins = await prisma.user.findMany({
       where: {
         role: {
@@ -30,8 +31,6 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    console.log('DEBUG: Found admins:', admins.length);
-
     return NextResponse.json({
       success: true,
       admins,
@@ -50,8 +49,13 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// Создать нового администратора
+// Создать нового администратора (только для авторизованных админов)
 export async function POST(request: NextRequest) {
+  const authResult = await verifyAdminToken(request);
+  if (authResult.error) {
+    return NextResponse.json({ error: authResult.error }, { status: authResult.status });
+  }
+
   try {
     const body = await request.json();
     const { name, email, password, allowedAdminSections } = body;

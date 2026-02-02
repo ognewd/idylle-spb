@@ -25,7 +25,10 @@ export default function AdminsManagementPage() {
   const fetchAdmins = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/admin/admins');
+      const token = typeof window !== 'undefined' ? localStorage.getItem('admin_token') : null;
+      const response = await fetch('/api/admin/admins', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       const result = await response.json();
 
       if (result.success) {

@@ -72,10 +72,12 @@ export function EditAdminPermissionsModal({
     setError('');
 
     try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('admin_token') : null;
       const response = await fetch(`/api/admin/admins/${admin.id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` }),
         },
         body: JSON.stringify({
           allowedAdminSections: selectedSections,
