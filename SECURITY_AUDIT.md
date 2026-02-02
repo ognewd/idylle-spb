@@ -47,16 +47,11 @@
 
 ## Высокий риск
 
-### 5. XSS через `dangerouslySetInnerHTML`
+### 5. ~~XSS через `dangerouslySetInnerHTML`~~ (исправлено)
 
-**Файлы:**  
-`ProductInfo.tsx`, страницы категорий (`catalog`, `aromaty-dlya-doma`, `vannaya-komnata`, `uyut-i-interer`), `cookies`, `terms`, `privacy`, `delivery`, `about`, `CategoryContentEditor`, `PaymentMethodSelector`, `Breadcrumbs`, шаблоны рассылок.
+**Было:** Контент из БД вставлялся в DOM через `dangerouslySetInnerHTML` без санитизации.
 
-**Проблема:** Контент из БД (описание товара, страницы CMS, инструкции по оплате) вставляется в DOM через `dangerouslySetInnerHTML` без санитизации. Если админ или импорт данных когда-либо подставят HTML/JS, возможен XSS (кража сессий, подмена страниц).
-
-**Рекомендация:**
-- Санитизировать HTML перед выводом (например, `DOMPurify` на сервере или в отдельной утилите).
-- Хранить и отдавать только доверенный контент; для пользовательского контента — строгая санитизация или Markdown → HTML через безопасный рендерер.
+**Сделано:** Добавлена утилита `sanitizeHtml()` в `@/lib/sanitize.ts` на базе `isomorphic-dompurify` (DOMPurify для SSR и клиента). Whitelist тегов и атрибутов (p, strong, a, ul, img и т.д.; без script, iframe, on*). Все места вывода HTML из БД переведены на санитизацию: `ProductInfo.tsx`, страницы категорий (`catalog`, `aromaty-dlya-doma`, `vannaya-komnata`, `uyut-i-interer`), страницы CMS (`cookies`, `terms`, `privacy`, `delivery`, `about`), `CategoryContentEditor`, `PaymentMethodSelector`, редактор шаблонов рассылок (`admin/email/marketing/templates/[id]/edit`). `Breadcrumbs` не менялся — там вставляется только JSON-LD через `JSON.stringify`, не HTML.
 
 ---
 
@@ -99,11 +94,11 @@
 
 ---
 
-### 9. Переменные окружения и .gitignore
+### 9. ~~Переменные окружения и .gitignore~~ (исправлено)
 
-**Проблема:** В `.gitignore` указаны только `.env.local` и `.env*.local`. Файл `.env` (без суффикса) **не** игнорируется и может случайно попасть в репозиторий с секретами.
+**Было:** В `.gitignore` не было `.env`; только `.env.local` и `.env*.local`.
 
-**Рекомендация:** Добавить в `.gitignore` строку `.env` (и при необходимости `.env.production`, если он не должен быть в репо).
+**Сделано:** В `.gitignore` добавлена строка `.env`, чтобы файл с секретами не попадал в репозиторий.
 
 ---
 

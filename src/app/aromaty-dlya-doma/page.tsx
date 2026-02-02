@@ -8,6 +8,7 @@ import { SortSelector } from '@/components/product/SortSelector';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Home, ChevronDown, ChevronUp } from 'lucide-react';
+import { sanitizeHtml } from '@/lib/sanitize';
 
 interface Product {
   id: string;
@@ -370,7 +371,7 @@ function HomeAromasContent() {
                   <>
                     <div 
                       className={`prose prose-lg max-w-none prose-headings:font-bold prose-p:text-muted-foreground prose-p:leading-relaxed prose-p:mb-4 prose-p:last:mb-0 prose-ul:list-disc prose-ol:list-decimal prose-a:text-primary prose-a:underline hover:prose-a:text-primary/80 prose-img:rounded-lg prose-img:shadow-sm ${!isDescriptionExpanded && categoryContent.length > 300 ? 'line-clamp-3' : ''}`}
-                      dangerouslySetInnerHTML={{ __html: categoryContent }}
+                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(categoryContent) }}
                     />
                     {categoryContent.length > 300 && (
                       <Button

@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { CreditCard, Building2, Truck, Store, Info } from 'lucide-react';
 import { PaymentMethod } from '@/lib/payments';
+import { sanitizeHtml } from '@/lib/sanitize';
 
 interface PaymentMethodSelectorProps {
   methods: PaymentMethod[];
@@ -118,7 +119,7 @@ export function PaymentMethodSelector({
                   
                   {showDetails === method.id && method.instructions && (
                     <div className="mt-3 p-3 bg-muted rounded-md text-sm">
-                      <div dangerouslySetInnerHTML={{ __html: method.instructions }} />
+                      <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(method.instructions) }} />
                     </div>
                   )}
                 </div>

@@ -8,6 +8,7 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Heart, ShoppingCart, Star, Truck, Shield, RotateCcw, MessageCircle } from 'lucide-react';
 import { cn, getReviewWord } from '@/lib/utils';
+import { sanitizeHtml } from '@/lib/sanitize';
 import { useCart } from '@/contexts/CartContext';
 import { ReviewForm } from './ReviewForm';
 
@@ -616,7 +617,7 @@ export function ProductInfo({ product, className }: ProductInfoProps) {
         <TabsContent value="description" className="mt-4 space-y-6">
           <div className="prose prose-sm max-w-none">
             {product.description ? (
-              <div dangerouslySetInnerHTML={{ __html: product.description }} />
+              <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(product.description) }} />
             ) : (
               <p className="text-muted-foreground">Описание товара отсутствует</p>
             )}

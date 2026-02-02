@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { ProductFilters } from '@/components/product/ProductFilters';
 import { ProductGrid, ViewMode } from '@/components/product/ProductGrid';
 import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
+import { sanitizeHtml } from '@/lib/sanitize';
 import { SortSelector } from '@/components/product/SortSelector';
 
 interface Product {
@@ -371,7 +372,7 @@ function CatalogContent() {
             )}
             {categoryContent && (
               <div 
-                dangerouslySetInnerHTML={{ __html: categoryContent }} 
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(categoryContent) }} 
                 className="category-content prose prose-lg max-w-none prose-headings:font-bold prose-p:text-gray-700 prose-p:mb-4 prose-p:last:mb-0 prose-ul:list-disc prose-ol:list-decimal prose-a:text-primary prose-a:underline hover:prose-a:text-primary/80 prose-img:rounded-lg prose-img:shadow-sm"
               />
             )}

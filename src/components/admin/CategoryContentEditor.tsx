@@ -15,6 +15,7 @@ const ReactQuill = dynamic(() => import('react-quill'), {
 });
 import 'react-quill/dist/quill.snow.css';
 import '@/app/quill.css';
+import { sanitizeHtml } from '@/lib/sanitize';
 
 interface CategoryContentEditorProps {
   value: string;
@@ -187,7 +188,7 @@ export function CategoryContentEditor({
             style={{
               minHeight: '300px',
             }}
-            dangerouslySetInnerHTML={{ __html: value || '<p class="text-muted-foreground">Контент пуст. Начните редактирование, чтобы увидеть предпросмотр.</p>' }}
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(value || '<p class="text-muted-foreground">Контент пуст. Начните редактирование, чтобы увидеть предпросмотр.</p>') }}
           />
           <p className="text-xs text-muted-foreground mt-2">
             Так будет выглядеть контент на странице категории для пользователей.

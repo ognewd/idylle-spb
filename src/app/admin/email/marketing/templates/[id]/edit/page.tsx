@@ -19,6 +19,7 @@ import {
   Trash2,
   GripVertical
 } from 'lucide-react';
+import { sanitizeHtml } from '@/lib/sanitize';
 import {
   DndContext,
   closestCenter,
@@ -621,7 +622,7 @@ function BlockPreview({ block }: { block: EmailBlock }) {
       );
     case 'text':
       return (
-        <div className="text-sm" dangerouslySetInnerHTML={{ __html: block.data.content || 'Текст' }} />
+        <div className="text-sm" dangerouslySetInnerHTML={{ __html: sanitizeHtml(block.data.content || 'Текст') }} />
       );
     case 'button':
       return (

@@ -1,5 +1,6 @@
 import { Metadata } from 'next';
 import { prisma } from '@/lib/prisma';
+import { sanitizeHtml } from '@/lib/sanitize';
 
 // Отключаем статическую генерацию - страница должна рендериться динамически
 export const dynamic = 'force-dynamic';
@@ -141,7 +142,7 @@ export default async function CookiesPage() {
           {page.content && (
             <div 
               className="prose prose-lg max-w-none prose-headings:font-bold prose-p:text-gray-700 prose-p:leading-relaxed prose-ul:list-disc prose-ol:list-decimal prose-a:text-primary prose-a:underline hover:prose-a:text-primary/80 prose-img:rounded-lg prose-img:shadow-sm"
-              dangerouslySetInnerHTML={{ __html: page.content }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(page.content) }}
             />
           )}
         </div>
