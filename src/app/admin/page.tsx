@@ -231,6 +231,15 @@ export default function AdminDashboard() {
       sectionName: 'Администрирование и задачи' as const,
     },
     {
+      title: 'Настройки безопасности',
+      description: 'Rate limit: логин, регистрация, заказы, подписка',
+      icon: Shield,
+      href: '/admin/rate-limit',
+      color: 'bg-slate-600',
+      section: 'administrators' as const,
+      sectionName: 'Администрирование и задачи' as const,
+    },
+    {
       title: 'Задачи по сайту',
       description: 'Постановка и отслеживание задач',
       icon: CheckSquare,

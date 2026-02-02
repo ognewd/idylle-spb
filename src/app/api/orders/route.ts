@@ -5,8 +5,13 @@ import { prisma } from '@/lib/prisma';
 import { sendMail, renderEmailTemplate, OrderEmailData } from '@/lib/mail';
 import { ORDER_CONFIRMATION_TEMPLATE } from '@/lib/email-templates';
 import { createCdekOrderFromCart } from '@/lib/cdek/create-order-from-cart';
+import { checkRateLimit, getRateLimitOptionsForEndpoint } from '@/lib/rate-limit';
 
 export async function POST(request: NextRequest) {
+  const opts = await getRateLimitOptionsForEndpoint('orders');
+  const rateLimitResponse = checkRateLimit(request, opts);
+  if (rateLimitResponse) return rateLimitResponse;
+
   try {
     const session = await getServerSession(authOptions);
     const body = await request.json();

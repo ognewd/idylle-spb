@@ -3,8 +3,13 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { prisma } from '@/lib/prisma';
 import { getJwtSecret } from '@/lib/admin-auth';
+import { checkRateLimit, getRateLimitOptionsForEndpoint } from '@/lib/rate-limit';
 
 export async function POST(request: NextRequest) {
+  const opts = await getRateLimitOptionsForEndpoint('adminLogin');
+  const rateLimitResponse = checkRateLimit(request, opts);
+  if (rateLimitResponse) return rateLimitResponse;
+
   try {
     const { email, password } = await request.json();
 

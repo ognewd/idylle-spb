@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import crypto from 'crypto';
+import { checkRateLimit, getRateLimitOptionsForEndpoint } from '@/lib/rate-limit';
 
 const subscribeSchema = z.object({
   email: z.string().email(),
@@ -9,6 +10,10 @@ const subscribeSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  const opts = await getRateLimitOptionsForEndpoint('newsletter');
+  const rateLimitResponse = checkRateLimit(request, opts);
+  if (rateLimitResponse) return rateLimitResponse;
+
   try {
     const body = await request.json();
     const { email, acceptMarketing } = subscribeSchema.parse(body);

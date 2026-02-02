@@ -113,6 +113,9 @@ export function NewsletterSubscription({
           {errors.email && (
             <p className="text-sm text-destructive mt-1">{errors.email.message}</p>
           )}
+          {error && (
+            <p className="text-sm text-destructive mt-1">{error}</p>
+          )}
         </div>
         <Button type="submit" disabled={isLoading}>
           {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
