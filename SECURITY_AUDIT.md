@@ -44,15 +44,11 @@ process.env.CDEK_CLIENT_SECRET || 'RmAmgvSgSl1yirlz9QupbzOJVqhCxcP5'
 
 ---
 
-### 4. Логирование чувствительных данных
+### 4. ~~Логирование чувствительных данных~~ (исправлено)
 
-**Файлы:**
-- `src/app/api/admin/admins/route.ts`: `console.log('DEBUG: DATABASE_URL:', ...)`
-- `src/app/api/admin/login/route.ts`: `console.log('Email:', email)`
+**Было:** В admins/route.ts логировались полные детали ошибок (meta, stack), в admin/login — email и полный error, в products/[id] — userId, user.email, user.role.
 
-**Проблема:** В логах могут оказаться фрагменты DATABASE_URL и email пользователей. В проде это утечка конфигурации и персональных данных.
-
-**Рекомендация:** Удалить или заменить на безопасное логирование (без URL БД и без email в открытом виде). В проде не логировать пароли, токены и connection strings.
+**Сделано:** Везде заменено на логирование только `error.message` (без stack, meta, email, userId, DATABASE_URL). Отладочные console.log с чувствительными данными удалены.
 
 ---
 

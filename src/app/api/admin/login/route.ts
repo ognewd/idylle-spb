@@ -81,8 +81,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Admin login error:', error);
-    console.error('Error details:', JSON.stringify(error, null, 2));
+    console.error('Admin login error:', error instanceof Error ? error.message : 'Unknown');
     return NextResponse.json(
       { error: 'Внутренняя ошибка сервера', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }

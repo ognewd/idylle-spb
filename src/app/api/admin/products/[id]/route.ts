@@ -12,44 +12,31 @@ export async function GET(
     // Поддержка как синхронных, так и асинхронных params (Next.js 15+)
     const resolvedParams = await Promise.resolve(params);
     const productId = resolvedParams.id;
-    
-    console.log('[GET /api/admin/products/[id]] Request received, productId:', productId);
-    
+
     const authHeader = request.headers.get('authorization') || request.headers.get('Authorization');
-    console.log('[GET /api/admin/products/[id]] Auth header present:', !!authHeader);
-    
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.error('[GET /api/admin/products/[id]] No valid auth header');
       return NextResponse.json({ error: 'Unauthorized: No token provided' }, { status: 401 });
     }
 
     const token = authHeader.substring(7);
-    console.log('[GET /api/admin/products/[id]] Token length:', token.length);
-    
     const secret = getJwtSecret();
     if (!secret) return NextResponse.json({ error: 'Unauthorized' }, { status: 500 });
     try {
       const decoded = jwt.verify(token, secret) as any;
-      console.log('[GET /api/admin/products/[id]] Token decoded, userId:', decoded.userId);
-      
+
       const user = await prisma.user.findUnique({
         where: { id: decoded.userId },
       });
 
       if (!user) {
-        console.error('[GET /api/admin/products/[id]] User not found:', decoded.userId);
         return NextResponse.json({ error: 'Unauthorized: User not found' }, { status: 401 });
       }
 
       if (user.role !== 'admin' && user.role !== 'super_admin') {
-        console.error('[GET /api/admin/products/[id]] User role not admin:', user.role);
         return NextResponse.json({ error: 'Unauthorized: Insufficient permissions' }, { status: 401 });
       }
-      
-      console.log('[GET /api/admin/products/[id]] User authenticated:', user.email);
     } catch (jwtError: any) {
-      console.error('[GET /api/admin/products/[id]] JWT error:', jwtError.message);
-      return NextResponse.json({ error: 'Unauthorized: Invalid token', details: jwtError.message }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized: Invalid token' }, { status: 401 });
     }
 
     const product = await prisma.product.findUnique({
@@ -85,7 +72,7 @@ export async function GET(
 
     return NextResponse.json(product);
   } catch (error: any) {
-    console.error('Error fetching product:', error);
+    console.error('Product GET error:', error?.message ?? 'Unknown');
     return NextResponse.json(
       { error: 'Internal server error', details: error.message },
       { status: 500 }
@@ -291,7 +278,7 @@ export async function PUT(
 
     return NextResponse.json(product);
   } catch (error: any) {
-    console.error('Update product error:', error);
+    console.error('Product PATCH error:', error instanceof Error ? error.message : 'Unknown');
     return NextResponse.json(
       { error: 'Internal server error', details: error.message },
       { status: 500 }

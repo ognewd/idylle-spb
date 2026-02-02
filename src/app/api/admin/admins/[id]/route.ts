@@ -43,7 +43,7 @@ export async function GET(
       admin,
     });
   } catch (error) {
-    console.error('Ошибка при получении администратора:', error);
+    console.error('Admin GET error:', error instanceof Error ? error.message : 'Unknown');
     return NextResponse.json(
       { success: false, error: 'Ошибка при получении администратора' },
       { status: 500 }
@@ -115,7 +115,7 @@ export async function PATCH(
       message,
     });
   } catch (error) {
-    console.error('Ошибка при обновлении администратора:', error);
+    console.error('Admin PATCH error:', error instanceof Error ? error.message : 'Unknown');
     return NextResponse.json(
       { success: false, error: 'Ошибка при обновлении администратора' },
       { status: 500 }
@@ -158,7 +158,7 @@ export async function DELETE(
       message: 'Администратор удален',
     });
   } catch (error) {
-    console.error('Ошибка при удалении администратора:', error);
+    console.error('Admin DELETE error:', error instanceof Error ? error.message : 'Unknown');
     return NextResponse.json(
       { success: false, error: 'Ошибка при удалении администратора' },
       { status: 500 }

@@ -36,12 +36,7 @@ export async function GET(request: NextRequest) {
       admins,
     });
   } catch (error: any) {
-    console.error('FULL ERROR DETAILS:', {
-      message: error.message,
-      code: error.code,
-      meta: error.meta,
-      stack: error.stack,
-    });
+    console.error('Admins GET error:', error?.message ?? 'Unknown');
     return NextResponse.json(
       { success: false, error: 'Ошибка при получении списка администраторов', details: error.message },
       { status: 500 }
@@ -105,7 +100,7 @@ export async function POST(request: NextRequest) {
       message: 'Администратор успешно создан',
     });
   } catch (error) {
-    console.error('Ошибка при создании администратора:', error);
+    console.error('Admins POST error:', error instanceof Error ? error.message : 'Unknown');
     return NextResponse.json(
       { success: false, error: 'Ошибка при создании администратора' },
       { status: 500 }
