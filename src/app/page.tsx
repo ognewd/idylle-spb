@@ -5,30 +5,34 @@ import { CategoriesSection } from '@/components/home/CategoriesSection';
 import type { CategoryItem } from '@/components/home/CategoriesSection';
 import { ProductGallery } from '@/components/home/ProductGallery';
 import type { GalleryProduct } from '@/components/home/ProductGallery';
+import { prisma } from '@/lib/prisma';
 
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-
-// Дефолтные фото для секции категорий, если в БД у категории нет image
-const DEFAULT_CATEGORY_IMAGES = [
-  'https://images.unsplash.com/photo-1600566752355-35792bedcfea?w=800&q=80', // ароматы/дом - спа атмосфера с диффузором
-  'https://images.unsplash.com/photo-1617351165959-471f874b60a9?w=800&q=80', // ванная
-  'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=800&q=80', // подарки - элегантная подарочная упаковка с бантом
-];
+// Изображения для секции категорий по slug (подпись и картинка должны совпадать)
+const CATEGORY_IMAGES_BY_SLUG: Record<string, string> = {
+  'aromaty-dlya-doma': 'https://images.unsplash.com/photo-1617351165959-471f874b60a9?w=800&q=80', // диффузор, гостиная
+  'vannaya-komnata': 'https://images.unsplash.com/photo-1600566752355-35792bedcfea?w=800&q=80',   // ванная
+  'podarki': 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=800&q=80',             // подарки
+};
+const DEFAULT_CATEGORY_IMAGE = 'https://images.unsplash.com/photo-1600566752355-35792bedcfea?w=800&q=80';
 
 async function getFeaturedProducts(limit: number) {
   try {
-    const res = await fetch(`${BASE_URL}/api/products?sort=featured&limit=${limit}`, {
-      cache: 'no-store',
+    const products = await prisma.product.findMany({
+      where: { isActive: true },
+      orderBy: [{ isFeatured: 'desc' }, { createdAt: 'desc' }],
+      take: limit,
+      include: {
+        brand: true,
+        productCategories: { include: { category: true } },
+        images: { orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }] },
+      },
     });
-    if (!res.ok) return [];
-    const data = await res.json();
-    const products = data.products || [];
-    return products.map((p: any) => ({
+    return products.map((p) => ({
       id: p.id,
       name: p.name,
       shortName: p.shortName,
       slug: p.slug,
-      price: p.price,
+      price: Number(p.price),
       image: p.images?.[0]?.url || '/placeholder-product.jpg',
       brandName: p.brand?.name,
       category: p.productCategories?.[0]?.category?.name,
@@ -41,34 +45,15 @@ async function getFeaturedProducts(limit: number) {
 
 async function getCategories(limit = 6) {
   try {
-    const res = await fetch(`${BASE_URL}/api/categories`, { cache: 'no-store' });
-    if (!res.ok) return [];
-    const data = await res.json();
-    const list = Array.isArray(data) ? data : data.categories || [];
-    
-    // Приоритетные категории для главной страницы
     const featuredSlugs = ['aromaty-dlya-doma', 'vannaya-komnata', 'podarki'];
-    
-    // Сначала берем категории из приоритетного списка
-    const allCategories = list.filter((c: any) => !c.parentId);
-    const featured = featuredSlugs
-      .map(slug => allCategories.find((c: any) => c.slug === slug))
-      .filter(Boolean);
-    
-    // Если не хватает категорий, добавляем остальные
-    const remaining = allCategories
-      .filter((c: any) => !featuredSlugs.includes(c.slug))
-      .slice(0, limit - featured.length);
-    
-    return [...featured, ...remaining]
-      .slice(0, limit)
-      .map((c: any) => ({
-        id: c.id,
-        name: c.name,
-        slug: c.slug,
-        description: c.description,
-        image: c.image,
-      }));
+    const all = await prisma.category.findMany({
+      where: { isActive: true, parentId: null },
+      orderBy: { sortOrder: 'asc' },
+      select: { id: true, name: true, slug: true, description: true, image: true },
+    });
+    const featured = featuredSlugs.map((slug) => all.find((c) => c.slug === slug)).filter(Boolean) as typeof all;
+    const remaining = all.filter((c) => !featuredSlugs.includes(c.slug)).slice(0, limit - featured.length);
+    return [...featured, ...remaining].slice(0, limit);
   } catch {
     return [];
   }
@@ -105,12 +90,12 @@ export default async function HomePage() {
       }
     : null;
 
-  const categoryItems: CategoryItem[] = categories.map((c: { id: string; name: string; slug: string; description?: string | null; image?: string | null }, index: number) => ({
+  const categoryItems: CategoryItem[] = categories.map((c: { id: string; name: string; slug: string; description?: string | null; image?: string | null }) => ({
     id: c.id,
     name: c.name,
     slug: c.slug,
     description: c.description,
-    image: c.image ? getImageUrl(c.image) : DEFAULT_CATEGORY_IMAGES[index % DEFAULT_CATEGORY_IMAGES.length],
+    image: CATEGORY_IMAGES_BY_SLUG[c.slug] ?? (c.image ? getImageUrl(c.image) : DEFAULT_CATEGORY_IMAGE),
   }));
 
   return (
