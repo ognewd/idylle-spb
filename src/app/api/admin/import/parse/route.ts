@@ -120,9 +120,16 @@ export async function POST(request: NextRequest) {
 
     // Определяем заголовки (первая строка) - сохраняем оригинальное название
     const headers = rows[0].map((h: any) => String(h || '').trim());
-    const headersLower = headers.map((h: string) => h.toLowerCase());
+    // Нормализация для маппинга: нижний регистр, единый вид запятой/пробела (Excel может дать unicode)
+    const normalizeHeader = (s: string) =>
+      s.toLowerCase()
+        .replace(/\s+/g, ' ')
+        .replace(/[\u00a0\u2007\u202f]/g, ' ')
+        .replace(/[,，\u060c\u3001]/g, ',')
+        .trim();
+    const headersLower = headers.map((h: string) => normalizeHeader(h));
     
-    // Если передан маппинг от пользователя, используем его, иначе автоопределяем
+    // Если передан маппинг от пользователя, используем его, иначе автоопределяем по стандартным колонкам
     let columnMap: Record<string, number> = {};
     
     if (columnMappingJson) {
@@ -141,7 +148,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Неверный формат маппинга колонок' }, { status: 400 });
       }
     } else {
-      // Автоопределение маппинга
+      // Стандартный шаблон: колонки как в таблице пользователя (автоопределение)
       headersLower.forEach((header: string, index: number) => {
         const normalized = header.toLowerCase();
         if (normalized.includes('код мой склад')) {
@@ -152,10 +159,12 @@ export async function POST(request: NextRequest) {
           columnMap.name = index;
         } else if (normalized.includes('краткое название')) {
           columnMap.shortName = index;
-        } else if (normalized.includes('для фильтра')) {
+        } else if (normalized.includes('тип категории') || normalized.includes('для фильтра')) {
           columnMap.productType = index;
-        } else if (normalized.includes('категория')) {
+        } else if (normalized.includes('категория') && !normalized.includes('тип')) {
           columnMap.category = index;
+        } else if (normalized.includes('мест товара') || normalized.includes('место товара') || normalized.includes('место на складе')) {
+          columnMap.warehouseLocation = index;
         } else if (normalized.includes('доступно')) {
           columnMap.stock = index;
         } else if (normalized.includes('цена продажи')) {
@@ -164,23 +173,24 @@ export async function POST(request: NextRequest) {
           columnMap.aromaDescription = index;
         } else if (normalized.includes('основные ноты')) {
           columnMap.topNotes = index;
-        } else if (normalized.includes('объем') || normalized.includes('обьем')) {
-          columnMap.volume = index;
+        // Вес (г) / Вес, гр / Вес, кг — только в поле weight
+        } else if (normalized.includes('вес') && !normalized.includes('объем') && (normalized.includes('гр') || normalized.includes('грамм') || normalized.includes('г,') || normalized.includes('(г)') || normalized.includes('кг'))) {
+          columnMap.weight = index;
+        // Объем, мл — только в поле volume
+        } else if (normalized.includes('объем') || normalized.includes('обьем') || (normalized.includes('мл') && !normalized.includes('вес'))) {
+          if (columnMap.volume === undefined) columnMap.volume = index;
         } else if (normalized.includes('назначение')) {
           columnMap.purpose = index;
         } else if (normalized.includes('способ применения')) {
           columnMap.usageInstructions = index;
-        } else if (normalized.includes('бренд')) {
+        } else if (normalized === 'бренд' || (normalized.includes('бренд') && !normalized.includes('страна'))) {
           columnMap.brand = index;
         } else if (normalized.includes('страна происхождения бренда') || (normalized.includes('страна') && normalized.includes('бренд'))) {
           columnMap.brandCountry = index;
         } else if (normalized.includes('страна производства')) {
           columnMap.manufactureCountry = index;
         } else if (normalized.includes('страна') && !normalized.includes('бренд') && !normalized.includes('производства')) {
-          // Старое поле "Страна" - можно использовать для brandCountry или manufactureCountry
           columnMap.country = index;
-        } else if (normalized.includes('место товара') || normalized.includes('место на складе')) {
-          columnMap.warehouseLocation = index;
         } else if (normalized.includes('штрихкод') || normalized.includes('штрих код')) {
           columnMap.barcode = index;
         } else if (normalized.includes('описание') && !normalized.includes('аромат') && !normalized.includes('кратк')) {
@@ -191,9 +201,9 @@ export async function POST(request: NextRequest) {
           columnMap.comparePrice = index;
         } else if ((normalized.includes('артикул') && !normalized.includes('производителя')) || normalized === 'sku') {
           columnMap.sku = index;
-        } else if (normalized.includes('вес') || normalized.includes('weight')) {
+        } else if (normalized.includes('вес') && !normalized.includes('объем') && (normalized.includes('гр') || normalized.includes('г ') || normalized.includes('грамм') || normalized.includes('(г)') || normalized.includes('кг'))) {
           columnMap.weight = index;
-        } else if (normalized.includes('габарит') || normalized.includes('размер') || normalized.includes('dimensions')) {
+        } else if (normalized.includes('габарит') || normalized.includes('размер') || normalized.includes('размеры') || normalized.includes('dimensions') || normalized.includes('см')) {
           columnMap.dimensions = index;
         } else if (normalized.includes('семейство аромата') || (normalized.includes('аромат') && normalized.includes('семейство'))) {
           columnMap.aromaFamily = index;
@@ -224,17 +234,26 @@ export async function POST(request: NextRequest) {
           columnMap.photo = index;
         }
       });
+
+      // Резерв: колонка "Вес, гр" / "Вес, кг" / "Вес (г)" по заголовку, если ещё не найдена
+      if (columnMap.weight === undefined) {
+        const weightIdx = headersLower.findIndex((h: string) => {
+          const n = h.toLowerCase();
+          return n.includes('вес') && !n.includes('объем') && (n.includes('гр') || n.includes('(г)') || n.includes('грамм') || n.includes('кг'));
+        });
+        if (weightIdx >= 0) columnMap.weight = weightIdx;
+      }
     }
 
-    // Если только получаем колонки (без маппинга), возвращаем список колонок
-    if (!columnMappingJson) {
-      // Подготовим превью первых 5 строк (без заголовка)
+    // Без маппинга: если найдена колонка "Полное название" — сразу парсим (стандартный шаблон)
+    const isStandardTemplate = !columnMappingJson && columnMap.name !== undefined;
+    if (!columnMappingJson && !isStandardTemplate) {
       const rowsPreview = rows.slice(1, Math.min(rows.length, 6));
       return NextResponse.json({
         columns: headers.map((h, i) => ({ index: i, name: h })),
         suggestedMapping: columnMap,
         totalRows: rows.length - 1,
-        rowsPreview, // массив массивов значений
+        rowsPreview,
       });
     }
 
@@ -310,12 +329,23 @@ export async function POST(request: NextRequest) {
         const priceStr = columnMap.price !== undefined ? String(row[columnMap.price] || '').trim() : '';
         const stockStr = columnMap.stock !== undefined ? String(row[columnMap.stock] || '').trim() : '';
         const comparePriceStr = columnMap.comparePrice !== undefined ? String(row[columnMap.comparePrice] || '').trim() : '';
-        const weightStr = columnMap.weight !== undefined ? String(row[columnMap.weight] || '').trim() : '';
-        
+        const rawWeight = columnMap.weight !== undefined ? row[columnMap.weight] : undefined;
+
         const price = priceStr ? parseFloat(priceStr.replace(/,/g, '.')) || 0 : 0;
-        const stock = stockStr ? parseInt(stockStr) || 0 : 0;
+        const stock = stockStr ? parseInt(stockStr, 10) || 0 : 0;
         const comparePrice = comparePriceStr ? parseFloat(comparePriceStr.replace(/,/g, '.')) || null : null;
-        const weight = weightStr ? parseFloat(weightStr.replace(/,/g, '.')) || null : null;
+        const weight = (() => {
+          if (rawWeight === undefined || rawWeight === null || rawWeight === '') return null;
+          if (typeof rawWeight === 'number' && !isNaN(rawWeight)) return rawWeight;
+          const s = String(rawWeight).trim();
+          const numMatch = s.replace(/,/g, '.').match(/[\d]+[.,]?[\d]*/);
+          if (numMatch) {
+            const parsed = parseFloat(numMatch[0].replace(/,/g, '.'));
+            return !isNaN(parsed) ? parsed : null;
+          }
+          const parsed = parseFloat(s.replace(/,/g, '.'));
+          return s && !isNaN(parsed) ? parsed : null;
+        })();
 
         // Объем
         const volume = normalizeVolume(
@@ -334,11 +364,14 @@ export async function POST(request: NextRequest) {
         const str = (col: number | undefined) =>
           col !== undefined ? (String(row[col] ?? '').trim() || null) : null;
 
+        // Описание аромата идёт в основное описание товара
+        const aromaDesc = str(columnMap.aromaDescription);
+        const mainDesc = str(columnMap.description);
         const product: any = {
           rowNum,
           name,
           shortName: str(columnMap.shortName),
-          description: str(columnMap.description),
+          description: aromaDesc ?? mainDesc,
           shortDescription: str(columnMap.shortDescription),
           myWarehouseCode,
           manufacturerSku: str(columnMap.manufacturerSku),
@@ -352,7 +385,7 @@ export async function POST(request: NextRequest) {
           volume,
           weight,
           dimensions: str(columnMap.dimensions),
-          aromaDescription: str(columnMap.aromaDescription),
+          aromaDescription: aromaDesc,
           topNotes: str(columnMap.topNotes),
           aromaFamily: str(columnMap.aromaFamily),
           gender: str(columnMap.gender),

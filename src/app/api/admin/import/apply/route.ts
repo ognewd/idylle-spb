@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { join } from 'path';
 import { existsSync } from 'fs';
 import { writeFile, mkdir } from 'fs/promises';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { generateSlug } from '@/lib/transliterate';
 import { getJwtSecret } from '@/lib/admin-auth';
@@ -257,7 +258,7 @@ export async function POST(request: NextRequest) {
             manufacturerSku: manufacturerSku || undefined,
             productType: productType || undefined,
             volume: volume || undefined,
-            weight: weight ?? undefined,
+            weight: weight != null && weight !== '' ? new Prisma.Decimal(Number(weight)) : undefined,
             dimensions: dimensions || undefined,
             aromaDescription: aromaDescription || undefined,
             topNotes: topNotes || undefined,
@@ -315,7 +316,7 @@ export async function POST(request: NextRequest) {
               manufacturerSku: manufacturerSku || undefined,
               productType: productType || undefined,
               volume: volume || undefined,
-              weight: weight ?? undefined,
+              weight: weight != null && weight !== '' ? new Prisma.Decimal(Number(weight)) : undefined,
               dimensions: dimensions || undefined,
               aromaDescription: aromaDescription || undefined,
               topNotes: topNotes || undefined,
@@ -343,18 +344,22 @@ export async function POST(request: NextRequest) {
           results.created++;
         }
 
+        // При импорте с фото — перезаписываем все фото товара (удаляем старые, чтобы не было дублей)
+        const hasPhotoFromImport =
+          (photoUrl && typeof photoUrl === 'string' && (photoUrl.startsWith('http://') || photoUrl.startsWith('https://'))) ||
+          (Array.isArray(additionalImageUrls) && additionalImageUrls.some((u: string) => typeof u === 'string' && (u.startsWith('http://') || u.startsWith('https://'))));
+        if (isUpdate && existingProductId && hasPhotoFromImport) {
+          await prisma.productImage.deleteMany({
+            where: { productId: existingProductId },
+          });
+        }
+
         // Фото по URL: скачиваем и сохраняем как главное изображение
         let nextSortOrder = 0;
         if (photoUrl && typeof photoUrl === 'string' && (photoUrl.startsWith('http://') || photoUrl.startsWith('https://'))) {
           try {
             const savedUrl = await downloadImageAsUpload(photoUrl);
             if (savedUrl) {
-              if (isUpdate && existingProductId) {
-                await prisma.productImage.updateMany({
-                  where: { productId: existingProductId },
-                  data: { isPrimary: false },
-                });
-              }
               await prisma.productImage.create({
                 data: {
                   productId: productIdForPhoto,

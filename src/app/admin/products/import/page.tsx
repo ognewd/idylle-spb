@@ -133,6 +133,7 @@ export default function ImportProductsPage() {
     errors: string[];
     photoErrors?: string[];
   } | null>(null);
+  const [progressMessage, setProgressMessage] = useState<string>('');
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -154,14 +155,15 @@ export default function ImportProductsPage() {
       return;
     }
 
-    setIsParsing(true);
-    try {
-      const token = localStorage.getItem('admin_token');
-      if (!token) {
-        router.push('/admin/login');
-        return;
-      }
+    const token = localStorage.getItem('admin_token');
+    if (!token) {
+      router.push('/admin/login');
+      return;
+    }
 
+    setIsParsing(true);
+    setProgressMessage('Загрузка и обработка файла...');
+    try {
       const formData = new FormData();
       formData.append('file', file);
 
@@ -176,9 +178,15 @@ export default function ImportProductsPage() {
       const data = await response.json();
 
       if (response.ok) {
+        // Стандартный шаблон: сервер сразу вернул товары — переходим к превью
+        if (data.products) {
+          setParsedData(data);
+          setStep('preview');
+          return;
+        }
+        // Нестандартные колонки: показываем шаг выбора соответствия
         setFileColumns(data.columns || []);
         setRowsPreview(data.rowsPreview || []);
-        // Инициализируем маппинг предложенными значениями
         const initialMapping: Record<string, number | null> = {};
         Object.keys(FIELD_LABELS).forEach(field => {
           if (data.suggestedMapping && data.suggestedMapping[field] !== undefined) {
@@ -196,6 +204,7 @@ export default function ImportProductsPage() {
       alert(`Ошибка: ${error.message}`);
     } finally {
       setIsParsing(false);
+      setProgressMessage('');
     }
   };
 
@@ -211,6 +220,7 @@ export default function ImportProductsPage() {
     }
 
     setIsParsing(true);
+    setProgressMessage('Обработка файла...');
     try {
       const token = localStorage.getItem('admin_token');
       if (!token) {
@@ -242,6 +252,7 @@ export default function ImportProductsPage() {
       alert(`Ошибка: ${error.message}`);
     } finally {
       setIsParsing(false);
+      setProgressMessage('');
     }
   };
 
@@ -256,6 +267,7 @@ export default function ImportProductsPage() {
     }
 
     setIsApplying(true);
+    setProgressMessage(`Импорт товаров (${parsedData.stats.total} шт.)...`);
     try {
       const token = localStorage.getItem('admin_token');
       if (!token) {
@@ -286,6 +298,7 @@ export default function ImportProductsPage() {
       alert(`Ошибка: ${error.message}`);
     } finally {
       setIsApplying(false);
+      setProgressMessage('');
     }
   };
 
@@ -371,13 +384,28 @@ export default function ImportProductsPage() {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Индикатор прогресса при загрузке/импорте */}
+        {(isParsing || isApplying) && progressMessage && (
+          <div className="mb-6 rounded-lg border bg-white p-4 shadow-sm">
+            <div className="flex items-center gap-3">
+              <Loader2 className="h-6 w-6 shrink-0 animate-spin text-blue-600" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-gray-900">{progressMessage}</p>
+                <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-200">
+                  <div className="h-full w-1/3 animate-pulse rounded-full bg-blue-600" />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Шаг 1: Загрузка файла */}
         {step === 'upload' && (
           <Card className="mb-6">
             <CardHeader>
               <CardTitle>Шаг 1: Загрузка файла</CardTitle>
               <CardDescription>
-                Загрузите Excel файл (.xls, .xlsx) с данными о товарах
+                Загрузите Excel с колонками: Код Мой склад, Артикул производителя, Полное название, Краткое название, Категория, Тип категории, Мест товара, Доступно, Цена продажи, Описание аромата, Основные ноты, Объем/Вес/Размеры, Назначение, Способ применения, Бренд, Страны, Штрихкод. Соответствие подставится автоматически.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -449,7 +477,7 @@ export default function ImportProductsPage() {
                     ) : (
                       <>
                         <Upload className="h-4 w-4 mr-2" />
-                        Загрузить
+                        Загрузить и обработать
                       </>
                     )}
                   </Button>
@@ -585,16 +613,41 @@ export default function ImportProductsPage() {
 
         {/* Шаг 3: Предварительный просмотр */}
         {step === 'preview' && parsedData && (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle>Шаг 3: Предварительный просмотр</CardTitle>
-              <CardDescription>
-                Проверьте данные перед импортом
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                {/* Статистика */}
+          <>
+            <Card className="mb-24">
+              <CardHeader>
+                <CardTitle>Шаг 3: Предварительный просмотр</CardTitle>
+                <CardDescription>
+                  Проверьте данные перед импортом
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6">
+                  {/* Кнопка применения — сверху, без прокрутки */}
+                  <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border bg-gray-50 p-4">
+                    <p className="text-sm text-gray-600">
+                      Готовы применить импорт? Товаров: <strong>{parsedData.stats.total}</strong>
+                    </p>
+                    <Button
+                      onClick={handleApply}
+                      disabled={isApplying || parsedData.products.length === 0}
+                      size="lg"
+                    >
+                      {isApplying ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Импорт...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="h-4 w-4 mr-2" />
+                          Применить импорт ({parsedData.stats.total} товаров)
+                        </>
+                      )}
+                    </Button>
+                  </div>
+
+                  {/* Статистика */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="bg-blue-50 p-4 rounded-lg">
                     <div className="text-sm text-gray-600">Всего товаров</div>
@@ -697,8 +750,8 @@ export default function ImportProductsPage() {
                   )}
                 </div>
 
-                {/* Кнопка применения */}
-                <div className="flex justify-end">
+                {/* Кнопка применения — дублируем внизу для удобства */}
+                <div className="flex justify-end pt-4 border-t">
                   <Button
                     onClick={handleApply}
                     disabled={isApplying || parsedData.products.length === 0}
@@ -720,6 +773,33 @@ export default function ImportProductsPage() {
               </div>
             </CardContent>
           </Card>
+
+            {/* Фиксированная панель внизу экрана — кнопка всегда под рукой */}
+            <div className="fixed bottom-0 left-0 right-0 z-10 border-t bg-white/95 py-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] backdrop-blur-sm">
+              <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+                <span className="text-sm text-gray-600">
+                  Импорт: <strong>{parsedData.stats.total}</strong> товаров
+                </span>
+                <Button
+                  onClick={handleApply}
+                  disabled={isApplying || parsedData.products.length === 0}
+                  size="lg"
+                >
+                  {isApplying ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Импорт...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4 mr-2" />
+                      Применить импорт ({parsedData.stats.total} товаров)
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </>
         )}
 
         {/* Результаты импорта */}
