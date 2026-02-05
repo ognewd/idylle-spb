@@ -236,6 +236,11 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Базовый URL из запроса (учитываем прокси: x-forwarded-proto/host), чтобы картинки в каталоге вели на текущий домен
+    const proto = request.headers.get('x-forwarded-proto') || new URL(request.url).protocol.replace(/:$/, '');
+    const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || new URL(request.url).host;
+    const requestOrigin = `${proto}://${host}`;
+
     // Calculate average ratings and apply seasonal discounts to price
     const productsWithRatings = products.map(product => {
       // Пока нет отзывов, устанавливаем рейтинг 0
@@ -268,7 +273,7 @@ export async function GET(request: NextRequest) {
         comparePrice: seasonal ? basePrice : (product.comparePrice ? Number(product.comparePrice) : null),
         seasonalDiscount: seasonal || null,
         images: product.images.map(img => ({
-          url: getImageUrl(img.url),
+          url: getImageUrl(img.url, { baseUrl: requestOrigin }),
           alt: img.alt,
           isPrimary: img.isPrimary,
         })),

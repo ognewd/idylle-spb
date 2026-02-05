@@ -3,7 +3,8 @@
 import { PrismaClient } from '@prisma/client';
 import { config } from 'dotenv';
 
-// Load environment variables from .env.local
+// На сервере — .env, локально — .env затем .env.local (переопределение)
+config({ path: '.env' });
 config({ path: '.env.local' });
 
 const prisma = new PrismaClient({
