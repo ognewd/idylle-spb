@@ -47,6 +47,7 @@ interface Product {
   aromaFamily?: string;
   gender?: string;
   stock: number;
+  weight?: number;
   isFeatured?: boolean;
   rating?: number;
   reviewCount?: number;
@@ -108,12 +109,14 @@ export function ProductCardList({ product, className }: ProductCardListProps) {
         : product.images[0]?.url || '/placeholder-product.jpg')
       : '/placeholder-product.jpg';
       
+    const weightGrams = product.weight != null ? Math.round(Number(product.weight)) : undefined;
     addItem({
       id: selectedVariant ? `${product.id}-${selectedVariant.id}` : product.id,
       productId: product.id,
       name: product.name,
       price: currentPrice,
       image: imageUrl,
+      weight: weightGrams,
       variant: selectedVariant ? {
         id: selectedVariant.id,
         volume: selectedVariant.value,

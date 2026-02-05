@@ -20,6 +20,7 @@ export interface CreateOrderParams {
     email?: string;
     city: string;
     address?: string; // Для доставки до двери
+    postal_code?: string; // Индекс (из API СДЭК / подсказок города)
     pvzCode?: string; // Для доставки в ПВЗ
   };
   // Товары
@@ -69,6 +70,7 @@ export async function createCdekOrderFromCart(params: CreateOrderParams) {
           code: toCityCode,
           city: params.recipient.city,
           address: params.recipient.address,
+          ...(params.recipient.postal_code && { postal_code: params.recipient.postal_code }),
         },
     sender: {
       name: params.sender.name,

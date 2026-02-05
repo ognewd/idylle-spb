@@ -7,7 +7,7 @@
 
 1. Подключитесь к серверу через SSH:
 ```bash
-ssh root@147.45.98.110
+ssh root@<YOUR_SERVER_IP>
 # или используйте ваши SSH ключи
 ```
 
@@ -22,8 +22,7 @@ pwd
 # Проверьте DATABASE_URL
 grep DATABASE_URL .env
 
-# Если DATABASE_URL указывает на Supabase (aws-1-us-east-1.pooler.supabase.com), 
-# нужно исправить на локальный PostgreSQL
+# Убедитесь, что DATABASE_URL указывает на вашу PostgreSQL-базу
 ```
 
 3. Примените миграцию:

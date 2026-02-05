@@ -1,78 +1,135 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCdekCitiesList, findCityByName } from '@/lib/cdek/cities';
-import { getCdekPvzList } from '@/lib/cdek/pvz';
+import { getDadataCredentials } from '@/lib/dadata/credentials';
 
+const DADATA_URL = 'https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/address';
+
+/** Нормализованный адрес для фронта (без ключей DaData) */
+export interface AddressSuggestionItem {
+  display: string;
+  full: string;
+  postalCode: string | null;
+  city: string | null;
+  street: string | null;
+  house: string | null;
+  flat: string | null;
+  geo: { lat: string | null; lon: string | null };
+}
+
+/**
+ * Подсказки адресов.
+ * Если заданы DADATA_API_KEY и DADATA_SECRET — запрос к DaData (ограничение по городу, от улицы к дому).
+ * Иначе — fallback по ПВЗ СДЭК в выбранном городе.
+ */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { query, city } = body;
+    const { city, query, count = 10 } = body;
 
     if (!query || typeof query !== 'string' || query.trim().length < 3) {
       return NextResponse.json({ suggestions: [] });
     }
 
     const trimmedQuery = query.trim();
+    const { apiKey, secret } = await getDadataCredentials();
+
+    if (apiKey && secret) {
+      const dadataBody: Record<string, unknown> = {
+        query: trimmedQuery,
+        count: Math.min(Number(count) || 10, 20),
+        from_bound: { value: 'street' },
+        to_bound: { value: 'house' },
+        restrict_value: true,
+      };
+      if (city && String(city).trim()) {
+        dadataBody.locations = [{ city: String(city).trim() }];
+      }
+
+      const res = await fetch(DADATA_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          Authorization: `Token ${apiKey}`,
+          'X-Secret': secret,
+        },
+        body: JSON.stringify(dadataBody),
+      });
+
+      if (!res.ok) {
+        console.error('❌ DaData address suggest:', res.status, await res.text());
+        return NextResponse.json({ suggestions: [] });
+      }
+
+      const data = await res.json();
+      const list = Array.isArray(data.suggestions) ? data.suggestions : [];
+      const suggestions: AddressSuggestionItem[] = list.map((s: any) => ({
+        display: s.value || '',
+        full: s.unrestricted_value || s.value || '',
+        postalCode: s.data?.postal_code ?? null,
+        city: s.data?.city ?? null,
+        street: (s.data?.street_with_type || s.data?.street) ?? null,
+        house: s.data?.house ?? null,
+        flat: s.data?.flat ?? null,
+        geo: {
+          lat: s.data?.geo_lat ?? null,
+          lon: s.data?.geo_lon ?? null,
+        },
+      }));
+
+      return NextResponse.json({ suggestions });
+    }
+
+    // Fallback: подсказки по адресам ПВЗ СДЭК в городе
+    const { getCdekCitiesList, findCityByName } = await import('@/lib/cdek/cities');
+    const { getCdekPvzList } = await import('@/lib/cdek/pvz');
     const suggestions: Array<{ value: string; data: any }> = [];
 
-    // Если указан город, ищем адреса через ПВЗ (пункты выдачи)
     if (city && city.trim()) {
       try {
-        // Находим код города
         const cityInfo = await findCityByName(city.trim());
-
-        if (cityInfo && cityInfo.code) {
-          const cityCode = cityInfo.code;
-          
-          // Ищем ПВЗ в этом городе, которые содержат запрос
+        if (cityInfo?.code) {
           try {
             const pvzList = await getCdekPvzList({
-              city_code: cityCode,
+              city_code: cityInfo.code,
               type: 'PVZ',
               lang: 'rus',
             });
-
-            // Фильтруем ПВЗ по адресу, содержащему запрос
             const filteredPvz = pvzList
-              .filter(pvz => {
-                // Собираем полный адрес из компонентов
-                const cityName = pvz.location?.city || '';
+              .filter((pvz) => {
                 const address = pvz.location?.address || '';
-                const fullAddress = `${cityName}, ${address}`.toLowerCase();
                 const name = pvz.name?.toLowerCase() || '';
-                const queryLower = trimmedQuery.toLowerCase();
-                return fullAddress.includes(queryLower) || address.includes(queryLower) || name.includes(queryLower);
+                return (
+                  address.toLowerCase().includes(trimmedQuery.toLowerCase()) ||
+                  name.includes(trimmedQuery.toLowerCase())
+                );
               })
-              .slice(0, 5);
-
-            // Добавляем ПВЗ в подсказки
-            filteredPvz.forEach(pvz => {
+              .slice(0, 10);
+            filteredPvz.forEach((pvz) => {
               if (pvz.location?.address) {
                 const cityName = pvz.location.city || '';
                 const address = pvz.location.address || '';
-                const fullAddress = `${cityName}, ${address}`;
-                
                 suggestions.push({
-                  value: fullAddress,
+                  value: `${cityName}, ${address}`,
                   data: {
                     type: 'pvz',
                     code: pvz.code,
                     name: pvz.name,
-                    address: address,
+                    address,
                     city: cityName,
                   },
                 });
               }
             });
-          } catch (pvzError) {
-            console.error('❌ CDEK PVZ search error:', pvzError);
+          } catch (e) {
+            console.error('❌ CDEK PVZ search error:', e);
           }
         }
-      } catch (error) {
-        console.error('❌ CDEK city search error:', error);
+      } catch (e) {
+        console.error('❌ CDEK city search error:', e);
       }
     }
 
-    // Также ищем города, если запрос похож на название города
+    // Города по запросу (fallback)
     try {
       const cities = await getCdekCitiesList({
         city: trimmedQuery,
@@ -80,11 +137,9 @@ export async function POST(request: NextRequest) {
         lang: 'rus',
         country_code: 'RU',
       });
-
-      cities.forEach(cityItem => {
-        // Добавляем город только если он еще не добавлен
+      cities.forEach((cityItem) => {
         const cityValue = cityItem.city ? `${cityItem.city}, ${cityItem.region || ''}` : '';
-        if (cityValue && !suggestions.some(s => s.value === cityValue)) {
+        if (cityValue && !suggestions.some((s: any) => s.value === cityValue)) {
           suggestions.push({
             value: cityValue,
             data: {
@@ -96,17 +151,17 @@ export async function POST(request: NextRequest) {
           });
         }
       });
-    } catch (error) {
-      console.error('❌ CDEK city search error:', error);
+    } catch (e) {
+      console.error('❌ CDEK cities error:', e);
     }
-    
+
     return NextResponse.json({
-      suggestions: suggestions.slice(0, 5), // Максимум 5 подсказок
+      suggestions: suggestions.slice(0, 10),
     });
   } catch (error) {
-    console.error('❌ Address autocomplete error:', error);
+    console.error('❌ Address suggest error:', error);
     return NextResponse.json(
-      { error: 'Ошибка при получении подсказок адреса' },
+      { error: 'Ошибка при получении подсказок адреса', suggestions: [] },
       { status: 500 }
     );
   }

@@ -21,7 +21,7 @@
 
 #### База данных
 - **Тип:** PostgreSQL (локально)
-- **Подключение:** `postgresql://dognev@localhost:5432/idylle_spb`
+- **Подключение:** `postgresql://user@localhost:5432/idylle_spb`
 - **Пользователь:** `dognev`
 - **База данных:** `idylle_spb`
 - **Порт:** `5432`
@@ -43,18 +43,18 @@
 ### 🟢 Продакшн (Production)
 
 **Провайдер:** Timeweb VPS  
-**IP адрес:** `147.45.98.110`  
+**IP адрес:** `<YOUR_SERVER_IP>`  
 **Домен:** `aromarussia.ru` (и `www.aromarussia.ru`)  
 **Протокол:** HTTPS (Let's Encrypt SSL)
 
 #### Инфраструктура сервера
 - **ОС:** Ubuntu 24.04.3 LTS
 - **Расположение:** `/root/idylle-spb`
-- **SSH доступ:** `ssh root@147.45.98.110`
+- **SSH доступ:** `ssh root@<YOUR_SERVER_IP>`
 
 #### База данных
 - **Тип:** PostgreSQL (на VPS)
-- **Подключение:** `postgresql://idylle_user:wendw@@422ewd!@localhost:5432/idylle_spb`
+- **Подключение:** `postgresql://user:password@localhost:5432/idylle_spb`
 - **Пользователь:** `idylle_user`
 - **База данных:** `idylle_spb`
 - **Порт:** `5432` (внутренний)
@@ -85,7 +85,7 @@
 
 **Основные переменные:**
 ```env
-DATABASE_URL=postgresql://idylle_user:wendw%40%40422ewd%21@localhost:5432/idylle_spb?schema=public
+DATABASE_URL=postgresql://user:password@localhost:5432/idylle_spb?schema=public
 NEXTAUTH_URL=https://aromarussia.ru
 NEXT_PUBLIC_BASE_URL=https://aromarussia.ru
 NEXTAUTH_SECRET=xIQ+KV1XzDfuKdAHrpxhiuMgUd9EBpo0dgIy/ph+zCU=
@@ -183,7 +183,7 @@ git push origin main
 #### Шаг 2: На сервере (деплой)
 ```bash
 # 1. Подключиться к серверу
-ssh root@147.45.98.110
+ssh root@<YOUR_SERVER_IP>
 
 # 2. Перейти в директорию проекта
 cd /root/idylle-spb
@@ -276,7 +276,7 @@ idylle-spb/
 7. ✅ Перенос загрузок файлов в `/var/www/uploads`
 8. ✅ Настройка Next.js Image Optimization
 9. ✅ Улучшение отображения изображений товаров
-10. ✅ Удаление зависимостей от Vercel/Supabase
+10. ✅ Удаление зависимостей от Vercel
 
 ---
 
@@ -303,7 +303,7 @@ idylle-spb/
 ### Продакшн
 - **URL:** https://aromarussia.ru
 - **Админ-панель:** https://aromarussia.ru/admin/login
-- **SSH:** `ssh root@147.45.98.110`
+- **SSH:** `ssh root@<YOUR_SERVER_IP>`
 
 ### Доступ к админ-панели
 - Через `/admin/login`

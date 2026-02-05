@@ -127,13 +127,14 @@ export function ProductInfo({ product, className }: ProductInfoProps) {
   };
 
   const handleAddToCart = () => {
-    // Add product or variant to cart
+    const weightGrams = product.weight != null ? Math.round(Number(product.weight)) : undefined;
     const cartItem = {
       id: selectedVariant ? `${product.id}-${selectedVariant.id}` : product.id,
       productId: product.id,
       name: `${product.name}${selectedVariant ? ` - ${selectedVariant.value}` : ''}`,
       price: finalPrice,
       image: product.images?.[0]?.url || '/placeholder-product.jpg',
+      weight: weightGrams,
       variant: selectedVariant ? {
         id: selectedVariant.id,
         size: selectedVariant.value,
@@ -429,12 +430,14 @@ export function ProductInfo({ product, className }: ProductInfoProps) {
                       setSelectedVariant(variant);
                       
                       // Add variant to cart
+                      const weightGrams = product.weight != null ? Math.round(Number(product.weight)) : undefined;
                       const cartItem = {
                         id: `${product.id}-${variant.id}`,
                         productId: product.id,
                         name: `${product.name} - ${variant.value}`,
                         price: variant.price,
                         image: product.images?.[0]?.url || '/placeholder-product.jpg',
+                        weight: weightGrams,
                         variant: {
                           id: variant.id,
                           size: variant.value,

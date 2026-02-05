@@ -8,7 +8,7 @@
 
 ```bash
 # Подключись к серверу
-ssh root@147.45.98.110
+ssh root@<YOUR_SERVER_IP>
 
 # В каталоге проекта
 cd /root/idylle-spb
@@ -23,7 +23,7 @@ pg_dump "$DATABASE_URL" --no-owner --no-acl -F p -f prod_dump.sql
 exit
 
 # Скачай файл к себе в проект
-scp root@147.45.98.110:/root/idylle-spb/prod_dump.sql .
+scp root@<YOUR_SERVER_IP>:/root/idylle-spb/prod_dump.sql .
 ```
 
 ### Вариант Б: с твоей машины, если есть доступ к БД прода
@@ -32,7 +32,7 @@ scp root@147.45.98.110:/root/idylle-spb/prod_dump.sql .
 
 ```bash
 # Один раз задай URL прода (не коммитить в репозиторий!)
-export PROD_DATABASE_URL="postgresql://idylle_user:ПАРОЛЬ@147.45.98.110:5432/idylle_spb?schema=public"
+export PROD_DATABASE_URL="postgresql://user:password@<YOUR_SERVER_IP>:5432/idylle_spb?schema=public"
 
 ./scripts/dump-prod.sh prod_dump.sql
 ```
@@ -42,7 +42,7 @@ export PROD_DATABASE_URL="postgresql://idylle_user:ПАРОЛЬ@147.45.98.110:54
 Убедись, что в `.env.local` указана локальная БД:
 
 ```env
-DATABASE_URL="postgresql://dognev@localhost:5432/idylle_spb_dev"
+DATABASE_URL="postgresql://user@localhost:5432/idylle_spb_dev"
 ```
 
 Выполни:
@@ -83,4 +83,4 @@ NEXT_PUBLIC_IMAGE_BASE_URL=https://aromarussia.ru
 ./scripts/sync-uploads-from-prod.sh
 ```
 
-Потребуется пароль от `root@147.45.98.110`. Скрипт скопирует содержимое `/var/www/uploads/` в `public/uploads/`.
+Потребуется пароль от `root@<YOUR_SERVER_IP>`. Скрипт скопирует содержимое `/var/www/uploads/` в `public/uploads/`.

@@ -18,11 +18,18 @@ let tokenCache: TokenCache | null = null;
  * Токен кэшируется и автоматически обновляется при истечении.
  * Учётные данные берутся из настроек админки (БД) или из переменных окружения.
  */
+/** Базовый URL API СДЭК с путём /v2 (для oauth, suggest и т.д.). Экспорт для маршрутов. */
+export function getCdekApiBaseUrl(): string {
+  const raw = process.env.CDEK_TEST_MODE === 'true'
+    ? process.env.CDEK_API_TEST_URL || 'https://api.edu.cdek.ru'
+    : process.env.CDEK_API_URL || 'https://api.cdek.ru';
+  const base = raw.replace(/\/v2\/?$/, '') || raw;
+  return `${base}/v2`;
+}
+
 export async function getCdekAccessToken(): Promise<string> {
   const { clientId, clientSecret } = await getCdekCredentials();
-  const CDEK_API_URL = process.env.CDEK_TEST_MODE === 'true'
-    ? process.env.CDEK_API_TEST_URL || 'https://api.edu.cdek.ru/v2'
-    : process.env.CDEK_API_URL || 'https://api.cdek.ru/v2';
+  const CDEK_API_URL = getCdekApiBaseUrl();
 
   // Проверяем кэш токена
   if (tokenCache && tokenCache.expiresAt > Date.now() + 60000) {

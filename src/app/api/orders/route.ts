@@ -26,7 +26,10 @@ export async function POST(request: NextRequest) {
       paymentMethod,
       city,
       address,
+      addressPostalCode,
       comment,
+      orderComment,
+      courierComment,
       companyName,
       inn,
       kpp,
@@ -84,7 +87,8 @@ export async function POST(request: NextRequest) {
       paymentMethod,
       city,
       deliveryAddress: address,
-      notes: comment,
+      notes: (orderComment != null && String(orderComment).trim() !== '' ? String(orderComment).trim() : (comment != null && String(comment).trim() !== '' ? String(comment).trim() : null)),
+      courierComment: courierComment != null && String(courierComment).trim() !== '' ? String(courierComment).trim() : null,
       companyName,
       inn,
       kpp,
@@ -117,16 +121,41 @@ export async function POST(request: NextRequest) {
       orderData.cdekDeliveryDateMax = cdekDeliveryDateMax ? new Date(cdekDeliveryDateMax) : null;
     }
 
-    const order = await prisma.order.create({
-      data: orderData,
-      include: {
-        items: {
-          include: {
-            product: true,
+    let order: { id: string; orderNumber: string; items: unknown[] };
+    try {
+      order = await prisma.order.create({
+        data: orderData,
+        include: {
+          items: {
+            include: {
+              product: true,
+            },
           },
         },
-      },
-    });
+      });
+    } catch (createError: unknown) {
+      const errMsg = createError instanceof Error ? createError.message : String(createError);
+      const isMissingColumn = /courierComment|does not exist|Unknown column/i.test(errMsg);
+      if (isMissingColumn) {
+        const courierText = orderData.courierComment;
+        delete orderData.courierComment;
+        if (courierText) {
+          orderData.notes = [orderData.notes, courierText].filter(Boolean).join('\n\n[Комментарий для курьера]\n');
+        }
+        order = await prisma.order.create({
+          data: orderData,
+          include: {
+            items: {
+              include: {
+                product: true,
+              },
+            },
+          },
+        });
+      } else {
+        throw createError;
+      }
+    }
 
     // Если доставка через СДЕК, создаем заказ в СДЕК
     if (deliveryMethod === 'cdek' && cdekTariffCode) {
@@ -152,12 +181,13 @@ export async function POST(request: NextRequest) {
             email: email,
             city: city || '',
             address: address || undefined,
+            postal_code: addressPostalCode || undefined,
             pvzCode: cdekPvzCode || undefined,
           },
           items: cdekItems,
           tariffCode: parseInt(cdekTariffCode),
           deliveryType: (cdekDeliveryType as 'door' | 'pvz') || 'door',
-          comment: comment || undefined,
+          comment: [orderComment, courierComment].filter(Boolean).join('\n') || undefined,
           orderNumber: orderNumber,
         });
 
@@ -191,6 +221,20 @@ export async function POST(request: NextRequest) {
         ? `${process.env.NEXT_PUBLIC_BASE_URL}/logo-idylle.png`
         : 'http://localhost:3000/logo-idylle.png';
 
+      const deliveryMethodLabels: Record<string, string> = {
+        delivery: 'Доставка курьером',
+        pickup: 'Самовывоз из бутика',
+        cdek: cdekDeliveryType === 'pvz'
+          ? (cdekPvzAddress ? `СДЭК, самовывоз из ПВЗ: ${cdekPvzAddress}` : 'СДЭК, самовывоз из ПВЗ')
+          : 'СДЭК, доставка курьером',
+      };
+      const paymentMethodLabels: Record<string, string> = {
+        card: 'Карта онлайн',
+        cash: 'Наличные при получении',
+        invoice: 'Безналичный расчёт для юрлиц',
+        pickup: 'Оплата при самовывозе',
+      };
+
       const emailData: OrderEmailData = {
         orderNumber: order.orderNumber,
         orderDate: new Date().toLocaleDateString('ru-RU', {
@@ -203,8 +247,11 @@ export async function POST(request: NextRequest) {
         email,
         phone,
         deliveryMethod,
+        deliveryMethodLabel: deliveryMethodLabels[deliveryMethod] || deliveryMethod,
+        city: city || undefined,
         deliveryAddress: address,
         paymentMethod,
+        paymentMethodLabel: paymentMethodLabels[paymentMethod] || paymentMethod,
         orderItems: items.map((item: any) => ({
           name: item.name,
           variantInfo: item.variant?.volume || item.variant?.size,
@@ -213,8 +260,17 @@ export async function POST(request: NextRequest) {
           total: item.price * item.quantity,
         })),
         totalAmount: total.toLocaleString('ru-RU', { useGrouping: true }).replace(/,/g, ' '),
-        notes: comment,
+        shippingAmount: shipping > 0 ? shipping.toLocaleString('ru-RU', { useGrouping: true }).replace(/,/g, ' ') : undefined,
+        orderComment: orderComment != null && String(orderComment).trim() !== '' ? String(orderComment).trim() : undefined,
+        courierComment: courierComment != null && String(courierComment).trim() !== '' ? String(courierComment).trim() : undefined,
         logoUrl,
+        companyName,
+        inn,
+        kpp,
+        companyAddress,
+        cdekPvzAddress: cdekPvzAddress || undefined,
+        cdekDeliveryCost: cdekDeliveryCost != null ? String(cdekDeliveryCost) : undefined,
+        cdekTariffName: cdekTariffName || undefined,
       };
 
       const emailSubject = renderEmailTemplate(ORDER_CONFIRMATION_TEMPLATE.subject, emailData);
@@ -239,10 +295,12 @@ export async function POST(request: NextRequest) {
         orderNumber: order.orderNumber,
       }
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error creating order:', error);
+    const message = error instanceof Error ? error.message : 'Failed to create order';
+    const isDev = process.env.NODE_ENV !== 'production';
     return NextResponse.json(
-      { error: 'Failed to create order' },
+      { error: isDev ? message : 'Failed to create order' },
       { status: 500 }
     );
   }

@@ -9,6 +9,8 @@ interface CartItem {
   price: number;
   quantity: number;
   image: string;
+  /** Вес единицы товара в граммах (для расчёта доставки СДЭК) */
+  weight?: number;
   variant?: {
     id: string;
     size?: string;
@@ -24,6 +26,7 @@ interface CartContextType {
   clearCart: () => void;
   totalItems: number;
   totalPrice: number;
+  totalWeightGrams: number;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -91,6 +94,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const totalPrice = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  /** Общий вес корзины в граммах (для расчёта доставки). Если у товара нет weight — считаем 1000 г за единицу. */
+  const totalWeightGrams = items.reduce(
+    (sum, item) => sum + (item.weight ?? 1000) * item.quantity,
+    0
+  );
 
   return (
     <CartContext.Provider
@@ -102,6 +110,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         clearCart,
         totalItems,
         totalPrice,
+        totalWeightGrams,
       }}
     >
       {children}

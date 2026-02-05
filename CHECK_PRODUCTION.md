@@ -15,7 +15,7 @@
    - ✅ Автоматический редирект на HTTPS (`301 Moved Permanently`)
 
 3. **DNS:**
-   - ✅ `aromarussia.ru` → `147.45.98.110`
+   - ✅ `aromarussia.ru` → `<YOUR_SERVER_IP>`
    - ✅ Пинг работает (0% packet loss)
 
 4. **API Health Check:**
@@ -69,7 +69,7 @@ curl -I https://aromarussia.ru
 
 ```bash
 # Подключитесь к серверу
-ssh root@147.45.98.110
+ssh root@<YOUR_SERVER_IP>
 
 # Проверьте PM2
 pm2 status
@@ -126,7 +126,7 @@ tail -50 /var/log/nginx/access.log
 
 ### Проверка PM2 на сервере
 ```bash
-ssh root@147.45.98.110
+ssh root@<YOUR_SERVER_IP>
 pm2 status
 pm2 logs idylle-spb --lines 100
 pm2 restart idylle-spb  # если нужно перезапустить
@@ -134,7 +134,7 @@ pm2 restart idylle-spb  # если нужно перезапустить
 
 ### Проверка Nginx на сервере
 ```bash
-ssh root@147.45.98.110
+ssh root@<YOUR_SERVER_IP>
 systemctl status nginx
 systemctl restart nginx  # если нужно перезапустить
 nginx -t  # проверка конфигурации
@@ -142,7 +142,7 @@ nginx -t  # проверка конфигурации
 
 ### Проверка базы данных
 ```bash
-ssh root@147.45.98.110
+ssh root@<YOUR_SERVER_IP>
 cd /root/idylle-spb
 npm run check:prod  # если скрипт есть
 ```

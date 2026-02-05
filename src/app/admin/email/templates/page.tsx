@@ -97,18 +97,45 @@ const defaultTemplate: EmailTemplate = {
         <div class="section-title">Доставка и оплата</div>
         <div class="info-row">
           <span class="info-label">Способ доставки:</span>
-          <span class="info-value">{{deliveryMethod}}</span>
+          <span class="info-value">{{deliveryMethodLabel}}</span>
         </div>
+        {{#if city}}
+        <div class="info-row">
+          <span class="info-label">Город:</span>
+          <span class="info-value">{{city}}</span>
+        </div>
+        {{/if}}
         {{#if deliveryAddress}}
         <div style="padding: 8px 0; font-size: 14px;">
           <span class="info-label">Адрес:</span>
           <span style="color: #1a1a1a;">{{deliveryAddress}}</span>
         </div>
         {{/if}}
+        {{#if cdekPvzAddress}}
+        <div style="padding: 8px 0; font-size: 14px;">
+          <span class="info-label">ПВЗ СДЭК:</span>
+          <span style="color: #1a1a1a;">{{cdekPvzAddress}}</span>
+        </div>
+        {{/if}}
+        {{#if shippingAmount}}
+        <div class="info-row">
+          <span class="info-label">Стоимость доставки:</span>
+          <span class="info-value">{{shippingAmount}} ₽</span>
+        </div>
+        {{/if}}
         <div class="info-row">
           <span class="info-label">Способ оплаты:</span>
-          <span class="info-value">{{paymentMethod}}</span>
+          <span class="info-value">{{paymentMethodLabel}}</span>
         </div>
+        {{#if companyName}}
+        <div style="margin-top: 12px; padding: 12px; background: #fafafa; border-radius: 8px; font-size: 14px;">
+          <strong style="color: #1a1a1a;">Реквизиты для счёта:</strong>
+          <p style="margin: 6px 0 0 0;">{{companyName}}{{#if inn}}, ИНН {{inn}}{{/if}}{{#if kpp}}, КПП {{kpp}}{{/if}}</p>
+          {{#if companyAddress}}
+          <p style="margin: 4px 0 0 0; color: #666;">{{companyAddress}}</p>
+          {{/if}}
+        </div>
+        {{/if}}
 
         <div class="divider"></div>
 
@@ -172,10 +199,17 @@ const defaultTemplate: EmailTemplate = {
 Email: {{email}}
 Телефон: {{phone}}
 
-Способ доставки: {{deliveryMethod}}
-{{#if deliveryAddress}}Адрес: {{deliveryAddress}}{{/if}}
-
-Способ оплаты: {{paymentMethod}}
+Способ доставки: {{deliveryMethodLabel}}
+{{#if city}}Город: {{city}}
+{{/if}}{{#if deliveryAddress}}Адрес: {{deliveryAddress}}
+{{/if}}{{#if cdekPvzAddress}}ПВЗ СДЭК: {{cdekPvzAddress}}
+{{/if}}{{#if shippingAmount}}Стоимость доставки: {{shippingAmount}} ₽
+{{/if}}
+Способ оплаты: {{paymentMethodLabel}}
+{{#if companyName}}
+Реквизиты: {{companyName}}{{#if inn}}, ИНН {{inn}}{{/if}}{{#if kpp}}, КПП {{kpp}}{{/if}}
+{{#if companyAddress}}{{companyAddress}}{{/if}}
+{{/if}}
 
 Состав заказа:
 {{#each orderItems}}
@@ -234,16 +268,25 @@ export default function EmailTemplatesPage() {
       lastName: 'Иванов',
       email: 'ivan@example.com',
       phone: '+7 (999) 123-45-67',
-      deliveryMethod: 'Доставка курьером',
-      deliveryAddress: 'г. Санкт-Петербург, ул. Невский пр., д. 1',
-      paymentMethod: 'Банковская карта онлайн',
+      deliveryMethod: 'delivery',
+      deliveryMethodLabel: 'Доставка курьером',
+      city: 'Санкт-Петербург',
+      deliveryAddress: 'ул. Невский пр., д. 1, кв. 10',
+      paymentMethod: 'card',
+      paymentMethodLabel: 'Карта онлайн',
       orderItems: [
         { name: 'Ароматическая свеча "Лаванда"', variantInfo: '100 мл', quantity: 2, price: 1500, total: 3000 },
         { name: 'Диффузор "Цитрус"', variantInfo: null, quantity: 1, price: 2500, total: 2500 },
       ],
       totalAmount: '5 500',
+      shippingAmount: '500',
       notes: 'Позвонить за час до доставки',
       logoUrl: `${baseUrl}/logo-idylle.png`,
+      companyName: '',
+      inn: '',
+      kpp: '',
+      companyAddress: '',
+      cdekPvzAddress: '',
     };
     setPreviewData(sampleData);
   };
@@ -437,7 +480,7 @@ export default function EmailTemplatesPage() {
 
               {/* Variables Info */}
               <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                <h4 className="font-semibold mb-2">Доступные переменные:</h4>
+                <h4 className="font-semibold mb-2">Доступные переменные (подтверждение заказа):</h4>
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div><code className="bg-white px-2 py-1 rounded">{`{{orderNumber}}`}</code></div>
                   <div><code className="bg-white px-2 py-1 rounded">{`{{orderDate}}`}</code></div>
@@ -445,9 +488,20 @@ export default function EmailTemplatesPage() {
                   <div><code className="bg-white px-2 py-1 rounded">{`{{lastName}}`}</code></div>
                   <div><code className="bg-white px-2 py-1 rounded">{`{{email}}`}</code></div>
                   <div><code className="bg-white px-2 py-1 rounded">{`{{phone}}`}</code></div>
-                  <div><code className="bg-white px-2 py-1 rounded">{`{{deliveryMethod}}`}</code></div>
-                  <div><code className="bg-white px-2 py-1 rounded">{`{{paymentMethod}}`}</code></div>
+                  <div><code className="bg-white px-2 py-1 rounded">{`{{deliveryMethodLabel}}`}</code></div>
+                  <div><code className="bg-white px-2 py-1 rounded">{`{{paymentMethodLabel}}`}</code></div>
+                  <div><code className="bg-white px-2 py-1 rounded">{`{{city}}`}</code></div>
+                  <div><code className="bg-white px-2 py-1 rounded">{`{{deliveryAddress}}`}</code></div>
+                  <div><code className="bg-white px-2 py-1 rounded">{`{{shippingAmount}}`}</code></div>
+                  <div><code className="bg-white px-2 py-1 rounded">{`{{cdekPvzAddress}}`}</code></div>
+                  <div><code className="bg-white px-2 py-1 rounded">{`{{companyName}}`}</code></div>
+                  <div><code className="bg-white px-2 py-1 rounded">{`{{inn}}`}</code></div>
+                  <div><code className="bg-white px-2 py-1 rounded">{`{{kpp}}`}</code></div>
+                  <div><code className="bg-white px-2 py-1 rounded">{`{{companyAddress}}`}</code></div>
                   <div><code className="bg-white px-2 py-1 rounded">{`{{totalAmount}}`}</code></div>
+                  <div><code className="bg-white px-2 py-1 rounded">{`{{notes}}`}</code></div>
+                  <div><code className="bg-white px-2 py-1 rounded">{`{{logoUrl}}`}</code></div>
+                  <div><code className="bg-white px-2 py-1 rounded">{`{{#each orderItems}}`}</code></div>
                 </div>
               </div>
             </CardContent>

@@ -7,17 +7,21 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Truck, Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { Truck, Loader2, CheckCircle, XCircle, MapPin } from 'lucide-react';
 import Link from 'next/link';
 
 export default function AdminDeliveryPage() {
   const router = useRouter();
   const [settings, setSettings] = useState({ clientId: '', clientSecret: '' });
   const [editable, setEditable] = useState({ clientId: '', clientSecret: '' });
+  const [dadataSettings, setDadataSettings] = useState({ apiKey: '', secret: '' });
+  const [dadataEditable, setDadataEditable] = useState({ apiKey: '', secret: '' });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [dadataSaving, setDadataSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [isDadataEditing, setIsDadataEditing] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('admin_token');
@@ -26,6 +30,7 @@ export default function AdminDeliveryPage() {
       return;
     }
     fetchSettings();
+    fetchDadataSettings();
   }, [router]);
 
   const fetchSettings = async () => {
@@ -44,6 +49,22 @@ export default function AdminDeliveryPage() {
       setMessage({ type: 'error', text: 'Не удалось загрузить настройки' });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchDadataSettings = async () => {
+    try {
+      const token = localStorage.getItem('admin_token');
+      const res = await fetch('/api/admin/dadata', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success && data.settings) {
+        setDadataSettings(data.settings);
+        setDadataEditable(data.settings);
+      }
+    } catch {
+      // тихо игнорируем, DaData опциональны
     }
   };
 
@@ -81,13 +102,47 @@ export default function AdminDeliveryPage() {
     }
   };
 
+  const handleDadataSave = async () => {
+    try {
+      setDadataSaving(true);
+      setMessage(null);
+      const token = localStorage.getItem('admin_token');
+      const res = await fetch('/api/admin/dadata', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          action: 'save-settings',
+          settings: {
+            apiKey: dadataEditable.apiKey,
+            secret: dadataEditable.secret === '******' ? '' : dadataEditable.secret,
+          },
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setMessage({ type: 'success', text: 'Настройки DaData сохранены' });
+        setIsDadataEditing(false);
+        fetchDadataSettings();
+      } else {
+        setMessage({ type: 'error', text: data.error || 'Ошибка сохранения' });
+      }
+    } catch (e) {
+      setMessage({ type: 'error', text: 'Ошибка сохранения' });
+    } finally {
+      setDadataSaving(false);
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold mb-2">Доставка СДЕК</h1>
+          <h1 className="text-3xl font-bold mb-2">Доставка и адреса</h1>
           <p className="text-muted-foreground">
-            Учётные данные для API СДЕК (автокомплит городов, расчёт доставки). Можно задать здесь или в переменных окружения.
+            Учётные данные СДЕК (города, расчёт доставки) и DaData (подсказки адресов). Можно задать здесь или в переменных окружения.
           </p>
         </div>
         <Button variant="outline" asChild>
@@ -176,6 +231,68 @@ export default function AdminDeliveryPage() {
                 </Button>
               )}
             </>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <MapPin className="h-5 w-5" />
+            Учётные данные DaData
+          </CardTitle>
+          <CardDescription className="flex items-center justify-between">
+            <span>API Key и Secret для подсказок адресов на чекауте (подсказки по улице и дому в выбранном городе)</span>
+            <Button
+              variant={isDadataEditing ? 'ghost' : 'outline'}
+              size="sm"
+              onClick={() => {
+                if (isDadataEditing) {
+                  setIsDadataEditing(false);
+                  setDadataEditable(dadataSettings);
+                } else {
+                  setIsDadataEditing(true);
+                }
+              }}
+            >
+              {isDadataEditing ? 'Отмена' : 'Изменить'}
+            </Button>
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label>API Key</Label>
+            <Input
+              value={isDadataEditing ? dadataEditable.apiKey : dadataSettings.apiKey}
+              disabled={!isDadataEditing}
+              onChange={(e) => setDadataEditable((p) => ({ ...p, apiKey: e.target.value }))}
+              placeholder="Укажите DaData API Key"
+            />
+          </div>
+          <div>
+            <Label>Secret</Label>
+            <Input
+              type="password"
+              value={isDadataEditing ? dadataEditable.secret : dadataSettings.secret}
+              disabled={!isDadataEditing}
+              onChange={(e) => setDadataEditable((p) => ({ ...p, secret: e.target.value }))}
+              placeholder={dadataSettings.secret ? '******' : 'Укажите DaData Secret'}
+            />
+            {dadataSettings.secret === '******' && !isDadataEditing && (
+              <p className="text-sm text-muted-foreground mt-1">Секрет сохранён; для смены нажмите «Изменить» и введите новый.</p>
+            )}
+          </div>
+          {isDadataEditing && (
+            <Button onClick={handleDadataSave} disabled={dadataSaving}>
+              {dadataSaving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Сохранение...
+                </>
+              ) : (
+                'Сохранить'
+              )}
+            </Button>
           )}
         </CardContent>
       </Card>

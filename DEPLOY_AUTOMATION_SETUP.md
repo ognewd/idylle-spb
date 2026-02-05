@@ -22,7 +22,7 @@ cat ~/.ssh/idylle_deploy.pub
 
 ```bash
 # На сервере выполните:
-ssh root@147.45.98.110
+ssh root@<YOUR_SERVER_IP>
 
 # Добавьте публичный ключ в authorized_keys
 echo "ВАШ_ПУБЛИЧНЫЙ_КЛЮЧ_ИЗ_ПРЕДЫДУЩЕЙ_КОМАНДЫ" >> ~/.ssh/authorized_keys
@@ -40,7 +40,7 @@ chmod 700 ~/.ssh
 - Добавьте следующие secrets:
 
 ```
-SERVER_HOST = 147.45.98.110
+SERVER_HOST = <YOUR_SERVER_IP>
 SERVER_USER = root
 SERVER_SSH_KEY = <содержимое файла ~/.ssh/idylle_deploy (приватный ключ)>
 SERVER_PORT = 22 (или ваш порт SSH)
@@ -73,7 +73,7 @@ cat ~/.ssh/idylle_deploy
 
 ```bash
 # На сервере
-ssh root@147.45.98.110
+ssh root@<YOUR_SERVER_IP>
 
 # Создайте bare репозиторий
 cd /root
@@ -98,7 +98,7 @@ chmod +x hooks/post-receive
 
 **Локально добавить remote:**
 ```bash
-git remote add deploy root@147.45.98.110:/root/idylle-spb-bare.git
+git remote add deploy root@<YOUR_SERVER_IP>:/root/idylle-spb-bare.git
 ```
 
 **Деплой:**
@@ -166,7 +166,7 @@ git push deploy main
 **Решение:**
 ```bash
 # Проверьте, что ключ добавлен на сервер
-ssh -i ~/.ssh/idylle_deploy root@147.45.98.110
+ssh -i ~/.ssh/idylle_deploy root@<YOUR_SERVER_IP>
 
 # Если не работает, проверьте права на ключ
 chmod 600 ~/.ssh/idylle_deploy

@@ -41,6 +41,7 @@ export function CityAutocomplete({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const justSelectedValueRef = useRef<string | null>(null);
 
   // Обработка клика вне компонента
   useEffect(() => {
@@ -59,7 +60,16 @@ export function CityAutocomplete({
   // Автокомплит с debounce
   useEffect(() => {
     const trimmedValue = value.trim();
-    
+
+    // Только что выбрали город из подсказки — не показывать подсказки снова и не искать
+    if (justSelectedValueRef.current !== null && trimmedValue === justSelectedValueRef.current.trim()) {
+      justSelectedValueRef.current = null;
+      setSuggestions([]);
+      setShowSuggestions(false);
+      setError(null);
+      return;
+    }
+
     // Не ищем, если меньше 2 символов
     if (trimmedValue.length < 2) {
       setSuggestions([]);
@@ -108,6 +118,7 @@ export function CityAutocomplete({
   }, [value, country]);
 
   const handleSelect = (suggestion: CitySuggestion) => {
+    justSelectedValueRef.current = suggestion.value;
     onChange(suggestion.value);
     if (onSelect) {
       onSelect(suggestion);

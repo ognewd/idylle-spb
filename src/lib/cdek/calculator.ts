@@ -1,141 +1,128 @@
 /**
- * Модуль расчета стоимости доставки СДЕК
+ * Расчёт стоимости доставки СДЭК через sdek-api-lib.
+ *
+ * Вызов СДЭК: POST /v2/calculator/tarifflist
+ *
+ * Тело запроса (для обоих типов доставки — «до двери» и «до ПВЗ» — один и тот же):
+ * - from_location: { code: number } — код города отправителя (обязательно)
+ * - to_location: { code: number } — код города получателя (обязательно)
+ * - packages: [{ weight (г), length?, width?, height? (см) }] — минимум weight
+ *
+ * Опционально в location: postal_code, city, country_code, address (уточняют расчёт).
+ * Опционально в запросе: date (дата отправления), currency, lang, tariff_codes (фильтр тарифов).
+ *
+ * Ответ: массив тарифов (tariff_codes). У каждого: tariff_code, delivery_mode (1 — дверь, 2 — ПВЗ),
+ * delivery_sum, period_min, period_max. Один вызов возвращает и тариф «до двери», и «до ПВЗ».
  */
 
-import { cdekPost } from './client';
-import { CdekCalculateRequest, CdekCalculateResponse } from './types';
+import { getCdekApi } from './sdek-client';
+import type { CdekCalculateRequest, CdekCalculateResponse, CdekTariff } from './types';
 import { getCityCode } from './cities';
 
 /**
- * Рассчитать стоимость доставки
+ * Рассчитать стоимость доставки (формат API СДЭК: from_location, to_location, packages).
  */
 export async function calculateCdekDelivery(
   request: CdekCalculateRequest
 ): Promise<CdekCalculateResponse> {
-  try {
-    // Логируем запрос для отладки (только в dev режиме)
-    if (process.env.NODE_ENV === 'development') {
-      console.log('📤 CDEK Calculate Request:', JSON.stringify(request, null, 2));
-    }
-    
-    const response = await cdekPost<any>('/calculator/tarifflist', request);
-    
-    // Нормализуем ответ: API возвращает tariff_codes, но мы хотим tariffs
-    const normalizedResponse: CdekCalculateResponse = {
-      ...response,
-      tariffs: response.tariff_codes || response.tariffs || [],
-    };
-    
-    if (process.env.NODE_ENV === 'development') {
-      console.log('📥 CDEK Calculate Response (normalized):', JSON.stringify(normalizedResponse, null, 2));
-    }
-    
-    return normalizedResponse;
-  } catch (error: any) {
-    console.error('❌ Ошибка расчета стоимости СДЕК:', error);
-    throw error;
-  }
+  const cdek = await getCdekApi();
+  const list = await cdek.calculateTariffList({
+    from_location: request.from_location,
+    to_location: request.to_location,
+    packages: request.packages.map((p) => ({
+      weight: p.weight,
+      length: p.length,
+      width: p.width,
+      height: p.height,
+    })),
+  });
+  const tariffs: CdekTariff[] = list.map((t) => ({
+    tariff_code: t.tariff_code,
+    tariff_name: t.tariff_name,
+    tariff_description: t.tariff_description,
+    delivery_mode: t.delivery_mode as number | undefined,
+    delivery_sum: t.delivery_sum,
+    period_min: t.period_min,
+    period_max: t.period_max,
+  }));
+  return { tariff_codes: tariffs, tariffs };
 }
 
-/**
- * Упрощенный расчет стоимости доставки
- */
 export interface SimpleCalculateParams {
   fromCity: string;
   toCity: string;
-  weight: number; // в граммах
-  length?: number; // в см
-  width?: number; // в см
-  height?: number; // в см
-  deliveryType?: 'door' | 'pvz'; // до двери или в ПВЗ
-  fromCityCode?: number; // код города отправителя (если известен)
-  toCityCode?: number; // код города получателя (если известен)
+  weight: number;
+  /** Полный адрес доставки (улица, дом, кв.) — для уточнённого расчёта «до двери» */
+  toAddress?: string;
+  length?: number;
+  width?: number;
+  height?: number;
+  deliveryType?: 'door' | 'pvz';
+  fromCityCode?: number;
+  toCityCode?: number;
 }
 
-/**
- * Известные коды городов (для fallback)
- */
 const KNOWN_CITY_CODES: Record<string, number> = {
-  'Санкт-Петербург': 137, // Код СПб в СДЕК (проверено через тест)
-  'Москва': 44,
-  'МСК': 44,
-  'СПБ': 137,
-  'СПб': 137,
+  'Санкт-Петербург': 137,
+  Москва: 44,
+  МСК: 44,
+  СПБ: 137,
+  СПб: 137,
 };
 
 /**
- * Рассчитать стоимость доставки с упрощенными параметрами
+ * Упрощённый расчёт: по названиям городов и весу.
  */
-export async function calculateDelivery(params: SimpleCalculateParams): Promise<CdekCalculateResponse> {
-  // Получаем коды городов, если они не указаны
+export async function calculateDelivery(
+  params: SimpleCalculateParams
+): Promise<CdekCalculateResponse> {
   let fromCode = params.fromCityCode;
   let toCode = params.toCityCode;
-  
-  try {
-    // Для города отправителя (СПб) используем известный код или ищем
+
+  if (!fromCode) {
+    const normalizedFrom = params.fromCity.trim();
+    fromCode =
+      KNOWN_CITY_CODES[normalizedFrom] ??
+      (await getCityCode(params.fromCity)) ??
+      undefined;
+    if (!fromCode && /Санкт-Петербург|СПб|СПБ/i.test(normalizedFrom)) {
+      fromCode = 137;
+    }
     if (!fromCode) {
-      // Сначала проверяем известные коды
-      const normalizedFromCity = params.fromCity.trim();
-      if (KNOWN_CITY_CODES[normalizedFromCity]) {
-        fromCode = KNOWN_CITY_CODES[normalizedFromCity];
-      } else {
-        // Пытаемся найти код через API
-        const cityCode = await getCityCode(params.fromCity);
-        fromCode = cityCode || undefined;
-      }
-      
-      // Если все равно не найден, используем код СПб по умолчанию
-      if (!fromCode && (normalizedFromCity.includes('Санкт-Петербург') || normalizedFromCity.includes('СПб') || normalizedFromCity.includes('СПБ'))) {
-        fromCode = 137; // Код СПб
-        console.log(`✅ Используем код СПб по умолчанию: ${fromCode}`);
-      }
-      
-      if (!fromCode) {
-        throw new Error(`Не удалось определить код города отправителя: "${params.fromCity}"`);
-      }
+      throw new Error(`Не удалось определить код города отправителя: "${params.fromCity}"`);
     }
-    
-    // Для города получателя
+  }
+
+  if (!toCode) {
+    const normalizedTo = params.toCity.trim();
+    toCode = KNOWN_CITY_CODES[normalizedTo] ?? (await getCityCode(params.toCity)) ?? undefined;
     if (!toCode) {
-      // Сначала проверяем известные коды
-      const normalizedToCity = params.toCity.trim();
-      if (KNOWN_CITY_CODES[normalizedToCity]) {
-        toCode = KNOWN_CITY_CODES[normalizedToCity];
-      } else {
-        // Пытаемся найти код через API
-        const cityCode2 = await getCityCode(params.toCity);
-        toCode = cityCode2 ?? undefined;
+      if (params.toCity.trim().length < 3) {
+        throw new Error('Укажите полное название города (минимум 3 символа)');
       }
-      
-      if (!toCode) {
-        // Проверяем, не слишком ли короткое название города
-        if (params.toCity.trim().length < 3) {
-          throw new Error(`Укажите полное название города (минимум 3 символа)`);
-        }
-        throw new Error(`Не удалось найти код города получателя: "${params.toCity}". Проверьте правильность написания.`);
-      }
+      throw new Error(
+        `Не удалось найти код города получателя: "${params.toCity}". Проверьте правильность написания.`
+      );
     }
-    
-    // Обязательно используем коды городов для расчета
-    const request: CdekCalculateRequest = {
-      from_location: { code: fromCode },
-      to_location: { code: toCode },
-      packages: [
-        {
-          weight: params.weight,
-          ...(params.length && params.width && params.height && {
+  }
+
+  return calculateCdekDelivery({
+    from_location: { code: fromCode },
+    to_location: {
+      code: toCode,
+      ...(params.toAddress?.trim() && { address: params.toAddress.trim() }),
+    },
+    packages: [
+      {
+        weight: params.weight,
+        ...(params.length != null &&
+          params.width != null &&
+          params.height != null && {
             length: params.length,
             width: params.width,
             height: params.height,
           }),
-        },
-      ],
-      // Не указываем tariff_code, чтобы получить все доступные тарифы
-    };
-
-    return calculateCdekDelivery(request);
-  } catch (error: any) {
-    console.error('❌ Ошибка в calculateDelivery:', error);
-    throw error;
-  }
+      },
+    ],
+  });
 }

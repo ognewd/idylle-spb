@@ -22,15 +22,9 @@ echo "⚠️  Обнаружены проблемы, начинаю восста
 if [ ! -f .next/BUILD_ID ]; then
     echo "🔨 Проблема: отсутствует BUILD_ID, запускаю сборку..."
     
-    # Убеждаемся, что DATABASE_URL правильный
     if [ -f .env ]; then
         export $(grep -v '^#' .env | xargs)
     fi
-    
-    if echo "$DATABASE_URL" | grep -q "supabase\|aws-1-us-east-1"; then
-        export DATABASE_URL="postgresql://idylle_user:wendw%40%40422ewd%21@localhost:5432/idylle_spb?schema=public"
-    fi
-    
     # Очищаем и собираем
     rm -rf .next node_modules/.cache
     npm run build

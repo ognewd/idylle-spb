@@ -8,11 +8,11 @@
 Выполните на сервере через SSH:
 
 ```bash
-ssh root@147.45.98.110
+ssh root@<YOUR_SERVER_IP>
 cd /root/idylle-spb
 
 # Применить миграцию Prisma
-export DATABASE_URL="postgresql://idylle_user:wendw%40%40422ewd%21@localhost:5432/idylle_spb?schema=public"
+export DATABASE_URL="postgresql://user:password@localhost:5432/idylle_spb?schema=public"
 npx prisma db push --accept-data-loss
 npx prisma generate
 

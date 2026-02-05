@@ -37,6 +37,8 @@ interface Order {
   total: number;
   createdAt: string;
   items: any[];
+  cdekDeliveryType?: string | null;
+  cdekPvzAddress?: string | null;
 }
 
 const statusColors = {
@@ -104,6 +106,16 @@ export default function AdminOrdersPage() {
 
     return matchesSearch && matchesStatus && matchesPaymentStatus;
   });
+
+  const getDeliveryMethodLabel = (order: Order) => {
+    if (order.deliveryMethod === 'delivery') return '🚚 Доставка курьером';
+    if (order.deliveryMethod === 'pickup') return '🏪 Самовывоз';
+    if (order.deliveryMethod === 'cdek') {
+      if (order.cdekDeliveryType === 'pvz' && order.cdekPvzAddress) return `📦 СДЭК ПВЗ`;
+      return '🚚 СДЭК курьер';
+    }
+    return order.deliveryMethod;
+  };
 
   const getPaymentMethodLabel = (method: string) => {
     const labels: Record<string, string> = {
@@ -242,7 +254,7 @@ export default function AdminOrdersPage() {
                         <div>
                           <p className="font-medium">{order.firstName} {order.lastName}</p>
                           <p className="text-sm text-muted-foreground">
-                            {order.deliveryMethod === 'delivery' ? '🚚 Доставка' : '🏪 Самовывоз'}
+                            {getDeliveryMethodLabel(order)}
                           </p>
                         </div>
                       </TableCell>

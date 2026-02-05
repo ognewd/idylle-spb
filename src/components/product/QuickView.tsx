@@ -47,6 +47,7 @@ interface QuickViewProduct {
   gender?: string;
   ingredients?: string;
   stock: number;
+  weight?: number;
   variants?: ProductVariant[];
   rating?: number;
   reviewCount?: number;
@@ -91,6 +92,7 @@ export function QuickView({ product, isOpen, onClose, onAddToCart }: QuickViewPr
       : '/placeholder-product.jpg';
 
     // Add quantity times
+    const weightGrams = product.weight != null ? Math.round(Number(product.weight)) : undefined;
     for (let i = 0; i < quantity; i++) {
       addItem({
         id: selectedVariant ? `${product.id}-${selectedVariant.id}` : product.id,
@@ -98,6 +100,7 @@ export function QuickView({ product, isOpen, onClose, onAddToCart }: QuickViewPr
         name: product.name,
         price: currentPrice,
         image: imageUrl,
+        weight: weightGrams,
         variant: selectedVariant ? {
           id: selectedVariant.id,
           volume: selectedVariant.value,

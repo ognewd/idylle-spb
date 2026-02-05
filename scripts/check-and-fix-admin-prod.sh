@@ -9,7 +9,8 @@ echo "🔍 Проверяем подключение к базе данных и
 cd /root/idylle-spb
 
 # Принудительно используем локальный PostgreSQL
-LOCAL_DB_URL="postgresql://idylle_user:wendw%40%40422ewd%21@localhost:5432/idylle_spb?schema=public"
+# Задайте DATABASE_URL в .env на сервере; для скрипта можно переопределить:
+LOCAL_DB_URL="${DATABASE_URL:-postgresql://user:password@localhost:5432/idylle_spb?schema=public}"
 export DATABASE_URL="$LOCAL_DB_URL"
 
 echo "📊 Используется DATABASE_URL: ${DATABASE_URL%%@*}@***"
@@ -35,7 +36,8 @@ fi
 echo "📊 Проверяем подключение к БД..."
 
 # Проверяем, есть ли таблица users
-if PGPASSWORD='wendw@@422ewd!' psql -h localhost -p 5432 -U idylle_user -d idylle_spb -c "\d users" > /dev/null 2>&1; then
+# Проверка через psql: задайте PGPASSWORD или используйте .pgpass
+if psql -h localhost -p 5432 -U idylle_user -d idylle_spb -c "\d users" > /dev/null 2>&1; then
     echo "✅ Таблица users существует"
 else
     echo "❌ Таблица users не найдена!"
@@ -47,7 +49,8 @@ fi
 echo ""
 echo "📋 Проверяем наличие администраторов в БД..."
 
-PGPASSWORD='wendw@@422ewd!' psql -h localhost -p 5432 -U idylle_user -d idylle_spb <<EOF
+# Пароль возьмите из .env (POSTGRES_PASSWORD) или задайте PGPASSWORD
+psql -h localhost -p 5432 -U idylle_user -d idylle_spb <<EOF
 SELECT id, email, name, role, "isActive" FROM users WHERE role IN ('admin', 'super_admin');
 EOF
 

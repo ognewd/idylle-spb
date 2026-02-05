@@ -15,9 +15,17 @@ export interface OrderEmailData {
   lastName: string;
   email: string;
   phone: string;
+  /** Код способа доставки: delivery | pickup | cdek */
   deliveryMethod: string;
+  /** Человекочитаемое название способа доставки */
+  deliveryMethodLabel: string;
+  /** Город доставки (если указан) */
+  city?: string;
   deliveryAddress?: string;
+  /** Код способа оплаты: card | cash | invoice | pickup */
   paymentMethod: string;
+  /** Человекочитаемое название способа оплаты */
+  paymentMethodLabel: string;
   orderItems: Array<{
     name: string;
     variantInfo?: string | null;
@@ -26,8 +34,22 @@ export interface OrderEmailData {
     total: number;
   }>;
   totalAmount: string;
-  notes?: string;
+  /** Стоимость доставки (форматированная строка) */
+  shippingAmount?: string;
+  /** Комментарий к заказу */
+  orderComment?: string;
+  /** Комментарий для курьера */
+  courierComment?: string;
   logoUrl: string;
+  // Реквизиты для юрлиц (оплата по счёту)
+  companyName?: string;
+  inn?: string;
+  kpp?: string;
+  companyAddress?: string;
+  // СДЭК
+  cdekPvzAddress?: string;
+  cdekDeliveryCost?: string;
+  cdekTariffName?: string;
 }
 
 let transporter: nodemailer.Transporter | null = null;
@@ -133,18 +155,7 @@ export async function testSMTPConnection() {
 export function renderEmailTemplate(template: string, data: OrderEmailData): string {
   let result = template;
 
-  // Replace simple variables
-  result = result.replace(/\{\{(\w+)\}\}/g, (_match, key) => {
-    return (data as any)[key] !== undefined ? String((data as any)[key]) : '';
-  });
-
-  // Handle {{#if}} blocks
-  result = result.replace(/\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g, (_match, condition, content) => {
-    const value = (data as any)[condition];
-    return value ? content : '';
-  });
-
-  // Handle {{#each}} blocks
+  // 1) Сначала обрабатываем {{#each}} — иначе верхнеуровневая замена {{name}}/{{quantity}} очистит плейсхолдеры внутри блока
   result = result.replace(/\{\{#each\s+(\w+)\}\}([\s\S]*?)\{\{\/each\}\}/g, (_match, arrayKey, content) => {
     const array = (data as any)[arrayKey];
     if (Array.isArray(array)) {
@@ -152,17 +163,32 @@ export function renderEmailTemplate(template: string, data: OrderEmailData): str
         let itemContent = content;
         Object.keys(item).forEach(key => {
           const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
-          itemContent = itemContent.replace(regex, String(item[key] || ''));
-          
-          // Handle nested {{#if}} in items
-          itemContent = itemContent.replace(/\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g, (_m: string, cond: string, cont: string) => {
-            return item[cond] ? cont : '';
-          });
+          itemContent = itemContent.replace(regex, String(item[key] ?? ''));
+        });
+        // Вложенные {{#if}} внутри элемента (например variantInfo)
+        itemContent = itemContent.replace(/\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g, (_m: string, cond: string, cont: string) => {
+          return item[cond] ? cont : '';
         });
         return itemContent;
       }).join('');
     }
     return '';
+  });
+
+  // 2) Обрабатываем {{#if}} — сначала самые внутренние (у которых в content нет {{#if}})
+  const ifBlockRegex = /\{\{#if\s+(\w+)\}\}((?:(?!\{\{#if)[\s\S])*?)\{\{\/if\}\}/g;
+  for (let i = 0; i < 10; i++) {
+    const prev = result;
+    result = result.replace(ifBlockRegex, (_match, condition, content) => {
+      const value = (data as any)[condition];
+      return value ? content : '';
+    });
+    if (result === prev) break;
+  }
+
+  // 3) В конце подставляем простые переменные {{key}}
+  result = result.replace(/\{\{(\w+)\}\}/g, (_match, key) => {
+    return (data as any)[key] !== undefined ? String((data as any)[key]) : '';
   });
 
   return result;

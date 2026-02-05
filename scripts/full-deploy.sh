@@ -43,14 +43,6 @@ if [ -z "$DATABASE_URL" ]; then
     exit 1
 fi
 
-# Проверяем, что DATABASE_URL указывает на локальный PostgreSQL (не Supabase)
-if echo "$DATABASE_URL" | grep -q "supabase\|aws-1-us-east-1"; then
-    echo "⚠️  Предупреждение: DATABASE_URL указывает на Supabase"
-    echo "📝 Для продакшн-сервера используйте локальную PostgreSQL"
-    echo "📝 Установите DATABASE_URL в .env файле на локальную БД"
-    exit 1
-fi
-
 echo "📊 DATABASE_URL настроен: ${DATABASE_URL%%@*}@***"
 
 # Шаг 4: Применить миграции Prisma

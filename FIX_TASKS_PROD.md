@@ -25,18 +25,12 @@ cd /root/idylle-spb
 grep DATABASE_URL .env
 ```
 
-4. Убедитесь, что DATABASE_URL указывает на локальный PostgreSQL:
+4. Убедитесь, что в `.env` задан DATABASE_URL (PostgreSQL):
 ```
-DATABASE_URL="postgresql://idylle_user:wendw%40%40422ewd%21@localhost:5432/idylle_spb?schema=public"
-```
-
-5. Если DATABASE_URL указывает на Supabase, исправьте его:
-```bash
-nano .env
-# Измените DATABASE_URL на локальный PostgreSQL
+DATABASE_URL="postgresql://user:password@host:5432/database?schema=public"
 ```
 
-6. Примените миграцию:
+5. Примените миграцию:
 ```bash
 # Вариант A: Используйте готовый скрипт
 bash scripts/fix-tasks-on-prod.sh
@@ -47,16 +41,14 @@ npx prisma generate
 pm2 restart idylle-spb --update-env
 ```
 
-7. Проверьте, что таблица создана:
+6. Проверьте, что таблица создана (подставьте свой DATABASE_URL):
 ```bash
-psql "postgresql://idylle_user:wendw%40%40422ewd%21@localhost:5432/idylle_spb?schema=public" -c "\d tasks"
+psql "$DATABASE_URL" -c "\d tasks"
 ```
 
-8. Проверьте работу:
+7. Проверьте работу:
 Откройте https://aromarussia.ru/admin/tasks в браузере.
 
 ## Важно
-- **Мы используем локальный PostgreSQL, НЕ Supabase!**
-- DATABASE_URL должен указывать на `localhost:5432`, а не на Supabase
 - После применения миграции обязательно перезапустите PM2
 

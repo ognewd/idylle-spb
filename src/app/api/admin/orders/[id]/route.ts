@@ -77,25 +77,51 @@ export async function PUT(
 
   try {
     const body = await request.json();
-    const { status, paymentStatus, notes } = body;
+    const { status, paymentStatus, notes, courierComment } = body;
 
-    const order = await prisma.order.update({
-      where: { id: params.id },
-      data: {
-        ...(status && { status }),
-        ...(paymentStatus && { paymentStatus }),
-        ...(notes !== undefined && { notes }),
-      },
-      include: {
-        items: {
-          include: {
-            product: true,
+    const updateData: Record<string, unknown> = {
+      ...(status && { status }),
+      ...(paymentStatus && { paymentStatus }),
+      ...(notes !== undefined && { notes }),
+      ...(courierComment !== undefined && { courierComment }),
+    };
+
+    try {
+      const order = await prisma.order.update({
+        where: { id: params.id },
+        data: updateData,
+        include: {
+          items: {
+            include: {
+              product: true,
+            },
           },
         },
-      },
-    });
-
-    return NextResponse.json({ order });
+      });
+      return NextResponse.json({ order });
+    } catch (updateError: unknown) {
+      const errMsg = updateError instanceof Error ? updateError.message : String(updateError);
+      const isMissingColumn = /courierComment|does not exist|Unknown column/i.test(errMsg);
+      if (isMissingColumn && courierComment !== undefined) {
+        delete updateData.courierComment;
+        const mergedNotes =
+          [notes, courierComment].filter(Boolean).join('\n\n[Комментарий для курьера]\n');
+        if (mergedNotes) (updateData as any).notes = mergedNotes;
+        const order = await prisma.order.update({
+          where: { id: params.id },
+          data: updateData,
+          include: {
+            items: {
+              include: {
+                product: true,
+              },
+            },
+          },
+        });
+        return NextResponse.json({ order });
+      }
+      throw updateError;
+    }
   } catch (error) {
     console.error('Error updating order:', error);
     return NextResponse.json(

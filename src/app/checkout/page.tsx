@@ -2,7 +2,8 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import nextDynamic from 'next/dynamic';
 import { useSession } from 'next-auth/react';
 import { useCart } from '@/contexts/CartContext';
 import { Button } from '@/components/ui/button';
@@ -16,7 +17,11 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { CityAutocomplete, CitySuggestion } from '@/components/ui/city-autocomplete';
+import { AddressAutocomplete } from '@/components/ui/address-autocomplete';
 import { DELIVERY_CONFIG, isSaintPetersburg } from '@/lib/delivery-config';
+import type { PvzMapPoint } from '@/components/delivery/PvzMap';
+
+const PvzMap = nextDynamic(() => import('@/components/delivery/PvzMap').then((m) => m.PvzMap), { ssr: false });
 
 type PaymentMethod = 'card' | 'invoice' | 'cash' | 'pickup';
 type DeliveryMethod = 'spb_courier' | 'spb_boutique' | 'spb_cdek' | 'cdek_courier' | 'cdek_pickup';
@@ -26,18 +31,34 @@ interface SelectedCity {
   city: string;
   region: string;
   displayValue: string; // "190000, г, Санкт-Петербург"
+  postal_code?: string; // из API СДЭК (подсказки городов)
 }
 
 interface DeliveryPrice {
-  door?: number; // цена до двери
-  pickup?: number; // цена до ПВЗ
+  door?: number;
+  pickup?: number;
   isLoading: boolean;
   error?: string;
 }
 
+interface CdekTariffInfo {
+  tariff_code: number;
+  tariff_name: string;
+  delivery_sum: number;
+  period_min: number;
+  period_max: number;
+}
+
+interface CdekPvzItem {
+  code: string;
+  name: string;
+  location: { address?: string; city?: string; latitude?: number; longitude?: number };
+  work_time?: string;
+}
+
 export default function CheckoutPage() {
   const router = useRouter();
-  const { items, totalPrice, clearCart } = useCart();
+  const { items, totalPrice, totalWeightGrams, clearCart } = useCart();
   const { data: session } = useSession();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showGuestOption, setShowGuestOption] = useState(!session?.user);
@@ -55,19 +76,56 @@ export default function CheckoutPage() {
   const [deliveryPrices, setDeliveryPrices] = useState<DeliveryPrice>({ isLoading: false });
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card');
   
-  // Данные СДЕК
+  // Данные СДЭК
   const [cdekData, setCdekData] = useState<{
-    tariff?: { tariff_code: number; tariff_name: string; delivery_sum: number; period_min: number; period_max: number };
+    tariff?: CdekTariffInfo;
     pvzCode?: string;
     pvzAddress?: string;
     deliveryType?: 'door' | 'pvz';
   } | null>(null);
-  
-  // Адрес доставки
+  // Тарифы «до двери» и «до ПВЗ» из расчёта
+  const [deliveryTariffs, setDeliveryTariffs] = useState<{ door: CdekTariffInfo | null; pickup: CdekTariffInfo | null }>({ door: null, pickup: null });
+  // Список ПВЗ для выбора
+  const [pvzList, setPvzList] = useState<CdekPvzItem[]>([]);
+  const [pvzLoading, setPvzLoading] = useState(false);
+  /** Пересчёт цены «до двери» по введённому адресу (курьер СДЭК) */
+  const [doorPriceUpdating, setDoorPriceUpdating] = useState(false);
+
+  const pvzMapPoints = useMemo((): PvzMapPoint[] => {
+    return pvzList
+      .filter((p) => typeof p.location?.latitude === 'number' && typeof p.location?.longitude === 'number')
+      .map((p) => ({
+        code: p.code,
+        name: p.name,
+        address: p.location?.address,
+        latitude: p.location!.latitude!,
+        longitude: p.location!.longitude!,
+        work_time: p.work_time,
+      }));
+  }, [pvzList]);
+
+  const pvzListRef = useRef(pvzList);
+  const deliveryTariffsRef = useRef(deliveryTariffs);
+  pvzListRef.current = pvzList;
+  deliveryTariffsRef.current = deliveryTariffs;
+  const handleSelectPvz = useCallback((code: string) => {
+    const pvz = pvzListRef.current.find((p) => p.code === code);
+    if (!pvz) return;
+    const addr = pvz.location?.address || pvz.name || '';
+    setCdekData((prev) =>
+      prev
+        ? { ...prev, pvzCode: pvz.code, pvzAddress: addr }
+        : { deliveryType: 'pvz', tariff: deliveryTariffsRef.current.pickup ?? undefined, pvzCode: pvz.code, pvzAddress: addr }
+    );
+  }, []);
+
+  // Адрес доставки (строка для поля подсказок + структурированные поля)
+  const [addressLine, setAddressLine] = useState('');
   const [address, setAddress] = useState({
     street: '',
     house: '',
     apartment: '',
+    postalCode: '',
     entrance: '',
     floor: '',
     code: '',
@@ -126,8 +184,7 @@ export default function CheckoutPage() {
     
     const calculateDelivery = async () => {
       try {
-        const weight = DELIVERY_CONFIG.DEFAULT_PACKAGE.weight;
-        
+        const weight = Math.max(1000, totalWeightGrams);
         const response = await fetch('/api/delivery/cdek/calculate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -145,15 +202,16 @@ export default function CheckoutPage() {
 
         const data = await response.json();
         const tariffs = data.tariffs || data.tariff_codes || [];
-        
-        // Ищем тарифы для до двери и до ПВЗ
-        const doorTariff = tariffs.find((t: any) => 
-          t.tariff_code === 139 || t.delivery_mode === 1 || t.tariff_name?.toLowerCase().includes('дверь')
-        );
-        const pickupTariff = tariffs.find((t: any) => 
-          t.tariff_code === 138 || t.delivery_mode === 2 || t.tariff_name?.toLowerCase().includes('склад')
-        );
+        // Тарифы СДЭК: 139 = «дверь–дверь» (курьер), 138 = «склад–склад» (ПВЗ). Цена «от» = delivery_sum из ответа API.
+        const doorCandidates = tariffs.filter((t: any) => t.tariff_code === 139 || Number(t.delivery_mode) === 1 || t.tariff_name?.toLowerCase().includes('дверь'));
+        const pickupCandidates = tariffs.filter((t: any) => t.tariff_code === 138 || Number(t.delivery_mode) === 2 || t.tariff_name?.toLowerCase().includes('склад'));
+        const doorTariff = doorCandidates.length ? doorCandidates.reduce((a: any, b: any) => (a.delivery_sum <= b.delivery_sum ? a : b)) : undefined;
+        const pickupTariff = pickupCandidates.length ? pickupCandidates.reduce((a: any, b: any) => (a.delivery_sum <= b.delivery_sum ? a : b)) : undefined;
 
+        const toTariff = (t: any): CdekTariffInfo | null =>
+          t ? { tariff_code: t.tariff_code, tariff_name: t.tariff_name || '', delivery_sum: t.delivery_sum ?? 0, period_min: t.period_min ?? 0, period_max: t.period_max ?? 0 } : null;
+
+        setDeliveryTariffs({ door: toTariff(doorTariff), pickup: toTariff(pickupTariff) });
         setDeliveryPrices({
           door: doorTariff?.delivery_sum,
           pickup: pickupTariff?.delivery_sum,
@@ -169,12 +227,62 @@ export default function CheckoutPage() {
     };
 
     calculateDelivery();
-  }, [selectedCity, isSpb]);
+  }, [selectedCity, isSpb, totalWeightGrams]);
 
-  // Сброс способа доставки при смене города
+  // Повторный расчёт стоимости «до двери» по адресу (курьер СДЭК) — передаём адрес в СДЭК
+  useEffect(() => {
+    if (
+      deliveryMethod !== 'cdek_courier' ||
+      !selectedCity?.city ||
+      isSpb ||
+      !address.street?.trim() ||
+      !address.house?.trim()
+    ) {
+      return;
+    }
+    const fullAddress = `${address.street.trim()}, д. ${address.house.trim()}${address.apartment?.trim() ? ', кв. ' + address.apartment.trim() : ''}`;
+    const timer = setTimeout(async () => {
+      setDoorPriceUpdating(true);
+      try {
+        const response = await fetch('/api/delivery/cdek/calculate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fromCity: DELIVERY_CONFIG.SHIP_FROM_CITY,
+            toCity: selectedCity.city,
+            weight: Math.max(1000, totalWeightGrams),
+            address: fullAddress,
+            deliveryType: 'door',
+          }),
+        });
+        if (!response.ok) return;
+        const data = await response.json();
+        const tariffs = data.tariffs || data.tariff_codes || [];
+        const doorCandidates = tariffs.filter((t: any) => t.tariff_code === 139 || Number(t.delivery_mode) === 1 || t.tariff_name?.toLowerCase().includes('дверь'));
+        const doorTariff = doorCandidates.length ? doorCandidates.reduce((a: any, b: any) => (a.delivery_sum <= b.delivery_sum ? a : b)) : undefined;
+        const toTariff = (t: any): CdekTariffInfo | null =>
+          t ? { tariff_code: t.tariff_code, tariff_name: t.tariff_name || '', delivery_sum: t.delivery_sum ?? 0, period_min: t.period_min ?? 0, period_max: t.period_max ?? 0 } : null;
+        if (doorTariff) {
+          setDeliveryTariffs((prev) => ({ ...prev, door: toTariff(doorTariff) }));
+          setDeliveryPrices((prev) => ({ ...prev, door: doorTariff.delivery_sum }));
+          setCdekData((prev) => (prev?.deliveryType === 'door' ? { ...prev, tariff: toTariff(doorTariff) } : prev));
+        }
+      } catch (e) {
+        console.error('Address recalc error:', e);
+      } finally {
+        setDoorPriceUpdating(false);
+      }
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [deliveryMethod, selectedCity?.city, address.street, address.house, address.apartment, totalWeightGrams, isSpb]);
+
+  // Сброс способа доставки и ПВЗ при смене города
   useEffect(() => {
     setDeliveryMethod(null);
     setCdekData(null);
+    setPvzList([]);
+    setDeliveryTariffs({ door: null, pickup: null });
+    setAddressLine('');
     setAddress({
       street: '',
       house: '',
@@ -186,6 +294,46 @@ export default function CheckoutPage() {
     });
   }, [selectedCity]);
 
+  // При выборе «курьер СДЭК» — сохраняем тариф «до двери»
+  useEffect(() => {
+    if (deliveryMethod === 'cdek_courier' && deliveryTariffs.door) {
+      setCdekData({ deliveryType: 'door', tariff: deliveryTariffs.door });
+    }
+  }, [deliveryMethod, deliveryTariffs.door]);
+
+  // При выборе «ПВЗ СДЭК» — сохраняем тариф «до ПВЗ»; выбор конкретного ПВЗ — по клику в списке
+  useEffect(() => {
+    if (deliveryMethod === 'cdek_pickup' || deliveryMethod === 'spb_cdek') {
+      setCdekData(deliveryTariffs.pickup ? { deliveryType: 'pvz', tariff: deliveryTariffs.pickup } : null);
+    }
+  }, [deliveryMethod, deliveryTariffs.pickup]);
+
+  // Загрузка списка ПВЗ при выборе доставки в ПВЗ
+  useEffect(() => {
+    if ((deliveryMethod !== 'cdek_pickup' && deliveryMethod !== 'spb_cdek') || !selectedCity) {
+      setPvzList([]);
+      return;
+    }
+    setPvzLoading(true);
+    const cityParam = selectedCity.city;
+    fetch(`/api/delivery/cdek/pvz?city=${encodeURIComponent(cityParam)}`)
+      .then((res) => res.json())
+      .then((data) => {
+        setPvzList(data.pvz || []);
+      })
+      .catch(() => setPvzList([]))
+      .finally(() => setPvzLoading(false));
+  }, [deliveryMethod, selectedCity?.city]);
+
+  // Прокрутка списка ПВЗ к выбранному пункту (при выборе с карты)
+  useEffect(() => {
+    if (!cdekData?.pvzCode) return;
+    const t = setTimeout(() => {
+      document.getElementById('pvz-selected')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }, 100);
+    return () => clearTimeout(t);
+  }, [cdekData?.pvzCode]);
+
   // Обработка выбора города
   const handleCitySelect = (suggestion: CitySuggestion) => {
     setSelectedCity({
@@ -193,6 +341,7 @@ export default function CheckoutPage() {
       city: suggestion.data.city,
       region: suggestion.data.region,
       displayValue: suggestion.value,
+      postal_code: suggestion.data.postal_code,
     });
     setCityInput(suggestion.value);
   };
@@ -268,7 +417,8 @@ export default function CheckoutPage() {
           address: deliveryMethod === 'spb_courier' || deliveryMethod === 'cdek_courier'
             ? `${address.street}, д. ${address.house}${address.apartment ? ', кв. ' + address.apartment : ''}`
             : null,
-          comment: formData.comment || address.comment || null,
+          orderComment: formData.comment?.trim() || null,
+          courierComment: address.comment?.trim() || null,
           companyName: paymentMethod === 'invoice' ? formData.companyName : null,
           inn: paymentMethod === 'invoice' ? formData.inn : null,
           kpp: paymentMethod === 'invoice' ? formData.kpp : null,
@@ -430,47 +580,51 @@ Email: info@idylle.spb.ru
                       }}
                     >
                       {isSpb ? (
-                        // СПб: 3 опции
+                        // СПб: 3 опции — весь блок кликабелен за счёт Label
                         <>
-                          <div className="flex items-center justify-between p-4 rounded-lg border hover:border-primary cursor-pointer">
+                          <Label
+                            htmlFor="spb-courier"
+                            className="flex items-center justify-between p-4 rounded-lg border hover:border-primary cursor-pointer w-full"
+                          >
                             <div className="flex items-center gap-3">
                               <RadioGroupItem value="spb_courier" id="spb-courier" />
-                              <Label htmlFor="spb-courier" className="cursor-pointer">
+                              <div>
                                 <div className="font-medium">Доставка курьером</div>
                                 <div className="text-sm text-muted-foreground">
                                   По Санкт-Петербургу {totalPrice >= DELIVERY_CONFIG.SPB_FREE_DELIVERY_THRESHOLD ? '— бесплатно' : `— ${DELIVERY_CONFIG.SPB_COURIER_PRICE} ₽`}
                                 </div>
-                              </Label>
+                              </div>
                             </div>
                             <div className="font-bold text-lg">
                               {totalPrice >= DELIVERY_CONFIG.SPB_FREE_DELIVERY_THRESHOLD ? 'Бесплатно' : `${DELIVERY_CONFIG.SPB_COURIER_PRICE} ₽`}
                             </div>
-                          </div>
+                          </Label>
 
-                          <div className="flex items-center justify-between p-4 rounded-lg border hover:border-primary cursor-pointer">
+                          <Label
+                            htmlFor="spb-boutique"
+                            className="flex items-center justify-between p-4 rounded-lg border hover:border-primary cursor-pointer w-full"
+                          >
                             <div className="flex items-center gap-3">
                               <RadioGroupItem value="spb_boutique" id="spb-boutique" />
-                              <Label htmlFor="spb-boutique" className="cursor-pointer">
-                                <div className="font-medium">Самовывоз из бутика</div>
-                                <div className="text-sm text-muted-foreground">
-                                  {DELIVERY_CONFIG.BOUTIQUE_ADDRESS}
-                                </div>
-                              </Label>
+                              <div className="font-medium">Самовывоз в Санкт-Петербурге из бутика</div>
                             </div>
                             <div className="font-bold text-lg">
                               {DELIVERY_CONFIG.BOUTIQUE_PICKUP_PRICE === 0 ? 'Бесплатно' : `${DELIVERY_CONFIG.BOUTIQUE_PICKUP_PRICE} ₽`}
                             </div>
-                          </div>
+                          </Label>
 
-                          <div className="flex items-center justify-between p-4 rounded-lg border hover:border-primary cursor-pointer">
+                          <Label
+                            htmlFor="spb-cdek"
+                            className="flex items-center justify-between p-4 rounded-lg border hover:border-primary cursor-pointer w-full"
+                          >
                             <div className="flex items-center gap-3">
                               <RadioGroupItem value="spb_cdek" id="spb-cdek" />
-                              <Label htmlFor="spb-cdek" className="cursor-pointer">
+                              <div>
                                 <div className="font-medium">Доставка СДЭК</div>
                                 <div className="text-sm text-muted-foreground">
                                   Самовывоз из пункта СДЭК
                                 </div>
-                              </Label>
+                              </div>
                             </div>
                             <div className="font-bold text-lg">
                               {deliveryPrices.isLoading ? (
@@ -483,37 +637,41 @@ Email: info@idylle.spb.ru
                                 '...'
                               )}
                             </div>
-                          </div>
+                          </Label>
                         </>
                       ) : (
-                        // Остальные города: 2 опции
+                        // Остальные города: 2 опции — весь блок кликабелен
                         <>
-                          <div className="flex items-center justify-between p-4 rounded-lg border hover:border-primary cursor-pointer">
+                          <Label
+                            htmlFor="cdek-courier"
+                            className="flex items-center justify-between p-4 rounded-lg border hover:border-primary cursor-pointer w-full"
+                          >
                             <div className="flex items-center gap-3">
                               <RadioGroupItem value="cdek_courier" id="cdek-courier" />
-                              <Label htmlFor="cdek-courier" className="cursor-pointer">
-                                <div className="font-medium">Курьером СДЭК</div>
-                              </Label>
+                              <div className="font-medium">Курьером СДЭК</div>
                             </div>
                             <div className="font-bold text-lg">
                               {deliveryPrices.isLoading ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : doorPriceUpdating ? (
+                                <span className="text-sm text-muted-foreground">пересчёт...</span>
                               ) : deliveryPrices.door ? (
-                                `от ${deliveryPrices.door} руб.`
+                                `${deliveryPrices.door} руб.`
                               ) : deliveryPrices.error ? (
                                 <span className="text-sm text-destructive">Ошибка</span>
                               ) : (
                                 '...'
                               )}
                             </div>
-                          </div>
+                          </Label>
 
-                          <div className="flex items-center justify-between p-4 rounded-lg border hover:border-primary cursor-pointer">
+                          <Label
+                            htmlFor="cdek-pickup"
+                            className="flex items-center justify-between p-4 rounded-lg border hover:border-primary cursor-pointer w-full"
+                          >
                             <div className="flex items-center gap-3">
                               <RadioGroupItem value="cdek_pickup" id="cdek-pickup" />
-                              <Label htmlFor="cdek-pickup" className="cursor-pointer">
-                                <div className="font-medium">Самовывоз из пункта СДЭК</div>
-                              </Label>
+                              <div className="font-medium">Самовывоз из пункта СДЭК</div>
                             </div>
                             <div className="font-bold text-lg">
                               {deliveryPrices.isLoading ? (
@@ -526,7 +684,7 @@ Email: info@idylle.spb.ru
                                 '...'
                               )}
                             </div>
-                          </div>
+                          </Label>
                         </>
                       )}
                     </RadioGroup>
@@ -539,35 +697,66 @@ Email: info@idylle.spb.ru
                 <Card>
                   <CardHeader>
                     <CardTitle>АДРЕС ДОСТАВКИ</CardTitle>
+                    {selectedCity && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Населённый пункт: {selectedCity.region ? `${selectedCity.region}, ` : ''}{selectedCity.displayValue}
+                      </p>
+                    )}
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="street">Улица *</Label>
-                      <Input
-                        id="street"
-                        required
-                        value={address.street}
-                        onChange={(e) => setAddress({ ...address, street: e.target.value })}
+                      <Label htmlFor="address-autocomplete">Адрес *</Label>
+                      <AddressAutocomplete
+                        id="address-autocomplete"
+                        value={addressLine}
+                        onChange={setAddressLine}
+                        city={selectedCity?.city}
+                        placeholder="Введите улицу и дом — выберите из подсказок"
+                        onSelect={(norm) => {
+                          setAddressLine(norm.display);
+                          setAddress((prev) => ({
+                            ...prev,
+                            street: norm.street ?? prev.street,
+                            house: norm.house ?? prev.house,
+                            apartment: norm.flat ?? prev.apartment,
+                            postalCode: norm.postalCode ?? prev.postalCode,
+                          }));
+                        }}
                       />
+                      <p className="text-xs text-muted-foreground">
+                        Начните вводить от 3 символов. Подсказки только в выбранном городе.
+                      </p>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="house">Номер дома / корпус / строение / литера *</Label>
+                        <Label htmlFor="street">Улица *</Label>
+                        <Input
+                          id="street"
+                          required
+                          value={address.street}
+                          onChange={(e) => setAddress({ ...address, street: e.target.value })}
+                          placeholder="Заполняется из подсказки или вручную"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="house">Дом / корпус *</Label>
                         <Input
                           id="house"
                           required
                           value={address.house}
                           onChange={(e) => setAddress({ ...address, house: e.target.value })}
+                          placeholder="Номер дома"
                         />
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="apartment">Квартира</Label>
-                        <Input
-                          id="apartment"
-                          value={address.apartment}
-                          onChange={(e) => setAddress({ ...address, apartment: e.target.value })}
-                        />
-                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="apartment">Квартира</Label>
+                      <Input
+                        id="apartment"
+                        value={address.apartment}
+                        onChange={(e) => setAddress({ ...address, apartment: e.target.value })}
+                        placeholder="Квартира (если не указана в подсказке)"
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="courier-comment">Комментарий для курьера (необязательно)</Label>
@@ -582,8 +771,86 @@ Email: info@idylle.spb.ru
                 </Card>
               )}
 
+              {/* ВЫБОР ПУНКТА ВЫДАЧИ СДЭК */}
+              {(deliveryMethod === 'cdek_pickup' || deliveryMethod === 'spb_cdek') && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>ПУНКТ ВЫДАЧИ СДЭК</CardTitle>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Выберите пункт выдачи в городе {selectedCity?.city}
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    {pvzLoading ? (
+                      <div className="flex items-center gap-2 text-muted-foreground py-4">
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        <span>Загрузка списка пунктов выдачи...</span>
+                      </div>
+                    ) : pvzList.length === 0 ? (
+                      <p className="text-sm text-muted-foreground py-4">
+                        Не удалось загрузить пункты выдачи. Проверьте город или попробуйте позже.
+                      </p>
+                    ) : (
+                      <>
+                        {pvzMapPoints.length > 0 && (
+                          <div className="mb-4">
+                            <PvzMap
+                              points={pvzMapPoints}
+                              selectedCode={cdekData?.pvzCode ?? null}
+                              onSelect={handleSelectPvz}
+                              height={280}
+                            />
+                          </div>
+                        )}
+                        <div className="space-y-2 max-h-72 overflow-y-auto" id="pvz-list">
+                        {pvzList.map((pvz) => {
+                          const addr = pvz.location?.address || pvz.name || '';
+                          const isSelected = cdekData?.pvzCode === pvz.code;
+                          return (
+                            <button
+                              key={pvz.code}
+                              id={isSelected ? 'pvz-selected' : undefined}
+                              type="button"
+                              onClick={() =>
+                                setCdekData((prev) =>
+                                  prev
+                                    ? { ...prev, pvzCode: pvz.code, pvzAddress: addr }
+                                    : { deliveryType: 'pvz', tariff: deliveryTariffs.pickup ?? undefined, pvzCode: pvz.code, pvzAddress: addr }
+                                )
+                              }
+                              className={`w-full text-left p-4 rounded-lg border-2 transition-colors flex gap-3 items-start ${
+                                isSelected
+                                  ? 'border-primary bg-primary/10 ring-2 ring-primary/30 shadow-sm'
+                                  : 'border-muted hover:border-primary/50'
+                              }`}
+                            >
+                              {isSelected && (
+                                <CheckCircle className="h-5 w-5 shrink-0 text-primary mt-0.5" aria-hidden />
+                              )}
+                              <div className="min-w-0 flex-1">
+                                <div className="font-medium text-sm flex items-center gap-2">
+                                  {pvz.name}
+                                  {isSelected && (
+                                    <span className="text-xs font-normal text-primary">Выбрано</span>
+                                  )}
+                                </div>
+                                <div className="text-sm text-muted-foreground mt-0.5">{addr}</div>
+                                {pvz.work_time && (
+                                  <div className="text-xs text-muted-foreground mt-1">{pvz.work_time}</div>
+                                )}
+                              </div>
+                            </button>
+                          );
+                        })}
+                        </div>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
               {/* ВАШИ ДАННЫЕ */}
-              <Card>
+              <Card id="checkout-your-data">
                 <CardHeader>
                   <CardTitle>ВАШИ ДАННЫЕ</CardTitle>
                 </CardHeader>
@@ -630,9 +897,12 @@ Email: info@idylle.spb.ru
                     onValueChange={(value) => setPaymentMethod(value as PaymentMethod)}
                   >
                     {deliveryMethod === 'spb_boutique' && (
-                      <div className="flex items-start space-x-3 p-4 rounded-lg border hover:border-primary cursor-pointer">
+                      <Label
+                        htmlFor="pay-pickup"
+                        className="flex items-start space-x-3 p-4 rounded-lg border hover:border-primary cursor-pointer w-full"
+                      >
                         <RadioGroupItem value="pickup" id="pay-pickup" className="mt-1" />
-                        <Label htmlFor="pay-pickup" className="flex-1 cursor-pointer">
+                        <div className="flex-1">
                           <div className="flex items-center gap-2 font-medium mb-1">
                             <Store className="h-5 w-5" />
                             Оплата при самовывозе
@@ -640,15 +910,18 @@ Email: info@idylle.spb.ru
                           <div className="text-sm text-muted-foreground">
                             Оплатите заказ при получении в нашем бутике
                           </div>
-                        </Label>
-                      </div>
+                        </div>
+                      </Label>
                     )}
 
                     {(deliveryMethod === 'spb_courier' || deliveryMethod === 'cdek_courier') && (
                       <>
-                        <div className="flex items-start space-x-3 p-4 rounded-lg border hover:border-primary cursor-pointer">
+                        <Label
+                          htmlFor="pay-card"
+                          className="flex items-start space-x-3 p-4 rounded-lg border hover:border-primary cursor-pointer w-full"
+                        >
                           <RadioGroupItem value="card" id="pay-card" className="mt-1" />
-                          <Label htmlFor="pay-card" className="flex-1 cursor-pointer">
+                          <div className="flex-1">
                             <div className="flex items-center gap-2 font-medium mb-1">
                               <CreditCard className="h-5 w-5" />
                               Банковская карта онлайн
@@ -656,12 +929,15 @@ Email: info@idylle.spb.ru
                             <div className="text-sm text-muted-foreground">
                               Безопасная оплата на сайте
                             </div>
-                          </Label>
-                        </div>
+                          </div>
+                        </Label>
 
-                        <div className="flex items-start space-x-3 p-4 rounded-lg border hover:border-primary cursor-pointer">
+                        <Label
+                          htmlFor="pay-cash"
+                          className="flex items-start space-x-3 p-4 rounded-lg border hover:border-primary cursor-pointer w-full"
+                        >
                           <RadioGroupItem value="cash" id="pay-cash" className="mt-1" />
-                          <Label htmlFor="pay-cash" className="flex-1 cursor-pointer">
+                          <div className="flex-1">
                             <div className="flex items-center gap-2 font-medium mb-1">
                               <Banknote className="h-5 w-5" />
                               Наличные при получении
@@ -669,14 +945,17 @@ Email: info@idylle.spb.ru
                             <div className="text-sm text-muted-foreground">
                               Оплатите курьеру при доставке
                             </div>
-                          </Label>
-                        </div>
+                          </div>
+                        </Label>
                       </>
                     )}
 
-                    <div className="flex items-start space-x-3 p-4 rounded-lg border hover:border-primary cursor-pointer">
+                    <Label
+                      htmlFor="pay-invoice"
+                      className="flex items-start space-x-3 p-4 rounded-lg border hover:border-primary cursor-pointer w-full"
+                    >
                       <RadioGroupItem value="invoice" id="pay-invoice" className="mt-1" />
-                      <Label htmlFor="pay-invoice" className="flex-1 cursor-pointer">
+                      <div className="flex-1">
                         <div className="flex items-center gap-2 font-medium mb-1">
                           <FileText className="h-5 w-5" />
                           Безналичный расчёт для юрлиц
@@ -684,8 +963,8 @@ Email: info@idylle.spb.ru
                         <div className="text-sm text-muted-foreground">
                           Оплата по счёту с НДС
                         </div>
-                      </Label>
-                    </div>
+                      </div>
+                    </Label>
                   </RadioGroup>
 
                   {paymentMethod === 'invoice' && (
@@ -848,7 +1127,13 @@ Email: info@idylle.spb.ru
                     type="submit"
                     size="lg"
                     className="w-full"
-                    disabled={isSubmitting || !selectedCity || !deliveryMethod}
+                    disabled={
+                      isSubmitting ||
+                      !selectedCity ||
+                      !deliveryMethod ||
+                      ((deliveryMethod === 'cdek_pickup' || deliveryMethod === 'spb_cdek') && !cdekData?.pvzCode) ||
+                      ((deliveryMethod === 'spb_courier' || deliveryMethod === 'cdek_courier') && (!address.street?.trim() || !address.house?.trim()))
+                    }
                   >
                     {isSubmitting ? (
                       'Оформляем...'

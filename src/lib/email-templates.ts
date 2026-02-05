@@ -64,36 +64,68 @@ export const ORDER_CONFIRMATION_TEMPLATE = {
         <div class="section-title">Доставка и оплата</div>
         <div class="info-row">
           <span class="info-label">Способ доставки:</span>
-          <span class="info-value">{{deliveryMethod}}</span>
+          <span class="info-value">{{deliveryMethodLabel}}</span>
         </div>
+        {{#if city}}
+        <div class="info-row">
+          <span class="info-label">Город:</span>
+          <span class="info-value">{{city}}</span>
+        </div>
+        {{/if}}
         {{#if deliveryAddress}}
         <div style="padding: 8px 0; font-size: 14px;">
           <span class="info-label">Адрес:</span>
           <span style="color: #1a1a1a;">{{deliveryAddress}}</span>
         </div>
         {{/if}}
+        {{#if cdekPvzAddress}}
+        <div style="padding: 8px 0; font-size: 14px;">
+          <span class="info-label">ПВЗ СДЭК:</span>
+          <span style="color: #1a1a1a;">{{cdekPvzAddress}}</span>
+        </div>
+        {{/if}}
+        {{#if shippingAmount}}
+        <div class="info-row">
+          <span class="info-label">Стоимость доставки:</span>
+          <span class="info-value">{{shippingAmount}} ₽</span>
+        </div>
+        {{/if}}
         <div class="info-row">
           <span class="info-label">Способ оплаты:</span>
-          <span class="info-value">{{paymentMethod}}</span>
+          <span class="info-value">{{paymentMethodLabel}}</span>
         </div>
+        {{#if companyName}}
+        <div style="margin-top: 12px; padding: 12px; background: #fafafa; border-radius: 8px; font-size: 14px;">
+          <strong style="color: #1a1a1a;">Реквизиты для счёта:</strong>
+          <p style="margin: 6px 0 0 0;">{{companyName}}{{#if inn}}, ИНН {{inn}}{{/if}}{{#if kpp}}, КПП {{kpp}}{{/if}}</p>
+          {{#if companyAddress}}
+          <p style="margin: 4px 0 0 0; color: #666;">{{companyAddress}}</p>
+          {{/if}}
+        </div>
+        {{/if}}
         <div class="divider"></div>
         <div class="section-title">Состав заказа</div>
-        <table class="items-table">
+        <table class="items-table" style="table-layout: fixed; width: 100%;">
+          <colgroup>
+            <col style="width: 55%;" />
+            <col style="width: 15%;" />
+            <col style="width: 30%;" />
+          </colgroup>
           <thead>
             <tr>
-              <th>Товар</th>
-              <th style="text-align: right;">Кол-во</th>
+              <th style="text-align: left;">Товар</th>
+              <th style="text-align: right; min-width: 2.5em;">Кол-во</th>
               <th style="text-align: right;">Сумма</th>
             </tr>
           </thead>
           <tbody>
             {{#each orderItems}}
             <tr>
-              <td>
+              <td style="word-wrap: break-word;">
                 {{name}}{{#if variantInfo}}<br><span style="color: #999; font-size: 12px;">{{variantInfo}}</span>{{/if}}
               </td>
-              <td style="text-align: right;">{{quantity}}</td>
-              <td class="total-row">{{total}} ₽</td>
+              <td style="text-align: right; white-space: nowrap;">{{quantity}}</td>
+              <td style="text-align: right; font-weight: 600;">{{total}} ₽</td>
             </tr>
             {{/each}}
           </tbody>
@@ -104,10 +136,16 @@ export const ORDER_CONFIRMATION_TEMPLATE = {
             Итого: {{totalAmount}} ₽
           </div>
         </div>
-        {{#if notes}}
+        {{#if orderComment}}
         <div style="margin-top: 20px; padding: 16px; background: #fafafa; border-radius: 8px; font-size: 14px;">
-          <strong style="color: #1a1a1a;">Комментарий:</strong>
-          <p style="margin: 8px 0 0 0; color: #666;">{{notes}}</p>
+          <strong style="color: #1a1a1a;">Комментарий к заказу:</strong>
+          <p style="margin: 8px 0 0 0; color: #666;">{{orderComment}}</p>
+        </div>
+        {{/if}}
+        {{#if courierComment}}
+        <div style="margin-top: 12px; padding: 16px; background: #f5f5f5; border-radius: 8px; font-size: 14px;">
+          <strong style="color: #1a1a1a;">Комментарий для курьера:</strong>
+          <p style="margin: 8px 0 0 0; color: #666;">{{courierComment}}</p>
         </div>
         {{/if}}
       </div>

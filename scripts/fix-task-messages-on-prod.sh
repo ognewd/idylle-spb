@@ -8,10 +8,15 @@ echo "🔍 Проверка текущего состояния..."
 
 cd /root/idylle-spb
 
-# ПРИНУДИТЕЛЬНО используем локальный PostgreSQL
-# Игнорируем DATABASE_URL из .env, если он указывает на Supabase
-DB_URL="postgresql://idylle_user:wendw%40%40422ewd%21@localhost:5432/idylle_spb?schema=public"
-
+# Используем DATABASE_URL из .env или локальный PostgreSQL
+if [ -f .env ]; then
+    export $(grep -v '^#' .env | xargs)
+fi
+DB_URL="${DATABASE_URL:-}"
+if [ -z "$DB_URL" ]; then
+  echo "❌ Задайте DATABASE_URL в .env или в окружении"
+  exit 1
+fi
 echo "📊 Используется DATABASE_URL: ${DB_URL%%@*}@***"
 
 # Сначала добавляем колонки через SQL, если их нет

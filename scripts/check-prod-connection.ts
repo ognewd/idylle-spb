@@ -68,21 +68,9 @@ async function checkConnection() {
       console.error('Сообщение:', error.message);
       console.error('Стек:', error.stack);
       
-      // Check for specific error types
-      if (error.message.includes('Tenant or user not found')) {
-        console.error('\n💡 Возможная причина: Неправильный DATABASE_URL');
-        console.error('   Проверьте:');
-        console.error('   1. Правильный ли формат Connection String для Supabase');
-        console.error('   2. Правильный ли пароль');
-        console.error('   3. Активен ли проект Supabase');
-      }
-      
-      if (error.message.includes('Connection')) {
-        console.error('\n💡 Возможная причина: Проблема с подключением');
-        console.error('   Проверьте:');
-        console.error('   1. Доступен ли Supabase (не на обслуживании)');
-        console.error('   2. Правильный ли регион в URL');
-        console.error('   3. Не блокирует ли файрвол подключение');
+      if (error.message.includes('Tenant or user not found') || error.message.includes('Connection')) {
+        console.error('\n💡 Возможная причина: Неправильный DATABASE_URL или БД недоступна');
+        console.error('   Проверьте: формат postgresql://user:password@host:port/database и доступность хоста');
       }
     }
     

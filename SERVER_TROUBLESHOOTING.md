@@ -4,7 +4,7 @@
 
 ### 1. Проверка ping
 ```bash
-ping 147.45.98.110
+ping <YOUR_SERVER_IP>
 ```
 Если ping не проходит - проблема с сетью или сервер выключен.
 
@@ -16,7 +16,7 @@ curl -I https://aromarussia.ru
 
 ### 3. Проверка SSH
 ```bash
-ssh -v root@147.45.98.110
+ssh -v root@<YOUR_SERVER_IP>
 ```
 Флаг `-v` покажет детали подключения, где именно происходит ошибка.
 
@@ -49,7 +49,7 @@ ssh -v root@147.45.98.110
 Когда доступ восстановится, выполните:
 
 ```bash
-ssh root@147.45.98.110
+ssh root@<YOUR_SERVER_IP>
 cd /root/idylle-spb
 pm2 status
 pm2 logs idylle-spb --lines 50

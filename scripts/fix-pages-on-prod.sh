@@ -15,8 +15,11 @@ fi
 
 # Используем DATABASE_URL из .env или ecosystem.config.js
 # На продакшене должен быть локальный PostgreSQL
-DB_URL="${DATABASE_URL:-postgresql://idylle_user:wendw%40%40422ewd%21@localhost:5432/idylle_spb?schema=public}"
-
+DB_URL="${DATABASE_URL:-}"
+if [ -z "$DB_URL" ]; then
+  echo "❌ Задайте DATABASE_URL в .env"
+  exit 1
+fi
 echo "📊 Используется DATABASE_URL: ${DB_URL%%@*}@***"
 
 # Проверяем, существует ли таблица pages (пропускаем проверку через psql, так как может быть проблема с доступом)

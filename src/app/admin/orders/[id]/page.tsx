@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -71,9 +71,17 @@ interface Order {
   shipping: number;
   total: number;
   notes: string | null;
+  courierComment: string | null;
   createdAt: string;
   updatedAt: string;
   items: OrderItem[];
+  // СДЭК
+  cdekTariffCode?: number | null;
+  cdekTariffName?: string | null;
+  cdekDeliveryType?: string | null;
+  cdekPvzCode?: string | null;
+  cdekPvzAddress?: string | null;
+  cdekDeliveryCost?: number | string | null;
 }
 
 const statusColors = {
@@ -102,6 +110,7 @@ export default function AdminOrderDetailPage() {
   const [status, setStatus] = useState('');
   const [paymentStatus, setPaymentStatus] = useState('');
   const [adminNotes, setAdminNotes] = useState('');
+  const [adminCourierComment, setAdminCourierComment] = useState('');
 
   useEffect(() => {
     fetchOrder();
@@ -118,10 +127,22 @@ export default function AdminOrderDetailPage() {
 
       if (response.ok) {
         const data = await response.json();
-        setOrder(data.order);
-        setStatus(data.order.status);
-        setPaymentStatus(data.order.paymentStatus);
-        setAdminNotes(data.order.notes || '');
+        const o = data.order;
+        setOrder(o);
+        setStatus(o.status);
+        setPaymentStatus(o.paymentStatus);
+        // Если комментарий курьера был сохранён в notes (fallback при отсутствии колонки), разбиваем по метке
+        const courierLabel = '[Комментарий для курьера]';
+        const notesStr = o.notes || '';
+        const hasMerged = !o.courierComment && notesStr.includes(courierLabel);
+        if (hasMerged) {
+          const idx = notesStr.indexOf(courierLabel);
+          setAdminNotes(notesStr.slice(0, idx).trim());
+          setAdminCourierComment(notesStr.slice(idx + courierLabel.length).trim());
+        } else {
+          setAdminNotes(notesStr);
+          setAdminCourierComment(o.courierComment || '');
+        }
       } else {
         router.push('/admin/orders');
       }
@@ -147,6 +168,7 @@ export default function AdminOrderDetailPage() {
           status,
           paymentStatus,
           notes: adminNotes,
+          courierComment: adminCourierComment,
         }),
       });
 
@@ -186,10 +208,20 @@ export default function AdminOrderDetailPage() {
     return labels[status] || status;
   };
 
+  const getDeliveryMethodLabel = (o: Order) => {
+    if (o.deliveryMethod === 'delivery') return '🚚 Доставка курьером';
+    if (o.deliveryMethod === 'pickup') return '🏪 Самовывоз из бутика';
+    if (o.deliveryMethod === 'cdek') {
+      if (o.cdekDeliveryType === 'pvz' && o.cdekPvzAddress) return `📦 СДЭК, ПВЗ: ${o.cdekPvzAddress}`;
+      return '🚚 СДЭК, доставка курьером';
+    }
+    return o.deliveryMethod;
+  };
+
   const getPaymentMethodLabel = (method: string) => {
     const labels: Record<string, string> = {
-      card: 'Банковская карта',
-      invoice: 'Безналичный расчет',
+      card: 'Банковская карта онлайн',
+      invoice: 'Безналичный расчёт для юрлиц',
       cash: 'Наличные при получении',
       pickup: 'Оплата при самовывозе',
     };
@@ -339,23 +371,62 @@ export default function AdminOrderDetailPage() {
           </Card>
 
           {/* Delivery Info */}
-          {order.deliveryMethod === 'delivery' && (
+          {(order.deliveryMethod === 'delivery' || order.deliveryMethod === 'cdek') && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <MapPin className="h-5 w-5" />
-                  Адрес доставки
+                  {order.deliveryMethod === 'cdek' ? 'Доставка СДЭК' : 'Адрес доставки'}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                <div>
-                  <Label className="text-muted-foreground text-sm">Город</Label>
-                  <p className="font-medium">{order.city || '—'}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground text-sm">Адрес</Label>
-                  <p className="font-medium">{order.deliveryAddress || '—'}</p>
-                </div>
+                {order.city && (
+                  <div>
+                    <Label className="text-muted-foreground text-sm">Город</Label>
+                    <p className="font-medium">{order.city}</p>
+                  </div>
+                )}
+                {order.deliveryMethod === 'delivery' && order.deliveryAddress && (
+                  <div>
+                    <Label className="text-muted-foreground text-sm">Адрес</Label>
+                    <p className="font-medium">{order.deliveryAddress}</p>
+                  </div>
+                )}
+                {order.deliveryMethod === 'cdek' && (
+                  <>
+                    {order.cdekPvzAddress && (
+                      <div>
+                        <Label className="text-muted-foreground text-sm">ПВЗ / Адрес</Label>
+                        <p className="font-medium">{order.cdekPvzAddress}</p>
+                      </div>
+                    )}
+                    {order.cdekTariffName && (
+                      <div>
+                        <Label className="text-muted-foreground text-sm">Тариф</Label>
+                        <p className="font-medium">{order.cdekTariffName}</p>
+                      </div>
+                    )}
+                    {order.cdekDeliveryCost != null && (
+                      <div>
+                        <Label className="text-muted-foreground text-sm">Стоимость доставки</Label>
+                        <p className="font-medium">{Number(order.cdekDeliveryCost).toLocaleString('ru-RU')} ₽</p>
+                      </div>
+                    )}
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          )}
+          {order.deliveryMethod === 'pickup' && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MapPin className="h-5 w-5" />
+                  Самовывоз
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="font-medium">Самовывоз из бутика</p>
               </CardContent>
             </Card>
           )}
@@ -471,20 +542,44 @@ export default function AdminOrderDetailPage() {
             </CardContent>
           </Card>
 
-          {/* Admin Notes */}
+          {/* Комментарий к заказу */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5" />
-                Примечания
+                Комментарий к заказу
               </CardTitle>
+              <CardDescription>
+                Пожелания к заказу, указанные клиентом при оформлении. Можно дополнить или изменить.
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <Textarea
                 value={adminNotes}
                 onChange={(e) => setAdminNotes(e.target.value)}
-                placeholder="Добавьте примечания к заказу..."
-                rows={6}
+                placeholder="Комментарий к заказу..."
+                rows={3}
+              />
+            </CardContent>
+          </Card>
+
+          {/* Комментарий для курьера */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Комментарий для курьера
+              </CardTitle>
+              <CardDescription>
+                Подъезд, этаж, код домофона и т.д. — можно дополнить или изменить.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Textarea
+                value={adminCourierComment}
+                onChange={(e) => setAdminCourierComment(e.target.value)}
+                placeholder="Комментарий для курьера (необязательно)..."
+                rows={3}
               />
             </CardContent>
           </Card>
@@ -509,7 +604,7 @@ export default function AdminOrderDetailPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Способ доставки:</span>
-                <span>{order.deliveryMethod === 'delivery' ? '🚚 Доставка' : '🏪 Самовывоз'}</span>
+                <span>{getDeliveryMethodLabel(order)}</span>
               </div>
             </CardContent>
           </Card>

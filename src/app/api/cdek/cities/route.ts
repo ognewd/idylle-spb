@@ -1,128 +1,70 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCdekCredentials } from '@/lib/cdek/credentials';
+import { getCdekAccessToken, getCdekApiBaseUrl } from '@/lib/cdek/auth';
 
 /**
  * GET /api/cdek/cities?query=...
- * Простой прокси для автокомплита городов CDEK
- * Использует точно указанные URL:
- * - https://api.edu.cdek.ru/v2/oauth/token?grant_type=client_credentials&client_id=...&client_secret=...
- * - https://api.edu.cdek.ru/v2/location/suggest/cities?name=...&country_code=RU&size=10
- * 
- * Фильтрует только российские города (country_code: 'RU')
+ * Автокомплит городов СДЭК через эндпоинт suggest (поддерживает частичный ввод, например «Санкт-Пете»).
+ * Только Россия (country_code: RU).
  */
-
-// Кэш токена
-let tokenCache: { token: string; expiresAt: number } | null = null;
-
-async function getCdekToken(): Promise<string> {
-  const { clientId, clientSecret } = await getCdekCredentials();
-
-  // Проверяем кэш
-  if (tokenCache && tokenCache.expiresAt > Date.now() + 60000) {
-    return tokenCache.token;
-  }
-
-  // Получаем токен используя ТОЧНО указанный URL
-  const tokenUrl = `https://api.edu.cdek.ru/v2/oauth/token?grant_type=client_credentials&client_id=${clientId}&client_secret=${clientSecret}`;
-
-  const response = await fetch(tokenUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`CDEK auth failed: ${response.status} ${response.statusText}`);
-  }
-
-  const data = await response.json();
-  tokenCache = {
-    token: data.access_token,
-    expiresAt: Date.now() + (data.expires_in * 1000),
-  };
-
-  return tokenCache.token;
-}
 
 export async function GET(request: NextRequest) {
   try {
-    const searchParams = request.nextUrl.searchParams;
-    const query = searchParams.get('query');
-
-    if (!query || query.trim().length < 1) {
+    const query = request.nextUrl.searchParams.get('query')?.trim();
+    if (!query || query.length < 1) {
       return NextResponse.json({ cities: [] });
     }
 
-    const trimmedQuery = query.trim();
+    const baseUrl = getCdekApiBaseUrl();
+    const token = await getCdekAccessToken();
+    const url = `${baseUrl}/location/suggest/cities?name=${encodeURIComponent(query)}&country_code=RU&size=10`;
 
-    // Получаем токен
-    const token = await getCdekToken();
-
-    // Запрашиваем города используя ТОЧНО указанный URL
-    const citiesUrl = `https://api.edu.cdek.ru/v2/location/suggest/cities?name=${encodeURIComponent(trimmedQuery)}&country_code=RU&size=10`;
-
-    const response = await fetch(citiesUrl, {
+    const response = await fetch(url, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
     });
 
     if (!response.ok) {
-      throw new Error(`CDEK cities API failed: ${response.status} ${response.statusText}`);
+      throw new Error(`CDEK cities API: ${response.status} ${response.statusText}`);
     }
 
-    const cities: any[] = await response.json();
+    const cities: Array<Record<string, unknown>> = await response.json();
+    const arr = Array.isArray(cities) ? cities : [];
 
-    // Фильтруем ТОЛЬКО российские города (RU)
-    const russianCities = cities.filter(city => {
-      const code = city.country_code?.toUpperCase();
-      return code === 'RU';
-    });
+    const formattedCities = arr
+      .filter((city) => (city.country_code as string)?.toUpperCase() === 'RU')
+      .map((city) => {
+        const fullName = String(city.full_name ?? '');
+        const parts = fullName.split(',').map((p: string) => p.trim());
+        const cityName = parts[0] ?? '';
+        const region = parts.length > 2 ? parts.slice(1, -1).join(', ') : (parts[1] ?? '');
+        const postalCode = Array.isArray(city.postal_codes)?.[0] ?? '';
+        const displayParts: string[] = [];
+        if (postalCode) displayParts.push(String(postalCode));
+        displayParts.push('г', cityName);
+        const displayValue = displayParts.join(', ');
 
-    // Форматируем ответ в нужном формате
-    const formattedCities = russianCities.map(city => {
-      // Парсим full_name: "Санкт-Петербург, Россия" или "Самара, городской округ Самара, Самарская область, Россия"
-      const fullName = city.full_name || '';
-      const parts = fullName.split(',').map((p: string) => p.trim());
-      const cityName = parts[0] || '';
-      const region = parts.length > 2 ? parts.slice(1, -1).join(', ') : (parts[1] || '');
-      
-      // Формируем отображаемое значение
-      const postalCode = city.postal_codes && city.postal_codes.length > 0 ? city.postal_codes[0] : '';
-      const cityType = 'г'; // по умолчанию город
-      
-      const displayParts: string[] = [];
-      if (postalCode) displayParts.push(postalCode);
-      displayParts.push(cityType);
-      displayParts.push(cityName);
-      
-      const displayValue = displayParts.join(', ');
-
-      return {
-        value: displayValue,
-        data: {
-          code: city.code,
-          city: cityName,
-          region: region,
-          postal_code: postalCode,
-          country_code: city.country_code,
-          fias_city_guid: city.fias_city_guid,
-          kladr_code: city.kladr_code,
-        },
-      };
-    });
+        return {
+          value: displayValue,
+          data: {
+            code: Number(city.code ?? 0),
+            city: cityName,
+            region,
+            postal_code: postalCode,
+            country_code: String(city.country_code ?? 'RU'),
+            fias_city_guid: city.fias_city_guid,
+            kladr_code: city.kladr_code,
+          },
+        };
+      });
 
     return NextResponse.json({ cities: formattedCities });
-  } catch (error: any) {
-    console.error('❌ [API /api/cdek/cities] Ошибка:', error);
+  } catch (err) {
+    console.error('❌ [API /api/cdek/cities]', err);
     return NextResponse.json(
-      { 
-        error: 'Не удалось загрузить города',
-        cities: [],
-      },
+      { error: 'Не удалось загрузить города', cities: [] },
       { status: 500 }
     );
   }

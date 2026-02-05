@@ -31,3 +31,6 @@ prod_dump.sql
 .env*.bak
 .env*.backup
 .env.production.backup
+
+# Supabase (не используется)
+.supabase*

@@ -2,9 +2,7 @@
 
 ## Проблемы обнаружены:
 
-1. ❌ **DATABASE_URL** указывает на Supabase, но подключение не работает
-   - Ошибка: `Tenant or user not found`
-   - Возможно, проект Supabase удален или приостановлен
+1. ❌ **DATABASE_URL** — подключение к БД не работает (проверьте хост, пользователь, пароль).
 
 2. ❌ **NEXTAUTH_URL** указывает на Vercel (`https://idylle-spb.vercel.app`)
    - Должен указывать на ваш VPS домен: `https://idylle.spb.ru`

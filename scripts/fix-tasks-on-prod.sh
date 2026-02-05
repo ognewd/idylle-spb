@@ -13,19 +13,12 @@ if [ -f .env ]; then
     export $(grep -v '^#' .env | xargs)
 fi
 
-# Проверяем DATABASE_URL
 echo "📊 Проверка DATABASE_URL..."
-if echo "$DATABASE_URL" | grep -q "supabase\|aws-1-us-east-1"; then
-    echo "❌ ОШИБКА: DATABASE_URL указывает на Supabase!"
-    echo "Нужно использовать локальный PostgreSQL: postgresql://idylle_user:...@localhost:5432/idylle_spb"
-    echo ""
-    echo "Текущий DATABASE_URL: ${DATABASE_URL%%@*}@***"
-    exit 1
+DB_URL="${DATABASE_URL:-}"
+if [ -z "$DB_URL" ]; then
+  echo "❌ Задайте DATABASE_URL в .env"
+  exit 1
 fi
-
-# Используем DATABASE_URL из .env или fallback
-DB_URL="${DATABASE_URL:-postgresql://idylle_user:wendw%40%40422ewd%21@localhost:5432/idylle_spb?schema=public}"
-
 echo "📊 Используется DATABASE_URL: ${DB_URL%%@*}@***"
 
 echo "🔄 Применяю миграцию Prisma..."

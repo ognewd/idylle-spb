@@ -198,7 +198,8 @@ model Order {
   shipping        Decimal     @default(0) @db.Decimal(10, 2)
   discount        Decimal     @default(0) @db.Decimal(10, 2)
   total           Decimal     @db.Decimal(10, 2)
-  notes           String?
+  notes           String?     // Комментарий к заказу
+  courierComment  String?     // Комментарий для курьера
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
   addressId       String?

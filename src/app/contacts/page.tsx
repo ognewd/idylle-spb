@@ -245,11 +245,11 @@ export default async function ContactsPage() {
                 <p className="text-sm text-muted-foreground mt-2">2-3 минуты пешком от метро</p>
               </div>
               
-              {/* Яндекс карта */}
+              {/* Карта OpenStreetMap */}
               <div className="mt-8 w-full max-w-4xl mx-auto">
                 <div className="bg-white rounded-lg shadow-lg overflow-hidden rounded-lg">
                   <iframe
-                    src="https://yandex.com/map-widget/v1/?ll=30.359203%2C59.932112&amp;z=16&amp;pt=30.359203%2C59.932112&amp;l=map"
+                    src="https://www.openstreetmap.org/export/embed.html?bbox=30.355%2C59.929%2C30.363%2C59.935&layer=mapnik&marker=59.932112%2C30.359203"
                     width="100%"
                     height="400"
                     frameBorder="0"
@@ -261,13 +261,13 @@ export default async function ContactsPage() {
                 </div>
                 <div className="mt-4 text-center">
                   <a
-                    href="https://yandex.com/maps/org/aroma_idylle_boutique/118045470929/?ll=30.359203%2C59.932112&z=16"
+                    href="https://www.openstreetmap.org/?mlat=59.932112&mlon=30.359203&zoom=16"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-primary hover:underline text-sm inline-flex items-center gap-2 transition-colors"
                   >
                     <MapPin className="h-4 w-4" />
-                    Открыть на Яндекс Картах
+                    Открыть на карте
                   </a>
                 </div>
               </div>

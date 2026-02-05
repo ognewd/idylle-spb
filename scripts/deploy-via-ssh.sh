@@ -3,7 +3,7 @@
 # Скрипт для автоматического деплоя через SSH с паролем
 # Использование: ./scripts/deploy-via-ssh.sh
 
-SERVER="147.45.98.110"
+SERVER="${SERVER:-<YOUR_SERVER_IP>}"
 USER="root"
 PASSWORD="v6kvGJiGPaw^9-"
 

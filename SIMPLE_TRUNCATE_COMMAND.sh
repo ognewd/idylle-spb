@@ -1,7 +1,8 @@
 #!/bin/bash
-# Упрощенная команда для очистки данных
+# Упрощенная команда для очистки данных. Задайте PGPASSWORD или используйте .pgpass.
+# Пример: PGPASSWORD=yourpass psql -U idylle_user -d idylle_spb -h localhost ...
 
-PGPASSWORD='wendw@@422ewd!' psql -U idylle_user -d idylle_spb -h localhost << 'EOF'
+psql -U idylle_user -d idylle_spb -h localhost << 'EOF'
 TRUNCATE TABLE 
   wishlist_items,
   seasonal_discount_categories,

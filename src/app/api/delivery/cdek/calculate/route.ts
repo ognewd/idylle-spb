@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { calculateDelivery } from '@/lib/cdek/calculator';
 import { CdekApiError } from '@/lib/cdek/client';
+import { DELIVERY_CONFIG } from '@/lib/delivery-config';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { fromCity, toCity, weight, length, width, height, deliveryType } = body;
+    const { fromCity, toCity, weight, address: toAddress, length, width, height, deliveryType } = body;
 
     // Валидация
     if (!fromCity || !toCity || !weight) {
@@ -15,14 +16,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Рассчитываем стоимость
+    const weightGrams = parseInt(weight) || 1000;
+    const { length: defaultL, width: defaultW, height: defaultH } = DELIVERY_CONFIG.DEFAULT_PACKAGE;
+
+    // Рассчитываем стоимость (адрес toAddress — для уточнённой цены «до двери»; габариты — для объёмного веса)
     const result = await calculateDelivery({
       fromCity,
       toCity,
-      weight: parseInt(weight) || 1000, // по умолчанию 1 кг
-      length: length ? parseInt(length) : undefined,
-      width: width ? parseInt(width) : undefined,
-      height: height ? parseInt(height) : undefined,
+      weight: weightGrams,
+      toAddress: typeof toAddress === 'string' && toAddress.trim() ? toAddress.trim() : undefined,
+      length: length != null ? parseInt(length) : defaultL,
+      width: width != null ? parseInt(width) : defaultW,
+      height: height != null ? parseInt(height) : defaultH,
       deliveryType: deliveryType || 'door',
     });
 

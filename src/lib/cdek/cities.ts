@@ -1,9 +1,8 @@
 /**
- * Модуль работы с городами СДЕК
- * Для получения кодов городов по названию
+ * Города СДЭК через sdek-api-lib (getCities).
  */
 
-import { cdekGet } from './client';
+import { getCdekApi } from './sdek-client';
 
 export interface CdekCity {
   code: number;
@@ -22,9 +21,6 @@ export interface CdekCity {
   time_zone?: string;
 }
 
-/**
- * Параметры запроса списка городов
- */
 export interface CdekCityRequest {
   city?: string;
   size?: number;
@@ -35,84 +31,89 @@ export interface CdekCityRequest {
   lang?: 'rus' | 'eng' | 'zho';
 }
 
+function mapCityFromSdek(raw: Record<string, unknown>): CdekCity {
+  return {
+    code: Number(raw.code),
+    city: String(raw.city ?? ''),
+    region: String(raw.region ?? ''),
+    region_code: raw.region_code != null ? Number(raw.region_code) : undefined,
+    country: String(raw.country ?? ''),
+    country_code: String(raw.country_code ?? ''),
+    fias_region_guid: raw.fias_region_guid != null ? String(raw.fias_region_guid) : undefined,
+    fias_city_guid: raw.fias_guid != null ? String(raw.fias_guid) : undefined,
+    kladr_region_code: raw.kladr_region_code != null ? String(raw.kladr_region_code) : undefined,
+    kladr_code: raw.kladr_code != null ? String(raw.kladr_code) : undefined,
+    postal_codes: Array.isArray(raw.postal_codes) ? raw.postal_codes.map(String) : undefined,
+    longitude: raw.longitude != null ? Number(raw.longitude) : undefined,
+    latitude: raw.latitude != null ? Number(raw.latitude) : undefined,
+    time_zone: raw.time_zone != null ? String(raw.time_zone) : undefined,
+  };
+}
+
 /**
- * Получить список городов СДЕК
+ * Список городов по параметрам.
  */
 export async function getCdekCitiesList(params?: CdekCityRequest): Promise<CdekCity[]> {
   try {
-    const defaultParams: CdekCityRequest = {
-      country_code: 'RU', // По умолчанию Россия
-      lang: 'rus',
-      size: 10,
-      ...params,
+    const cdek = await getCdekApi();
+    const options = {
+      country_codes: params?.country_code ?? 'RU',
+      size: params?.size ?? 10,
+      ...(params?.city && { city: params.city }),
+      ...(params?.region_code != null && { region_code: params.region_code }),
     };
-    
-    const response = await cdekGet<CdekCity[]>('/location/cities', defaultParams);
-    return Array.isArray(response) ? response : [];
-  } catch (error: any) {
-    console.error('❌ Ошибка получения списка городов СДЕК:', error);
+    const list = await cdek.getCities(options);
+    const arr = Array.isArray(list) ? list : [];
+    return arr.map((item: Record<string, unknown>) => mapCityFromSdek(item));
+  } catch (err) {
+    console.error('❌ Ошибка получения списка городов СДЭК:', err);
     return [];
   }
 }
 
 /**
- * Поиск города по названию
+ * Поиск города по названию.
  */
-export async function findCityByName(cityName: string, country?: string): Promise<CdekCity | null> {
+export async function findCityByName(
+  cityName: string,
+  country?: string
+): Promise<CdekCity | null> {
   try {
     const cities = await getCdekCitiesList({
       city: cityName,
       size: 1,
-      country_code: country || 'RU',
+      country_code: country ?? 'RU',
     });
-    
-    if (cities.length > 0) {
-      return cities[0];
-    }
-    
-    return null;
-  } catch (error: any) {
-    console.error('❌ Ошибка поиска города:', error);
+    return cities.length > 0 ? cities[0] : null;
+  } catch (err) {
+    console.error('❌ Ошибка поиска города СДЭК:', err);
     return null;
   }
 }
 
+const cityCodeCache = new Map<string, number | null>();
+
 /**
- * Получить код города по названию (с кэшированием)
+ * Код города по названию (с кэшем).
  */
-const cityCodeCache: Map<string, number | null> = new Map();
-
 export async function getCityCode(cityName: string): Promise<number | null> {
-  if (!cityName || !cityName.trim()) {
-    return null;
+  if (!cityName?.trim()) return null;
+  const key = cityName.toLowerCase().trim();
+  if (cityCodeCache.has(key)) {
+    return cityCodeCache.get(key) ?? null;
   }
-  
-  const cacheKey = cityName.toLowerCase().trim();
-  
-  // Проверяем кэш
-  if (cityCodeCache.has(cacheKey)) {
-    return cityCodeCache.get(cacheKey) || null;
-  }
-
   try {
     const city = await findCityByName(cityName.trim());
-    const code = city?.code || null;
-    
-    // Сохраняем в кэш
-    cityCodeCache.set(cacheKey, code);
-    
+    const code = city?.code ?? null;
+    cityCodeCache.set(key, code);
     return code;
-  } catch (error: any) {
-    console.error(`❌ Ошибка получения кода города "${cityName}":`, error.message);
-    // Сохраняем null в кэш, чтобы не повторять запрос
-    cityCodeCache.set(cacheKey, null);
+  } catch (err) {
+    console.error(`❌ Ошибка получения кода города "${cityName}":`, err);
+    cityCodeCache.set(key, null);
     return null;
   }
 }
 
-/**
- * Очистить кэш кодов городов
- */
 export function clearCityCodeCache(): void {
   cityCodeCache.clear();
 }
