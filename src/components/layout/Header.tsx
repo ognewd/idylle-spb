@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
 import { useWishlist } from '@/contexts/WishlistContext';
+import { getImageUrl } from '@/lib/image-url';
 
 const PROMO_DISMISS_KEY = 'header-promo-dismissed';
 /** Раскрытая шапка только при scrollY < EXPAND; схлопнутая при scrollY > COLLAPSE. Большой зазор убирает дрожание при скролле вверх. */
@@ -170,7 +171,7 @@ export function Header() {
                         {searchResults.map((product) => (
                           <button key={product.id} type="button" onClick={() => handleResultClick(product.slug)} className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 text-left">
                             <div className="relative w-9 h-9 flex-shrink-0 rounded overflow-hidden">
-                              <Image src={product.image} alt={product.name} fill className="object-cover" />
+                              <Image src={getImageUrl(product.image)} alt={product.name} fill className="object-cover" />
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="text-sm font-medium text-gray-900 truncate">{product.name}</div>
@@ -315,7 +316,7 @@ export function Header() {
                           className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 text-left"
                         >
                           <div className="relative w-10 h-10 flex-shrink-0 rounded overflow-hidden">
-                            <Image src={product.image} alt={product.name} fill className="object-cover" />
+                            <Image src={getImageUrl(product.image)} alt={product.name} fill className="object-cover" />
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="text-sm font-medium text-gray-900 truncate">{product.name}</div>
@@ -524,7 +525,7 @@ export function Header() {
                         className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 text-left"
                       >
                         <div className="relative w-10 h-10 flex-shrink-0 rounded overflow-hidden">
-                          <Image src={product.image} alt={product.name} fill className="object-cover" />
+                          <Image src={getImageUrl(product.image)} alt={product.name} fill className="object-cover" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="text-sm font-medium text-gray-900 truncate">{product.name}</div>

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getImageUrl } from '@/lib/image-url';
 
 export async function GET(request: NextRequest) {
   try {
@@ -94,7 +95,7 @@ export async function GET(request: NextRequest) {
       price: product.price,
       brand: product.brand?.name,
       category: product.productCategories[0]?.category?.name,
-      image: product.images[0]?.url || '/placeholder-product.jpg',
+      image: getImageUrl(product.images[0]?.url),
     }));
 
     return NextResponse.json({ results });
