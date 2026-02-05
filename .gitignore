@@ -25,3 +25,9 @@ public/uploads/
 *_data_only.sql
 idylle_spb_backup.sql
 idylle_spb_data_only.sql
+prod_dump.sql
+
+# Env backups (never commit)
+.env*.bak
+.env*.backup
+.env.production.backup
