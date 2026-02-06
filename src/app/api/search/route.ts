@@ -88,6 +88,11 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    // Базовый URL из запроса (учитываем прокси: x-forwarded-proto/host), чтобы картинки в поиске вели на текущий домен
+    const proto = request.headers.get('x-forwarded-proto') || new URL(request.url).protocol.replace(/:$/, '');
+    const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || new URL(request.url).host;
+    const requestOrigin = `${proto}://${host}`;
+
     const results = products.map((product) => ({
       id: product.id,
       name: product.name,
@@ -95,7 +100,7 @@ export async function GET(request: NextRequest) {
       price: product.price,
       brand: product.brand?.name,
       category: product.productCategories[0]?.category?.name,
-      image: getImageUrl(product.images[0]?.url),
+      image: getImageUrl(product.images[0]?.url, { baseUrl: requestOrigin }),
     }));
 
     return NextResponse.json({ results });
