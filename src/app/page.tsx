@@ -17,9 +17,10 @@ const DEFAULT_CATEGORY_IMAGE = 'https://images.unsplash.com/photo-1600566752355-
 
 async function getFeaturedProducts(limit: number) {
   try {
-    const products = await prisma.product.findMany({
-      where: { isActive: true },
-      orderBy: [{ isFeatured: 'desc' }, { createdAt: 'desc' }],
+    // Сначала пытаемся найти featured товары
+    let products = await prisma.product.findMany({
+      where: { isActive: true, isFeatured: true },
+      orderBy: [{ createdAt: 'desc' }],
       take: limit,
       include: {
         brand: true,
@@ -27,6 +28,27 @@ async function getFeaturedProducts(limit: number) {
         images: { orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }] },
       },
     });
+    
+    // Если featured товаров недостаточно, добавляем обычные активные
+    if (products.length < limit) {
+      const additional = await prisma.product.findMany({
+        where: { 
+          isActive: true, 
+          isFeatured: false,
+          id: { notIn: products.map(p => p.id) },
+        },
+        orderBy: [{ createdAt: 'desc' }],
+        take: limit - products.length,
+        include: {
+          brand: true,
+          productCategories: { include: { category: true } },
+          images: { orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }] },
+        },
+      });
+      products = [...products, ...additional];
+    }
+    
+    console.log(`[HomePage] Found ${products.length} products (${products.filter(p => p.isFeatured).length} featured)`);
     return products.map((p) => ({
       id: p.id,
       name: p.name,
@@ -38,7 +60,8 @@ async function getFeaturedProducts(limit: number) {
       category: p.productCategories?.[0]?.category?.name,
       isFeatured: p.isFeatured,
     }));
-  } catch {
+  } catch (error) {
+    console.error('[HomePage] Error fetching featured products:', error);
     return [];
   }
 }
