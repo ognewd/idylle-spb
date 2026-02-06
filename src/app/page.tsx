@@ -6,6 +6,7 @@ import type { CategoryItem } from '@/components/home/CategoriesSection';
 import { ProductGallery } from '@/components/home/ProductGallery';
 import type { GalleryProduct } from '@/components/home/ProductGallery';
 import { prisma } from '@/lib/prisma';
+import { headers } from 'next/headers';
 
 // Изображения для секции категорий по slug (подпись и картинка должны совпадать)
 const CATEGORY_IMAGES_BY_SLUG: Record<string, string> = {
@@ -92,13 +93,19 @@ export default async function HomePage() {
     getCategories(3),
   ]);
 
+  // Получаем origin из headers для правильного формирования URL изображений
+  const headersList = await headers();
+  const protocol = headersList.get('x-forwarded-proto') || 'https';
+  const host = headersList.get('x-forwarded-host') || headersList.get('host') || 'aromarussia.ru';
+  const baseUrl = `${protocol}://${host}`;
+
   const galleryItems: GalleryProduct[] = galleryProducts.map((p: { id: string; name: string; shortName?: string | null; slug: string; price: number; image: string; category?: string; isFeatured?: boolean }) => ({
     id: p.id,
     name: p.name,
     shortName: p.shortName,
     slug: p.slug,
     price: p.price,
-    image: p.image,
+    image: getImageUrl(p.image, { baseUrl }),
     category: p.category,
     isFeatured: p.isFeatured,
   }));
@@ -109,7 +116,7 @@ export default async function HomePage() {
     shortName: item.shortName,
     slug: item.slug,
     price: item.price,
-    image: item.image,
+    image: item.image, // уже обработано через getImageUrl выше
     brandName: galleryProducts[index]?.brandName,
     category: item.category,
     badge: item.isFeatured ? 'Хит' : undefined,

@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { MapPin, BookOpen, ChevronLeft, ChevronRight } from 'lucide-react';
-import { getImageUrl } from '@/lib/image-url';
 
 export type HeroProduct = {
   id: string;
@@ -214,7 +213,7 @@ export function HeroSection({ products = [] }: HeroSectionProps) {
                         >
                           <div className="relative aspect-square mb-6 rounded-2xl overflow-hidden bg-transparent">
                             <img
-                              src={getImageUrl(product.image)}
+                              src={product.image}
                               alt={product.name}
                               className="w-full h-full object-contain p-4 group-hover:scale-110 transition-transform duration-700"
                             />
