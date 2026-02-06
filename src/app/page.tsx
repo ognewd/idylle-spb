@@ -82,6 +82,10 @@ async function getCategories(limit = 6) {
   }
 }
 
+// Главная страница должна рендериться динамически при запросе, а не статически во время сборки
+// чтобы использовать правильный DATABASE_URL из ecosystem.config.cjs (PM2)
+export const dynamic = 'force-dynamic';
+
 export default async function HomePage() {
   const [galleryProducts, categories] = await Promise.all([
     getFeaturedProducts(6),
