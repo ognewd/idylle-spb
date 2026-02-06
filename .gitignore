@@ -34,3 +34,6 @@ prod_dump.sql
 
 # Supabase (не используется)
 .supabase*
+
+# PM2 ecosystem config (содержит секреты)
+ecosystem.config.cjs

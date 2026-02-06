@@ -37,6 +37,12 @@ jobs:
             
             echo "🔄 Начало деплоя..."
             
+            # Сохранить ecosystem.config.cjs перед git reset (если существует)
+            if [ -f ecosystem.config.cjs ]; then
+                echo "💾 Сохраняю ecosystem.config.cjs перед git reset..."
+                cp ecosystem.config.cjs /tmp/ecosystem.config.cjs.backup
+            fi
+            
             # Удалить конфликтующие файлы (если есть)
             rm -f idylle_spb_backup.sql idylle_spb_data_only.sql 2>/dev/null || true
             
@@ -44,6 +50,17 @@ jobs:
             echo "📥 Получение изменений из Git..."
             git fetch origin --prune
             git reset --hard origin/main || git pull origin main
+            
+            # Восстановить ecosystem.config.cjs после git reset (если был сохранен)
+            if [ -f /tmp/ecosystem.config.cjs.backup ]; then
+                echo "💾 Восстанавливаю ecosystem.config.cjs после git reset..."
+                cp /tmp/ecosystem.config.cjs.backup ecosystem.config.cjs
+                rm /tmp/ecosystem.config.cjs.backup
+            elif [ -f ecosystem.config.cjs.example ]; then
+                echo "⚠️  ecosystem.config.cjs не найден, создаю из примера..."
+                echo "⚠️  ВАЖНО: Отредактируйте ecosystem.config.cjs на сервере с правильным DATABASE_URL!"
+                cp ecosystem.config.cjs.example ecosystem.config.cjs
+            fi
             
             # Установить зависимости
             echo "📦 Установка зависимостей..."
@@ -98,7 +115,12 @@ jobs:
             
             # Перезапустить PM2
             echo "🔄 Перезапуск приложения..."
-            pm2 restart idylle-spb --update-env || pm2 start ecosystem.config.js || true
+            if [ -f ecosystem.config.cjs ]; then
+                pm2 delete idylle-spb 2>/dev/null || true
+                pm2 start ecosystem.config.cjs
+            else
+                pm2 restart idylle-spb --update-env || pm2 start npm --name idylle-spb -- start || true
+            fi
             
             # Проверить статус
             echo "📊 Статус PM2:"

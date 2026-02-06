@@ -1,0 +1,16 @@
+module.exports = {
+  apps: [{
+    name: 'idylle-spb',
+    cwd: '/root/idylle-spb',
+    script: 'npm',
+    args: 'start',
+    env: {
+      NODE_ENV: 'production',
+      // ВАЖНО: Замените на ваш реальный DATABASE_URL перед использованием
+      DATABASE_URL: 'postgresql://USER:PASSWORD@localhost:5432/DATABASE?schema=public',
+      // Опционально: добавьте другие переменные окружения
+      // NEXTAUTH_URL: 'https://your-domain.ru',
+      // NEXTAUTH_SECRET: 'your-secret',
+    },
+  }],
+};
