@@ -18,6 +18,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { CityAutocomplete, CitySuggestion } from '@/components/ui/city-autocomplete';
 import { AddressAutocomplete } from '@/components/ui/address-autocomplete';
+import { getImageUrl } from '@/lib/image-url';
 import { DELIVERY_CONFIG, isSaintPetersburg } from '@/lib/delivery-config';
 import type { PvzMapPoint } from '@/components/delivery/PvzMap';
 
@@ -1083,7 +1084,7 @@ Email: info@idylle.spb.ru
                       <div key={item.id} className="flex gap-3">
                         <div className="relative w-16 h-16 flex-shrink-0 bg-muted rounded-md overflow-hidden">
                           <Image
-                            src={item.image || '/placeholder-product.jpg'}
+                            src={getImageUrl(item.image)}
                             alt={item.name}
                             fill
                             className="object-cover"

@@ -6,6 +6,7 @@ import { useWishlist } from '@/contexts/WishlistContext';
 import { useCart } from '@/contexts/CartContext';
 import { Button } from '@/components/ui/button';
 import { Trash2, ArrowLeft, ShoppingCart } from 'lucide-react';
+import { getImageUrl } from '@/lib/image-url';
 
 export default function WishlistPage() {
   const { items, remove, clear } = useWishlist();
@@ -41,7 +42,7 @@ export default function WishlistPage() {
           <div key={item.id} className="border rounded-lg overflow-hidden hover:shadow-md transition-shadow">
             <Link href={`/catalog/${item.slug}`} className="block">
               <div className="relative aspect-square bg-muted">
-                <Image src={item.image} alt={item.name} fill className="object-cover" />
+                <Image src={getImageUrl(item.image)} alt={item.name} fill className="object-cover" />
               </div>
             </Link>
             <div className="p-4 space-y-2">
