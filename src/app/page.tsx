@@ -103,19 +103,17 @@ export default async function HomePage() {
     isFeatured: p.isFeatured,
   }));
 
-  const heroProduct = galleryItems[0]
-    ? {
-        id: galleryItems[0].id,
-        name: galleryItems[0].name,
-        shortName: galleryItems[0].shortName,
-        slug: galleryItems[0].slug,
-        price: galleryItems[0].price,
-        image: galleryItems[0].image,
-        brandName: galleryProducts[0]?.brandName,
-        category: galleryItems[0].category,
-        badge: galleryItems[0].isFeatured ? 'Хит' : undefined,
-      }
-    : null;
+  const heroProducts = galleryItems.map((item, index) => ({
+    id: item.id,
+    name: item.name,
+    shortName: item.shortName,
+    slug: item.slug,
+    price: item.price,
+    image: item.image,
+    brandName: galleryProducts[index]?.brandName,
+    category: item.category,
+    badge: item.isFeatured ? 'Хит' : undefined,
+  }));
 
   const categoryItems: CategoryItem[] = categories.map((c: { id: string; name: string; slug: string; description?: string | null; image?: string | null }) => ({
     id: c.id,
@@ -127,7 +125,7 @@ export default async function HomePage() {
 
   return (
     <div className="min-h-screen">
-      <HeroSection product={heroProduct} />
+      <HeroSection products={heroProducts} />
       <FeaturesSection />
       <CategoriesSection categories={categoryItems} />
       <ProductGallery products={galleryItems} />

@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { MapPin, BookOpen } from 'lucide-react';
+import { MapPin, BookOpen, ChevronLeft, ChevronRight } from 'lucide-react';
+import { getImageUrl } from '@/lib/image-url';
 
 export type HeroProduct = {
   id: string;
@@ -17,7 +18,7 @@ export type HeroProduct = {
 };
 
 type HeroSectionProps = {
-  product?: HeroProduct | null;
+  products?: HeroProduct[];
 };
 
 interface FragranceParticle {
@@ -27,11 +28,49 @@ interface FragranceParticle {
   timestamp: number;
 }
 
-export function HeroSection({ product }: HeroSectionProps) {
+export function HeroSection({ products = [] }: HeroSectionProps) {
   const [particles, setParticles] = useState<FragranceParticle[]>([]);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [hasMouseMoved, setHasMouseMoved] = useState(false);
   const particleIdRef = useRef(0);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const autoScrollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Автопрокрутка слайдера
+  useEffect(() => {
+    if (products.length <= 1) return;
+
+    autoScrollIntervalRef.current = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % products.length);
+    }, 5000); // Меняем слайд каждые 5 секунд
+
+    return () => {
+      if (autoScrollIntervalRef.current) {
+        clearInterval(autoScrollIntervalRef.current);
+      }
+    };
+  }, [products.length]);
+
+  const goToSlide = (index: number) => {
+    setCurrentIndex(index);
+    if (autoScrollIntervalRef.current) {
+      clearInterval(autoScrollIntervalRef.current);
+    }
+    // Перезапускаем автопрокрутку через 5 секунд
+    autoScrollIntervalRef.current = setTimeout(() => {
+      autoScrollIntervalRef.current = setInterval(() => {
+        setCurrentIndex((prev) => (prev + 1) % products.length);
+      }, 5000);
+    }, 5000);
+  };
+
+  const goToPrevious = () => {
+    goToSlide((currentIndex - 1 + products.length) % products.length);
+  };
+
+  const goToNext = () => {
+    goToSlide((currentIndex + 1) % products.length);
+  };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -152,42 +191,99 @@ export function HeroSection({ product }: HeroSectionProps) {
             </div>
           </div>
 
-          {/* Правая колонка — карточка товара */}
+          {/* Правая колонка — слайдер товаров */}
           <div className="lg:col-span-2 flex justify-center lg:justify-end animate-slide-up relative z-10">
-            {product ? (
-              <Link
-                href={`/catalog/${product.slug}`}
-                className="group w-full max-w-[340px] bg-white rounded-3xl shadow-xl hover:shadow-2xl p-6 transition-all duration-500 hover:-translate-y-3 block"
-              >
-                <div className="relative aspect-square mb-6 rounded-2xl overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
-                  <img
-                    src={product.image}
-                    alt={product.name}
-                    className="w-full h-full object-contain p-4 group-hover:scale-110 transition-transform duration-700"
-                  />
-                  {product.badge && (
-                    <div className="absolute top-4 right-4 bg-[#D4830F] text-white px-3 py-1 rounded-full text-xs font-medium shadow-lg">
-                      {product.badge}
-                    </div>
+            {products.length > 0 ? (
+              <div className="w-full max-w-[340px] relative group/slider">
+                {/* Контейнер слайдера */}
+                <div className="relative overflow-hidden">
+                  <div
+                    className="flex transition-transform duration-500 ease-in-out"
+                    style={{
+                      transform: `translateX(-${currentIndex * 100}%)`,
+                    }}
+                  >
+                    {products.map((product) => (
+                      <div key={product.id} className="w-full flex-shrink-0">
+                        <Link
+                          href={`/catalog/${product.slug}`}
+                          className="group w-full bg-white rounded-3xl border border-gray-100 p-6 transition-all duration-500 hover:-translate-y-2 hover:border-[#D4830F]/20 block"
+                          style={{
+                            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05)',
+                          }}
+                        >
+                          <div className="relative aspect-square mb-6 rounded-2xl overflow-hidden bg-transparent">
+                            <img
+                              src={getImageUrl(product.image)}
+                              alt={product.name}
+                              className="w-full h-full object-contain p-4 group-hover:scale-110 transition-transform duration-700"
+                            />
+                            {product.badge && (
+                              <div className="absolute top-4 right-4 bg-[#D4830F] text-white px-3 py-1 rounded-full text-xs font-medium shadow-lg">
+                                {product.badge}
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-center space-y-3">
+                            <p className="text-xs uppercase tracking-widest text-[#6B7280] font-medium">
+                              {product.brandName || product.category}
+                            </p>
+                            <h3 className="text-xl font-medium text-[#1a1a1a] group-hover:text-[#D4830F] transition-colors">
+                              {product.shortName || product.name}
+                            </h3>
+                            <div className="pt-2">
+                              <p className="text-2xl font-light text-[#1a1a1a]">
+                                {product.price.toLocaleString('ru-RU')} ₽
+                              </p>
+                            </div>
+                            <span className="inline-block w-full mt-4 bg-[#1a1a1a] group-hover:bg-[#D4830F] text-white py-3 rounded-full font-medium transition-all duration-300 opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 text-center">
+                              Подробнее
+                            </span>
+                          </div>
+                        </Link>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Навигационные кнопки - появляются при наведении */}
+                  {products.length > 1 && (
+                    <>
+                      <button
+                        onClick={goToPrevious}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/90 backdrop-blur-sm rounded-full p-2.5 shadow-md hover:shadow-lg transition-all duration-300 hover:scale-110 opacity-0 group-hover/slider:opacity-100 z-20 border border-gray-200/60 hover:border-[#D4830F]/40"
+                        aria-label="Предыдущий товар"
+                      >
+                        <ChevronLeft className="w-5 h-5 text-gray-700 hover:text-[#D4830F] transition-colors duration-300" />
+                      </button>
+                      <button
+                        onClick={goToNext}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/90 backdrop-blur-sm rounded-full p-2.5 shadow-md hover:shadow-lg transition-all duration-300 hover:scale-110 opacity-0 group-hover/slider:opacity-100 z-20 border border-gray-200/60 hover:border-[#D4830F]/40"
+                        aria-label="Следующий товар"
+                      >
+                        <ChevronRight className="w-5 h-5 text-gray-700 hover:text-[#D4830F] transition-colors duration-300" />
+                      </button>
+                    </>
                   )}
                 </div>
-                <div className="text-center space-y-3">
-                  <p className="text-xs uppercase tracking-widest text-[#6B7280] font-medium">
-                    {product.brandName || product.category}
-                  </p>
-                  <h3 className="text-xl font-medium text-[#1a1a1a] group-hover:text-[#D4830F] transition-colors">
-                    {product.shortName || product.name}
-                  </h3>
-                  <div className="pt-2">
-                    <p className="text-2xl font-light text-[#1a1a1a]">
-                      {product.price.toLocaleString('ru-RU')} ₽
-                    </p>
+
+                {/* Индикаторы точек */}
+                {products.length > 1 && (
+                  <div className="flex justify-center gap-2 mt-6">
+                    {products.map((_, index) => (
+                      <button
+                        key={index}
+                        onClick={() => goToSlide(index)}
+                        className={`h-2 rounded-full transition-all duration-300 ${
+                          index === currentIndex
+                            ? 'w-8 bg-[#D4830F]'
+                            : 'w-2 bg-gray-300 hover:bg-gray-400'
+                        }`}
+                        aria-label={`Перейти к слайду ${index + 1}`}
+                      />
+                    ))}
                   </div>
-                  <span className="inline-block w-full mt-4 bg-[#1a1a1a] group-hover:bg-[#D4830F] text-white py-3 rounded-full font-medium transition-all duration-300 opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 text-center">
-                    Подробнее
-                  </span>
-                </div>
-              </Link>
+                )}
+              </div>
             ) : (
               <div className="relative w-full max-w-[340px] flex justify-center">
                 <div className="absolute -top-4 right-0 z-20 bg-gradient-to-r from-[#F59E0B] to-[#D97706] text-white px-6 py-3 rounded-full font-medium shadow-xl animate-bounce-slow">
