@@ -69,6 +69,18 @@ jobs:
                 cp ecosystem.config.cjs.example ecosystem.config.cjs
             fi
             
+            # Проверяем и исправляем DATABASE_URL в .env перед обновлением ecosystem.config.cjs
+            echo "🔍 Проверяю DATABASE_URL в .env..."
+            if [ -f .env ] && grep -q "^DATABASE_URL=" .env; then
+                DB_URL_FROM_ENV=$(grep "^DATABASE_URL=" .env | head -1 | cut -d'=' -f2- | sed "s/^[\"']//;s/[\"']$//")
+                if echo "$DB_URL_FROM_ENV" | grep -qE "supabase|aws-1-us-east-1\.pooler\.supabase"; then
+                    echo "⚠️  Обнаружен Supabase DATABASE_URL в .env, исправляю на локальный PostgreSQL..."
+                    CORRECT_DB_URL="postgresql://idylle_user:wendw%40%40422ewd%21@localhost:5432/idylle_spb?schema=public"
+                    sed -i "s|^DATABASE_URL=.*|DATABASE_URL=\"${CORRECT_DB_URL}\"|" .env
+                    echo "  ✓ DATABASE_URL исправлен в .env"
+                fi
+            fi
+            
             # Обновить ecosystem.config.cjs с переменными из .env
             echo "🔧 Обновляю ecosystem.config.cjs с переменными из .env..."
             if [ -f scripts/update-ecosystem-env.sh ]; then

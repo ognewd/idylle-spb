@@ -34,6 +34,25 @@ UPLOADS_DIR=""
 
 if grep -q "^DATABASE_URL=" .env 2>/dev/null; then
     DATABASE_URL=$(grep "^DATABASE_URL=" .env | head -1 | cut -d'=' -f2- | sed "s/^[\"']//;s/[\"']$//")
+    
+    # Проверяем, не является ли это Supabase URL (не используем Supabase)
+    if echo "$DATABASE_URL" | grep -qE "supabase|aws-1-us-east-1\.pooler\.supabase"; then
+        echo "⚠️  Обнаружен Supabase DATABASE_URL в .env, используем локальный PostgreSQL вместо него"
+        # Используем правильный локальный PostgreSQL URL
+        DB_USER="idylle_user"
+        DB_PASSWORD_ENCODED="wendw%40%40422ewd%21"
+        DB_HOST="localhost"
+        DB_PORT="5432"
+        DB_NAME="idylle_spb"
+        DATABASE_URL="postgresql://${DB_USER}:${DB_PASSWORD_ENCODED}@${DB_HOST}:${DB_PORT}/${DB_NAME}?schema=public"
+        echo "  ✓ Используется локальный PostgreSQL: postgresql://${DB_USER}:***@${DB_HOST}:${DB_PORT}/${DB_NAME}"
+        
+        # Также обновляем .env файл, чтобы исправить его
+        if grep -q "^DATABASE_URL=" .env; then
+            sed -i "s|^DATABASE_URL=.*|DATABASE_URL=\"${DATABASE_URL}\"|" .env
+            echo "  ✓ Обновлен DATABASE_URL в .env файле"
+        fi
+    fi
 fi
 
 if grep -q "^NEXTAUTH_URL=" .env 2>/dev/null; then
