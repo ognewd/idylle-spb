@@ -57,6 +57,9 @@ export async function POST(request: NextRequest) {
     const baseUploadsDir = process.env.UPLOADS_DIR || join(process.cwd(), 'public', 'uploads');
     const uploadsDir = join(baseUploadsDir, 'products');
     
+    // Логируем путь для отладки
+    console.log(`[Upload] Saving file to: ${uploadsDir} (UPLOADS_DIR=${process.env.UPLOADS_DIR || 'not set'})`);
+    
     // Validate that uploads directory is accessible
     if (!baseUploadsDir) {
       console.error('UPLOADS_DIR is not set in environment variables');
@@ -69,9 +72,9 @@ export async function POST(request: NextRequest) {
     if (!existsSync(uploadsDir)) {
       try {
         await mkdir(uploadsDir, { recursive: true });
-        console.log(`Created uploads directory: ${uploadsDir}`);
+        console.log(`[Upload] Created directory: ${uploadsDir}`);
       } catch (error) {
-        console.error(`Failed to create uploads directory: ${uploadsDir}`, error);
+        console.error(`[Upload] Failed to create uploads directory: ${uploadsDir}`, error);
         return NextResponse.json(
           { error: 'Failed to create upload directory' },
           { status: 500 }
@@ -84,6 +87,16 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
     await writeFile(filePath, buffer);
+
+    // Проверяем, что файл действительно создан
+    if (!existsSync(filePath)) {
+      console.error(`[Upload] File was not created: ${filePath}`);
+      return NextResponse.json(
+        { error: 'Failed to save file' },
+        { status: 500 }
+      );
+    }
+    console.log(`[Upload] File saved: ${filePath} -> /uploads/products/${filename}`);
 
     // Return URL (always relative path, Nginx will serve it)
     const url = `/uploads/products/${filename}`;

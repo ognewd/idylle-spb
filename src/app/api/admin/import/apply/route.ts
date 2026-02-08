@@ -22,8 +22,12 @@ async function downloadImageAsUpload(photoUrl: string): Promise<string | null> {
   const baseUploadsDir = process.env.UPLOADS_DIR || join(process.cwd(), 'public', 'uploads');
   const uploadsDir = join(baseUploadsDir, 'products');
 
+  // Логируем путь для отладки
+  console.log(`[Import] Saving image to: ${uploadsDir} (UPLOADS_DIR=${process.env.UPLOADS_DIR || 'not set'})`);
+
   if (!existsSync(uploadsDir)) {
     await mkdir(uploadsDir, { recursive: true });
+    console.log(`[Import] Created directory: ${uploadsDir}`);
   }
 
   let res: Response;
@@ -72,6 +76,12 @@ async function downloadImageAsUpload(photoUrl: string): Promise<string | null> {
   const filename = `${timestamp}-${randomString}.${ext}`;
   const filePath = join(uploadsDir, filename);
   await writeFile(filePath, buffer);
+
+  // Проверяем, что файл действительно создан
+  if (!existsSync(filePath)) {
+    throw new Error(`Файл не был создан: ${filePath}`);
+  }
+  console.log(`[Import] Image saved: ${filePath} -> /uploads/products/${filename}`);
 
   return `/uploads/products/${filename}`;
 }
