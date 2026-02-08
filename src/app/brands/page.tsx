@@ -183,7 +183,7 @@ export default function BrandsPage() {
 
         {/* Заголовок */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">ДИЗАЙНЕРЫ И БРЕНДЫ</h1>
+          <h1 className="text-4xl font-bold mb-2">Бренды</h1>
           <p className="text-muted-foreground">
             Выберите бренд, чтобы увидеть все товары
           </p>
