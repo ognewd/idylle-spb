@@ -91,19 +91,20 @@ export async function GET(request: NextRequest) {
     // Базовый URL из запроса (учитываем прокси: x-forwarded-proto/host), чтобы картинки в поиске вели на текущий домен
     let requestOrigin = 'https://aromarussia.ru'; // fallback
     try {
-      const proto = request.headers.get('x-forwarded-proto') || 'https';
       const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || 'aromarussia.ru';
+      // Определяем протокол: для localhost используем http, иначе берем из заголовка или используем https
+      const proto = host.includes('localhost') || host.includes('127.0.0.1')
+        ? 'http'
+        : (request.headers.get('x-forwarded-proto') || 'https');
       requestOrigin = `${proto}://${host}`;
     } catch (error) {
       console.error('Error getting request origin:', error);
     }
 
     const results = products.map((product) => {
-      // Для /uploads/ путей возвращаем относительный путь (Nginx раздаст напрямую)
-      // Для других путей формируем полный URL
-      const imageUrl = product.images[0]?.url?.startsWith('/uploads/')
-        ? product.images[0].url
-        : getImageUrl(product.images[0]?.url, { baseUrl: requestOrigin });
+      // Используем getImageUrl для всех путей, включая /uploads/
+      // На localhost это сформирует полный URL, на проде - относительный (для Nginx)
+      const imageUrl = getImageUrl(product.images[0]?.url, { baseUrl: requestOrigin });
       
       return {
         id: product.id,

@@ -37,15 +37,21 @@ export function getImageUrl(
       return cleanUrl;
     }
     
-    // На сервере в API можно использовать baseUrl из параметров
-    // Но по умолчанию возвращаем относительный путь для /uploads/
-    // чтобы Nginx мог раздать файлы напрямую
-    if (options?.baseUrl && process.env.NODE_ENV === 'development') {
-      // Только в dev режиме формируем полный URL
-      return `${options.baseUrl.replace(/\/$/, '')}${cleanUrl}`;
+    // На сервере в API: если передан baseUrl (из request origin), используем его
+    // Это нужно для localhost и других случаев, когда нужен полный URL
+    if (options?.baseUrl) {
+      // Проверяем, это localhost или dev режим - формируем полный URL
+      const isLocalhost = options.baseUrl.includes('localhost') || options.baseUrl.includes('127.0.0.1');
+      const isDevelopment = process.env.NODE_ENV === 'development';
+      
+      if (isLocalhost || isDevelopment) {
+        // Для localhost/dev всегда формируем полный URL
+        return `${options.baseUrl.replace(/\/$/, '')}${cleanUrl}`;
+      }
     }
     
-    // На проде возвращаем относительный путь
+    // На проде (без baseUrl или с production baseUrl) возвращаем относительный путь
+    // Nginx раздаст файлы напрямую
     return cleanUrl;
   }
 

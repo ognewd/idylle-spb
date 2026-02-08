@@ -189,8 +189,11 @@ export async function GET(
     // Получаем origin из запроса для правильного формирования URL изображений
     let requestOrigin = 'https://aromarussia.ru'; // fallback
     try {
-      const proto = request.headers.get('x-forwarded-proto') || 'https';
       const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || 'aromarussia.ru';
+      // Определяем протокол: для localhost используем http, иначе берем из заголовка или используем https
+      const proto = host.includes('localhost') || host.includes('127.0.0.1')
+        ? 'http'
+        : (request.headers.get('x-forwarded-proto') || 'https');
       requestOrigin = `${proto}://${host}`;
     } catch (error) {
       console.error('Error getting request origin:', error);
@@ -206,11 +209,9 @@ export async function GET(
         seasonalDiscount: seasonal || null,
         weight: product.weight ? Number(product.weight) : null,
         images: product.images.map(img => {
-          // Для /uploads/ путей возвращаем относительный путь (Nginx раздаст напрямую)
-          // Для других путей формируем полный URL
-          const imageUrl = img.url?.startsWith('/uploads/') 
-            ? img.url 
-            : getImageUrl(img.url, { baseUrl: requestOrigin });
+          // Используем getImageUrl для всех путей, включая /uploads/
+          // На localhost это сформирует полный URL, на проде - относительный (для Nginx)
+          const imageUrl = getImageUrl(img.url, { baseUrl: requestOrigin });
           return {
             url: imageUrl,
             alt: img.alt,
@@ -241,11 +242,9 @@ export async function GET(
       relatedProducts: relatedProductsWithRatings.map(relatedProduct => ({
         ...relatedProduct,
         images: relatedProduct.images.map(img => {
-          // Для /uploads/ путей возвращаем относительный путь (Nginx раздаст напрямую)
-          // Для других путей формируем полный URL
-          const imageUrl = img.url?.startsWith('/uploads/') 
-            ? img.url 
-            : getImageUrl(img.url, { baseUrl: requestOrigin });
+          // Используем getImageUrl для всех путей, включая /uploads/
+          // На localhost это сформирует полный URL, на проде - относительный (для Nginx)
+          const imageUrl = getImageUrl(img.url, { baseUrl: requestOrigin });
           return {
             url: imageUrl,
             alt: img.alt,
