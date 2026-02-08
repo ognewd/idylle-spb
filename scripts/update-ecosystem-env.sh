@@ -5,7 +5,9 @@
 
 set -e
 
-cd /root/idylle-spb || exit 1
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$PROJECT_DIR" || exit 1
 
 if [ ! -f ecosystem.config.cjs ]; then
     echo "❌ ecosystem.config.cjs не найден!"
@@ -23,80 +25,125 @@ echo "🔧 Обновляю ecosystem.config.cjs с переменными из 
 DATABASE_URL=$(grep "^DATABASE_URL=" .env | cut -d'=' -f2- | tr -d '"' | tr -d "'" | head -1)
 NEXTAUTH_URL=$(grep "^NEXTAUTH_URL=" .env | cut -d'=' -f2- | tr -d '"' | tr -d "'" | head -1)
 NEXTAUTH_SECRET=$(grep "^NEXTAUTH_SECRET=" .env | cut -d'=' -f2- | tr -d '"' | tr -d "'" | head -1)
-NEXT_PUBLIC_BASE_URL=$(grep "^NEXT_PUBLIC_BASE_URL=" .env | cut -d'=' -f2- | tr -d '"' | tr -d "'" | head -1)
 UPLOADS_DIR=$(grep "^UPLOADS_DIR=" .env | cut -d'=' -f2- | tr -d '"' | tr -d "'" | head -1)
 
 # Создаем резервную копию
-cp ecosystem.config.cjs ecosystem.config.cjs.backup.$(date +%Y%m%d_%H%M%S)
+cp ecosystem.config.cjs ecosystem.config.cjs.backup.$(date +%Y%m%d_%H%M%S) 2>/dev/null || true
 
-# Используем Node.js для более надежного обновления JSON-подобного файла
-node << EOF
+# Используем Node.js скрипт для обновления
+node << 'NODE_SCRIPT'
 const fs = require('fs');
 const path = require('path');
+
+// Читаем переменные из окружения (передаются через process.env)
+const envVars = {
+  DATABASE_URL: process.env.DATABASE_URL || '',
+  NEXTAUTH_URL: process.env.NEXTAUTH_URL || '',
+  NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET || '',
+  UPLOADS_DIR: process.env.UPLOADS_DIR || '',
+};
 
 const configPath = path.join(process.cwd(), 'ecosystem.config.cjs');
 let configContent = fs.readFileSync(configPath, 'utf8');
 
-// Функция для экранирования специальных символов в строках
-function escapeForRegex(str) {
-    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\\\$&');
+// Функция для экранирования одинарных кавычек
+function escapeSingleQuotes(str) {
+  return str.replace(/'/g, "\\'");
 }
 
-// Обновляем или добавляем DATABASE_URL
-if ('${DATABASE_URL}') {
-    const dbUrlRegex = /DATABASE_URL:\s*['"'"'"]?[^'"'"'",]*/;
-    if (dbUrlRegex.test(configContent)) {
-        configContent = configContent.replace(dbUrlRegex, \`DATABASE_URL: '\${'${DATABASE_URL}'.replace(/'/g, "\\\\'")}'\`);
+// Обновляем или добавляем каждую переменную
+Object.entries(envVars).forEach(([key, value]) => {
+  if (!value) return; // Пропускаем пустые значения
+  
+  const escapedValue = escapeSingleQuotes(value);
+  const regex = new RegExp(`${key}:\\s*['"'"'"]?[^'"'"'",]*`, 'g');
+  
+  if (regex.test(configContent)) {
+    // Заменяем существующее значение
+    configContent = configContent.replace(regex, `${key}: '${escapedValue}'`);
+  } else {
+    // Добавляем новую переменную после NODE_ENV или после последней переменной env
+    const nodeEnvMatch = configContent.match(/NODE_ENV:\s*['"'"'"]production['"'"'"],?/);
+    if (nodeEnvMatch) {
+      configContent = configContent.replace(
+        nodeEnvMatch[0],
+        `${nodeEnvMatch[0]}\n      ${key}: '${escapedValue}',`
+      );
     } else {
-        // Добавляем после NODE_ENV
-        configContent = configContent.replace(
-            /(NODE_ENV:\s*['"'"'"]production['"'"'"],?)/,
-            \`\$1\n      DATABASE_URL: '\${'${DATABASE_URL}'.replace(/'/g, "\\\\'")}',\`
-        );
+      // Если NODE_ENV не найден, добавляем перед закрывающей скобкой env
+      configContent = configContent.replace(
+        /(\s+)(},)/,
+        `$1${key}: '${escapedValue}',\n$1$2`
+      );
     }
-}
-
-// Обновляем или добавляем NEXTAUTH_URL
-if ('${NEXTAUTH_URL}') {
-    const nextAuthUrlRegex = /NEXTAUTH_URL:\s*['"'"'"]?[^'"'"'",]*/;
-    if (nextAuthUrlRegex.test(configContent)) {
-        configContent = configContent.replace(nextAuthUrlRegex, \`NEXTAUTH_URL: '\${'${NEXTAUTH_URL}'.replace(/'/g, "\\\\'")}'\`);
-    } else {
-        configContent = configContent.replace(
-            /(DATABASE_URL:\s*['"'"'"][^'"'"'"]*['"'"'"],?)/,
-            \`\$1\n      NEXTAUTH_URL: '\${'${NEXTAUTH_URL}'.replace(/'/g, "\\\\'")}',\`
-        );
-    }
-}
-
-// Обновляем или добавляем NEXTAUTH_SECRET
-if ('${NEXTAUTH_SECRET}') {
-    const nextAuthSecretRegex = /NEXTAUTH_SECRET:\s*['"'"'"]?[^'"'"'",]*/;
-    if (nextAuthSecretRegex.test(configContent)) {
-        configContent = configContent.replace(nextAuthSecretRegex, \`NEXTAUTH_SECRET: '\${'${NEXTAUTH_SECRET}'.replace(/'/g, "\\\\'")}'\`);
-    } else {
-        configContent = configContent.replace(
-            /(NEXTAUTH_URL:\s*['"'"'"][^'"'"'"]*['"'"'"],?)/,
-            \`\$1\n      NEXTAUTH_SECRET: '\${'${NEXTAUTH_SECRET}'.replace(/'/g, "\\\\'")}',\`
-        );
-    }
-}
-
-// Обновляем или добавляем UPLOADS_DIR
-if ('${UPLOADS_DIR}') {
-    const uploadsDirRegex = /UPLOADS_DIR:\s*['"'"'"]?[^'"'"'",]*/;
-    if (uploadsDirRegex.test(configContent)) {
-        configContent = configContent.replace(uploadsDirRegex, \`UPLOADS_DIR: '\${'${UPLOADS_DIR}'.replace(/'/g, "\\\\'")}'\`);
-    } else {
-        configContent = configContent.replace(
-            /(NEXTAUTH_SECRET:\s*['"'"'"][^'"'"'"]*['"'"'"],?)/,
-            \`\$1\n      UPLOADS_DIR: '\${'${UPLOADS_DIR}'.replace(/'/g, "\\\\'")}',\`
-        );
-    }
-}
+  }
+});
 
 fs.writeFileSync(configPath, configContent, 'utf8');
 console.log('✅ ecosystem.config.cjs обновлен');
-EOF
+NODE_SCRIPT
+
+# Передаем переменные в Node.js скрипт через окружение
+export DATABASE_URL NEXTAUTH_URL NEXTAUTH_SECRET UPLOADS_DIR
+
+# Запускаем Node.js скрипт с переменными окружения
+node -e "
+const fs = require('fs');
+const path = require('path');
+
+const envVars = {
+  DATABASE_URL: process.env.DATABASE_URL || '',
+  NEXTAUTH_URL: process.env.NEXTAUTH_URL || '',
+  NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET || '',
+  UPLOADS_DIR: process.env.UPLOADS_DIR || '',
+};
+
+const configPath = path.join(process.cwd(), 'ecosystem.config.cjs');
+let configContent = fs.readFileSync(configPath, 'utf8');
+
+function escapeSingleQuotes(str) {
+  return str.replace(/'/g, \"\\\\'\");
+}
+
+Object.entries(envVars).forEach(([key, value]) => {
+  if (!value) return;
+  
+  const escapedValue = escapeSingleQuotes(value);
+  const regex = new RegExp(\`\${key}:\\\\s*['\\\"']?[^'\\\",]*\`, 'g');
+  
+  if (regex.test(configContent)) {
+    configContent = configContent.replace(regex, \`\${key}: '\${escapedValue}'\`);
+  } else {
+    const nodeEnvMatch = configContent.match(/NODE_ENV:\\\\s*['\\\"]production['\\\"],?/);
+    if (nodeEnvMatch) {
+      configContent = configContent.replace(
+        nodeEnvMatch[0],
+        \`\${nodeEnvMatch[0]}\\\\n      \${key}: '\${escapedValue}',\`
+      );
+    } else {
+      configContent = configContent.replace(
+        /(\\\\s+)(},)/,
+        \`\$1\${key}: '\${escapedValue}',\\\\n\$1\$2\`
+      );
+    }
+  }
+});
+
+fs.writeFileSync(configPath, configContent, 'utf8');
+console.log('✅ ecosystem.config.cjs обновлен');
+" || {
+    echo "⚠️  Ошибка при обновлении через Node.js, пробую простой подход с sed..."
+    
+    # Простой подход с sed для критичных переменных
+    if [ -n "$DATABASE_URL" ]; then
+        if grep -q "DATABASE_URL:" ecosystem.config.cjs; then
+            # Заменяем существующее значение
+            sed -i "s|DATABASE_URL:.*|DATABASE_URL: '$(echo "$DATABASE_URL" | sed "s/'/\\\\'/g")',|g" ecosystem.config.cjs
+        else
+            # Добавляем после NODE_ENV
+            sed -i "/NODE_ENV: 'production',/a\      DATABASE_URL: '$(echo "$DATABASE_URL" | sed "s/'/\\\\'/g")'," ecosystem.config.cjs
+        fi
+    fi
+}
 
 echo "✅ Готово! Проверьте ecosystem.config.cjs"
