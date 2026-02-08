@@ -48,17 +48,6 @@ const nextConfig = {
     // Игнорировать ошибки типов во время сборки (временно для решения проблем с зависимостями)
     ignoreBuildErrors: true,
   },
-  webpack: (config, { isServer }) => {
-    if (isServer) {
-      // Игнорируем ESM модули для серверного рендеринга
-      config.externals = config.externals || [];
-      config.externals.push({
-        'parse5': 'commonjs parse5',
-        '@exodus/bytes/encoding.js': 'commonjs @exodus/bytes/encoding.js',
-      });
-    }
-    return config;
-  },
 }
 
 module.exports = nextConfig

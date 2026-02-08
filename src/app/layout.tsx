@@ -8,7 +8,11 @@ import { WishlistProvider } from '@/contexts/WishlistContext';
 import { SessionProvider } from '@/components/providers/SessionProvider';
 import { MaintenancePage } from '@/components/maintenance/MaintenancePage';
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({ 
+  subsets: ['latin'],
+  display: 'swap',
+  fallback: ['system-ui', 'arial'],
+});
 
 export const metadata: Metadata = {
   title: 'Idylle - Люксовые парфюмы и товары для дома',
