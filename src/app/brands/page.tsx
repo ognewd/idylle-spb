@@ -136,35 +136,38 @@ export default function BrandsPage() {
     router.push(`/catalog?filter_brand=${brandSlug}`);
   };
 
-  // Получение списка букв, для которых есть бренды
+  // Получение списка букв, для которых есть бренды с товарами
   const availableLetters = useMemo(() => {
     const letters = new Set<string>();
-    brands.forEach(brand => {
-      const firstChar = getFirstChar(brand.name);
-      if (firstChar === '0-9') {
-        letters.add('0-9');
-      } else if (CYRILLIC_ALPHABET.includes(firstChar)) {
-        letters.add('А-Я');
-      } else {
-        letters.add(firstChar);
-      }
-    });
+    brands
+      .filter(brand => brand.productCount > 0) // Только бренды с товарами
+      .forEach(brand => {
+        const firstChar = getFirstChar(brand.name);
+        if (firstChar === '0-9') {
+          letters.add('0-9');
+        } else if (CYRILLIC_ALPHABET.includes(firstChar)) {
+          letters.add('А-Я');
+        } else {
+          letters.add(firstChar);
+        }
+      });
     return Array.from(letters).sort();
   }, [brands]);
 
-  // Проверка наличия брендов для буквы
+  // Проверка наличия брендов с товарами для буквы
   const hasBrandsForLetter = (letter: string): boolean => {
     if (letter === 'ALL') return true;
+    const brandsWithProducts = brands.filter(b => b.productCount > 0);
     if (letter === '0-9') {
-      return brands.some(b => getFirstChar(b.name) === '0-9');
+      return brandsWithProducts.some(b => getFirstChar(b.name) === '0-9');
     }
     if (letter === 'А-Я') {
-      return brands.some(b => {
+      return brandsWithProducts.some(b => {
         const firstChar = getFirstChar(b.name);
         return CYRILLIC_ALPHABET.includes(firstChar);
       });
     }
-    return brands.some(b => getFirstChar(b.name) === letter);
+    return brandsWithProducts.some(b => getFirstChar(b.name) === letter);
   };
 
   return (
