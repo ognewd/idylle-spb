@@ -99,8 +99,9 @@ async function getProduct(slug: string, baseUrl: string): Promise<{ product: Pro
 
 export default async function ProductPage({ params }: ProductPageProps) {
   const headersList = headers();
-  const host = headersList.get('host') || headersList.get('x-forwarded-host');
-  const baseUrl = host ? `${headersList.get('x-forwarded-proto') || 'http'}://${host}` : (process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000');
+  const protocol = headersList.get('x-forwarded-proto') || 'https';
+  const host = headersList.get('x-forwarded-host') || headersList.get('host') || 'aromarussia.ru';
+  const baseUrl = `${protocol}://${host}`;
   const data = await getProduct(params.slug, baseUrl);
 
   if (!data) {
@@ -111,6 +112,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
   if (canonicalSlug && canonicalSlug !== params.slug) {
     redirect(`/catalog/${canonicalSlug}`);
   }
+
+  // API уже возвращает полные URL изображений, дополнительная обработка не нужна
 
   const breadcrumbItems = [
     { label: 'Главная', href: '/' },

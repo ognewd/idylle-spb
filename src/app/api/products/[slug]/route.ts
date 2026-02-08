@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getImageUrl } from '@/lib/image-url';
 
 export async function GET(
   request: NextRequest,
@@ -185,6 +186,11 @@ export async function GET(
     const basePrice = Number(product.price);
     const discountedPrice = seasonal ? Math.max(0, Math.round(basePrice * (100 - seasonal.discount) / 100)) : basePrice;
 
+    // Получаем origin из запроса для правильного формирования URL изображений
+    const proto = request.headers.get('x-forwarded-proto') || new URL(request.url).protocol.replace(/:$/, '');
+    const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || new URL(request.url).host;
+    const requestOrigin = `${proto}://${host}`;
+
     const body = {
       product: {
         ...product,
@@ -195,7 +201,7 @@ export async function GET(
         seasonalDiscount: seasonal || null,
         weight: product.weight ? Number(product.weight) : null,
         images: product.images.map(img => ({
-          url: img.url, // Возвращаем относительный путь, клиент сам добавит baseUrl
+          url: getImageUrl(img.url, { baseUrl: requestOrigin }),
           alt: img.alt,
           isPrimary: img.isPrimary,
         })),
@@ -223,7 +229,7 @@ export async function GET(
       relatedProducts: relatedProductsWithRatings.map(relatedProduct => ({
         ...relatedProduct,
         images: relatedProduct.images.map(img => ({
-          url: img.url, // Возвращаем относительный путь, клиент сам добавит baseUrl
+          url: getImageUrl(img.url, { baseUrl: requestOrigin }),
           alt: img.alt,
           isPrimary: img.isPrimary,
         })),
