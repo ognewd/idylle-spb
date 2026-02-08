@@ -56,6 +56,14 @@ jobs:
                 echo "💾 Восстанавливаю ecosystem.config.cjs после git reset..."
                 cp /tmp/ecosystem.config.cjs.backup ecosystem.config.cjs
                 rm /tmp/ecosystem.config.cjs.backup
+                
+                # Проверяем и исправляем старую конфигурацию (npm start -> прямой путь к next)
+                if grep -q '"script":\s*"npm"' ecosystem.config.cjs || grep -q "'script':\s*'npm'" ecosystem.config.cjs; then
+                    echo "🔧 Обновляю ecosystem.config.cjs: заменяю npm start на прямой путь к next..."
+                    sed -i "s|script: 'npm'|script: '/root/idylle-spb/node_modules/.bin/next'|g" ecosystem.config.cjs
+                    sed -i 's|args: 'start'|args: 'start'|g' ecosystem.config.cjs
+                    sed -i "s|interpreter: 'node'|interpreter: 'node'|g" ecosystem.config.cjs || echo "interpreter: 'node'," >> ecosystem.config.cjs
+                fi
             elif [ -f ecosystem.config.cjs.example ]; then
                 echo "⚠️  ecosystem.config.cjs не найден, создаю из примера..."
                 echo "⚠️  ВАЖНО: Отредактируйте ecosystem.config.cjs на сервере с правильным DATABASE_URL!"
