@@ -53,6 +53,14 @@ escape_for_sed() {
     echo "$1" | sed "s/'/'\"'\"'/g"
 }
 
+# Функция для удаления всех вхождений переменной из файла
+remove_var() {
+    local var_name="$1"
+    local temp_file=$(mktemp)
+    grep -v "^[[:space:]]*${var_name}:" ecosystem.config.cjs > "$temp_file" 2>/dev/null || true
+    mv "$temp_file" ecosystem.config.cjs
+}
+
 # Функция для обновления переменной в ecosystem.config.cjs
 update_var() {
     local var_name="$1"
@@ -66,34 +74,29 @@ update_var() {
     local escaped_value
     escaped_value=$(escape_for_sed "$var_value")
     
-    # Проверяем, существует ли переменная
-    if grep -q "^[[:space:]]*${var_name}:" ecosystem.config.cjs 2>/dev/null; then
-        # Обновляем существующую переменную
-        # Используем временный файл для совместимости с разными версиями sed
-        sed "s|^[[:space:]]*${var_name}:.*|      ${var_name}: '${escaped_value}',|g" ecosystem.config.cjs > ecosystem.config.cjs.tmp
+    # Сначала удаляем все существующие вхождения переменной (включая дубликаты)
+    remove_var "$var_name"
+    
+    # Теперь добавляем переменную один раз после указанной строки
+    if grep -q "$search_after" ecosystem.config.cjs 2>/dev/null; then
+        # Используем awk для более надежной вставки
+        awk -v var="${var_name}" -v val="${escaped_value}" -v after="${search_after}" '
+            /'"${search_after}"'/ {
+                print
+                print "      " var ": '\''" val "'\'',"
+                inserted = 1
+                next
+            }
+            { print }
+        ' ecosystem.config.cjs > ecosystem.config.cjs.tmp
         mv ecosystem.config.cjs.tmp ecosystem.config.cjs
         echo "  ✓ Обновлен ${var_name}"
     else
-        # Добавляем новую переменную после указанной строки
-        if grep -q "$search_after" ecosystem.config.cjs 2>/dev/null; then
-            # Используем awk для более надежной вставки
-            awk -v var="${var_name}" -v val="${escaped_value}" -v after="${search_after}" '
-                /'"${search_after}"'/ {
-                    print
-                    print "      " var ": '\''" val "'\'',"
-                    next
-                }
-                { print }
-            ' ecosystem.config.cjs > ecosystem.config.cjs.tmp
-            mv ecosystem.config.cjs.tmp ecosystem.config.cjs
-            echo "  ✓ Добавлен ${var_name}"
-        else
-            echo "  ⚠️  Не найдена строка '$search_after' для добавления ${var_name}"
-        fi
+        echo "  ⚠️  Не найдена строка '$search_after' для добавления ${var_name}"
     fi
 }
 
-# Обновляем переменные
+# Обновляем переменные по порядку
 update_var "DATABASE_URL" "$DATABASE_URL" "NODE_ENV: 'production'"
 update_var "NEXTAUTH_URL" "$NEXTAUTH_URL" "DATABASE_URL:"
 update_var "NEXTAUTH_SECRET" "$NEXTAUTH_SECRET" "NEXTAUTH_URL:"
