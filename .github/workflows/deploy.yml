@@ -66,6 +66,10 @@ jobs:
             echo "📦 Установка зависимостей..."
             npm ci --prefer-offline --no-audit
             
+            # Установить sharp для оптимизации изображений (рекомендуется Next.js)
+            echo "📦 Установка sharp для оптимизации изображений..."
+            npm install sharp --save --no-audit || echo "⚠️  Не удалось установить sharp, продолжаем без него"
+            
             if [ -f .env ]; then
                 export $(grep -v '^#' .env | xargs)
             fi
@@ -113,13 +117,34 @@ jobs:
             fi
             echo "✅ Сборка успешна, BUILD_ID: $(cat .next/BUILD_ID)"
             
+            # Проверить, что зависимости установлены
+            echo "🔍 Проверка установки зависимостей..."
+            if [ ! -d "node_modules" ] || [ ! -f "node_modules/.bin/next" ]; then
+                echo "⚠️  Зависимости не установлены или повреждены, переустанавливаю..."
+                npm ci --prefer-offline --no-audit
+            fi
+            
+            # Проверить наличие next
+            if [ ! -f "node_modules/.bin/next" ]; then
+                echo "❌ Ошибка: next не найден после установки зависимостей!"
+                echo "📋 Проверяю node_modules..."
+                ls -la node_modules/.bin/ | grep next || echo "❌ next отсутствует в node_modules/.bin/"
+                exit 1
+            fi
+            echo "✅ next найден: $(which next || echo 'node_modules/.bin/next')"
+            
             # Перезапустить PM2
             echo "🔄 Перезапуск приложения..."
             if [ -f ecosystem.config.cjs ]; then
                 pm2 delete idylle-spb 2>/dev/null || true
                 pm2 start ecosystem.config.cjs
             else
-                pm2 restart idylle-spb --update-env || pm2 start npm --name idylle-spb -- start || true
+                # Если нет ecosystem.config.cjs, используем прямой путь к next
+                pm2 delete idylle-spb 2>/dev/null || true
+                pm2 start node_modules/.bin/next --name idylle-spb -- start --update-env || {
+                    echo "⚠️  Попытка альтернативного запуска..."
+                    pm2 start npm --name idylle-spb -- start --update-env || true
+                }
             fi
             
             # Проверить статус

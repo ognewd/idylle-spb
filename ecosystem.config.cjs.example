@@ -2,8 +2,10 @@ module.exports = {
   apps: [{
     name: 'idylle-spb',
     cwd: '/root/idylle-spb',
-    script: 'npm',
+    // Используем полный путь к next из node_modules
+    script: '/root/idylle-spb/node_modules/.bin/next',
     args: 'start',
+    interpreter: 'node',
     env: {
       NODE_ENV: 'production',
       // ВАЖНО: Замените на ваш реальный DATABASE_URL перед использованием
@@ -11,6 +13,15 @@ module.exports = {
       // Опционально: добавьте другие переменные окружения
       // NEXTAUTH_URL: 'https://your-domain.ru',
       // NEXTAUTH_SECRET: 'your-secret',
+      // UPLOADS_DIR: '/var/www/uploads',
     },
+    // Автоматический перезапуск при сбоях
+    autorestart: true,
+    max_restarts: 10,
+    min_uptime: '10s',
+    // Логирование
+    error_file: './logs/pm2-error.log',
+    out_file: './logs/pm2-out.log',
+    log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
   }],
 };
