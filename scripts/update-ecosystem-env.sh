@@ -27,123 +27,57 @@ NEXTAUTH_URL=$(grep "^NEXTAUTH_URL=" .env | cut -d'=' -f2- | tr -d '"' | tr -d "
 NEXTAUTH_SECRET=$(grep "^NEXTAUTH_SECRET=" .env | cut -d'=' -f2- | tr -d '"' | tr -d "'" | head -1)
 UPLOADS_DIR=$(grep "^UPLOADS_DIR=" .env | cut -d'=' -f2- | tr -d '"' | tr -d "'" | head -1)
 
-# Создаем резервную копию
-cp ecosystem.config.cjs ecosystem.config.cjs.backup.$(date +%Y%m%d_%H%M%S) 2>/dev/null || true
-
-# Используем Node.js скрипт для обновления
-node << 'NODE_SCRIPT'
-const fs = require('fs');
-const path = require('path');
-
-// Читаем переменные из окружения (передаются через process.env)
-const envVars = {
-  DATABASE_URL: process.env.DATABASE_URL || '',
-  NEXTAUTH_URL: process.env.NEXTAUTH_URL || '',
-  NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET || '',
-  UPLOADS_DIR: process.env.UPLOADS_DIR || '',
-};
-
-const configPath = path.join(process.cwd(), 'ecosystem.config.cjs');
-let configContent = fs.readFileSync(configPath, 'utf8');
-
-// Функция для экранирования одинарных кавычек
-function escapeSingleQuotes(str) {
-  return str.replace(/'/g, "\\'");
+# Функция для экранирования одинарных кавычек в sed
+escape_sed() {
+    echo "$1" | sed "s/'/'\"'\"'/g"
 }
 
-// Обновляем или добавляем каждую переменную
-Object.entries(envVars).forEach(([key, value]) => {
-  if (!value) return; // Пропускаем пустые значения
-  
-  const escapedValue = escapeSingleQuotes(value);
-  const regex = new RegExp(`${key}:\\s*['"'"'"]?[^'"'"'",]*`, 'g');
-  
-  if (regex.test(configContent)) {
-    // Заменяем существующее значение
-    configContent = configContent.replace(regex, `${key}: '${escapedValue}'`);
-  } else {
-    // Добавляем новую переменную после NODE_ENV или после последней переменной env
-    const nodeEnvMatch = configContent.match(/NODE_ENV:\s*['"'"'"]production['"'"'"],?/);
-    if (nodeEnvMatch) {
-      configContent = configContent.replace(
-        nodeEnvMatch[0],
-        `${nodeEnvMatch[0]}\n      ${key}: '${escapedValue}',`
-      );
-    } else {
-      // Если NODE_ENV не найден, добавляем перед закрывающей скобкой env
-      configContent = configContent.replace(
-        /(\s+)(},)/,
-        `$1${key}: '${escapedValue}',\n$1$2`
-      );
-    }
-  }
-});
-
-fs.writeFileSync(configPath, configContent, 'utf8');
-console.log('✅ ecosystem.config.cjs обновлен');
-NODE_SCRIPT
-
-# Передаем переменные в Node.js скрипт через окружение
-export DATABASE_URL NEXTAUTH_URL NEXTAUTH_SECRET UPLOADS_DIR
-
-# Запускаем Node.js скрипт с переменными окружения
-node -e "
-const fs = require('fs');
-const path = require('path');
-
-const envVars = {
-  DATABASE_URL: process.env.DATABASE_URL || '',
-  NEXTAUTH_URL: process.env.NEXTAUTH_URL || '',
-  NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET || '',
-  UPLOADS_DIR: process.env.UPLOADS_DIR || '',
-};
-
-const configPath = path.join(process.cwd(), 'ecosystem.config.cjs');
-let configContent = fs.readFileSync(configPath, 'utf8');
-
-function escapeSingleQuotes(str) {
-  return str.replace(/'/g, \"\\\\'\");
-}
-
-Object.entries(envVars).forEach(([key, value]) => {
-  if (!value) return;
-  
-  const escapedValue = escapeSingleQuotes(value);
-  const regex = new RegExp(\`\${key}:\\\\s*['\\\"']?[^'\\\",]*\`, 'g');
-  
-  if (regex.test(configContent)) {
-    configContent = configContent.replace(regex, \`\${key}: '\${escapedValue}'\`);
-  } else {
-    const nodeEnvMatch = configContent.match(/NODE_ENV:\\\\s*['\\\"]production['\\\"],?/);
-    if (nodeEnvMatch) {
-      configContent = configContent.replace(
-        nodeEnvMatch[0],
-        \`\${nodeEnvMatch[0]}\\\\n      \${key}: '\${escapedValue}',\`
-      );
-    } else {
-      configContent = configContent.replace(
-        /(\\\\s+)(},)/,
-        \`\$1\${key}: '\${escapedValue}',\\\\n\$1\$2\`
-      );
-    }
-  }
-});
-
-fs.writeFileSync(configPath, configContent, 'utf8');
-console.log('✅ ecosystem.config.cjs обновлен');
-" || {
-    echo "⚠️  Ошибка при обновлении через Node.js, пробую простой подход с sed..."
-    
-    # Простой подход с sed для критичных переменных
-    if [ -n "$DATABASE_URL" ]; then
-        if grep -q "DATABASE_URL:" ecosystem.config.cjs; then
-            # Заменяем существующее значение
-            sed -i "s|DATABASE_URL:.*|DATABASE_URL: '$(echo "$DATABASE_URL" | sed "s/'/\\\\'/g")',|g" ecosystem.config.cjs
-        else
-            # Добавляем после NODE_ENV
-            sed -i "/NODE_ENV: 'production',/a\      DATABASE_URL: '$(echo "$DATABASE_URL" | sed "s/'/\\\\'/g")'," ecosystem.config.cjs
-        fi
+# Обновляем DATABASE_URL
+if [ -n "$DATABASE_URL" ]; then
+    ESCAPED_DB_URL=$(escape_sed "$DATABASE_URL")
+    if grep -q "DATABASE_URL:" ecosystem.config.cjs; then
+        sed -i "s|DATABASE_URL:.*|DATABASE_URL: '$ESCAPED_DB_URL',|g" ecosystem.config.cjs
+        echo "  ✓ Обновлен DATABASE_URL"
+    else
+        sed -i "/NODE_ENV: 'production',/a\      DATABASE_URL: '$ESCAPED_DB_URL'," ecosystem.config.cjs
+        echo "  ✓ Добавлен DATABASE_URL"
     fi
-}
+fi
 
-echo "✅ Готово! Проверьте ecosystem.config.cjs"
+# Обновляем NEXTAUTH_URL
+if [ -n "$NEXTAUTH_URL" ]; then
+    ESCAPED_NEXTAUTH_URL=$(escape_sed "$NEXTAUTH_URL")
+    if grep -q "NEXTAUTH_URL:" ecosystem.config.cjs; then
+        sed -i "s|NEXTAUTH_URL:.*|NEXTAUTH_URL: '$ESCAPED_NEXTAUTH_URL',|g" ecosystem.config.cjs
+        echo "  ✓ Обновлен NEXTAUTH_URL"
+    else
+        sed -i "/DATABASE_URL:/a\      NEXTAUTH_URL: '$ESCAPED_NEXTAUTH_URL'," ecosystem.config.cjs
+        echo "  ✓ Добавлен NEXTAUTH_URL"
+    fi
+fi
+
+# Обновляем NEXTAUTH_SECRET
+if [ -n "$NEXTAUTH_SECRET" ]; then
+    ESCAPED_NEXTAUTH_SECRET=$(escape_sed "$NEXTAUTH_SECRET")
+    if grep -q "NEXTAUTH_SECRET:" ecosystem.config.cjs; then
+        sed -i "s|NEXTAUTH_SECRET:.*|NEXTAUTH_SECRET: '$ESCAPED_NEXTAUTH_SECRET',|g" ecosystem.config.cjs
+        echo "  ✓ Обновлен NEXTAUTH_SECRET"
+    else
+        sed -i "/NEXTAUTH_URL:/a\      NEXTAUTH_SECRET: '$ESCAPED_NEXTAUTH_SECRET'," ecosystem.config.cjs
+        echo "  ✓ Добавлен NEXTAUTH_SECRET"
+    fi
+fi
+
+# Обновляем UPLOADS_DIR
+if [ -n "$UPLOADS_DIR" ]; then
+    ESCAPED_UPLOADS_DIR=$(escape_sed "$UPLOADS_DIR")
+    if grep -q "UPLOADS_DIR:" ecosystem.config.cjs; then
+        sed -i "s|UPLOADS_DIR:.*|UPLOADS_DIR: '$ESCAPED_UPLOADS_DIR',|g" ecosystem.config.cjs
+        echo "  ✓ Обновлен UPLOADS_DIR"
+    else
+        sed -i "/NEXTAUTH_SECRET:/a\      UPLOADS_DIR: '$ESCAPED_UPLOADS_DIR'," ecosystem.config.cjs
+        echo "  ✓ Добавлен UPLOADS_DIR"
+    fi
+fi
+
+echo "✅ ecosystem.config.cjs обновлен успешно"
