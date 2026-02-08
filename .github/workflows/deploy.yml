@@ -66,8 +66,16 @@ jobs:
                 fi
             elif [ -f ecosystem.config.cjs.example ]; then
                 echo "⚠️  ecosystem.config.cjs не найден, создаю из примера..."
-                echo "⚠️  ВАЖНО: Отредактируйте ecosystem.config.cjs на сервере с правильным DATABASE_URL!"
                 cp ecosystem.config.cjs.example ecosystem.config.cjs
+            fi
+            
+            # Обновить ecosystem.config.cjs с переменными из .env
+            echo "🔧 Обновляю ecosystem.config.cjs с переменными из .env..."
+            if [ -f scripts/update-ecosystem-env.sh ]; then
+                chmod +x scripts/update-ecosystem-env.sh
+                bash scripts/update-ecosystem-env.sh || echo "⚠️  Предупреждение: не удалось обновить ecosystem.config.cjs"
+            else
+                echo "⚠️  Скрипт update-ecosystem-env.sh не найден, пропускаю обновление"
             fi
             
             # Установить зависимости
