@@ -3,11 +3,18 @@
 # Скрипт для обновления ecosystem.config.cjs с переменными из .env
 # Использование: bash scripts/update-ecosystem-env.sh
 
-set -e
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PROJECT_DIR" || exit 1
+
+# Определяем команду sed в зависимости от ОС
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    SED_INPLACE="sed -i ''"
+else
+    SED_INPLACE="sed -i"
+fi
 
 if [ ! -f ecosystem.config.cjs ]; then
     echo "❌ ecosystem.config.cjs не найден!"
@@ -21,63 +28,81 @@ fi
 
 echo "🔧 Обновляю ecosystem.config.cjs с переменными из .env..."
 
-# Читаем переменные из .env
-DATABASE_URL=$(grep "^DATABASE_URL=" .env | cut -d'=' -f2- | tr -d '"' | tr -d "'" | head -1)
-NEXTAUTH_URL=$(grep "^NEXTAUTH_URL=" .env | cut -d'=' -f2- | tr -d '"' | tr -d "'" | head -1)
-NEXTAUTH_SECRET=$(grep "^NEXTAUTH_SECRET=" .env | cut -d'=' -f2- | tr -d '"' | tr -d "'" | head -1)
-UPLOADS_DIR=$(grep "^UPLOADS_DIR=" .env | cut -d'=' -f2- | tr -d '"' | tr -d "'" | head -1)
+# Читаем переменные из .env (с обработкой ошибок)
+DATABASE_URL=$(grep "^DATABASE_URL=" .env 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'" | head -1 || echo "")
+NEXTAUTH_URL=$(grep "^NEXTAUTH_URL=" .env 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'" | head -1 || echo "")
+NEXTAUTH_SECRET=$(grep "^NEXTAUTH_SECRET=" .env 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'" | head -1 || echo "")
+UPLOADS_DIR=$(grep "^UPLOADS_DIR=" .env 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'" | head -1 || echo "")
 
-# Функция для экранирования одинарных кавычек в sed
+# Функция для безопасного экранирования одинарных кавычек для sed
 escape_sed() {
-    echo "$1" | sed "s/'/'\"'\"'/g"
+    local value="$1"
+    # Экранируем одинарные кавычки: ' -> '\''
+    echo "$value" | sed "s/'/'\"'\"'/g"
 }
 
-# Обновляем DATABASE_URL
-if [ -n "$DATABASE_URL" ]; then
-    ESCAPED_DB_URL=$(escape_sed "$DATABASE_URL")
-    if grep -q "DATABASE_URL:" ecosystem.config.cjs; then
-        sed -i "s|DATABASE_URL:.*|DATABASE_URL: '$ESCAPED_DB_URL',|g" ecosystem.config.cjs
-        echo "  ✓ Обновлен DATABASE_URL"
-    else
-        sed -i "/NODE_ENV: 'production',/a\      DATABASE_URL: '$ESCAPED_DB_URL'," ecosystem.config.cjs
-        echo "  ✓ Добавлен DATABASE_URL"
+# Функция для обновления или добавления переменной
+update_env_var() {
+    local var_name="$1"
+    local var_value="$2"
+    local after_line="$3"
+    
+    if [ -z "$var_value" ]; then
+        return 0
     fi
+    
+    local escaped_value
+    escaped_value=$(escape_sed "$var_value")
+    
+    if grep -q "^[[:space:]]*${var_name}:" ecosystem.config.cjs 2>/dev/null; then
+        # Переменная существует, обновляем её
+        if $SED_INPLACE "s|^[[:space:]]*${var_name}:.*|      ${var_name}: '${escaped_value}',|g" ecosystem.config.cjs 2>/dev/null; then
+            echo "  ✓ Обновлен ${var_name}"
+        else
+            echo "  ⚠️  Не удалось обновить ${var_name}"
+            return 1
+        fi
+    else
+        # Переменная не существует, добавляем после указанной строки
+        if grep -q "$after_line" ecosystem.config.cjs 2>/dev/null; then
+            if $SED_INPLACE "/${after_line}/a\\
+      ${var_name}: '${escaped_value}'," ecosystem.config.cjs 2>/dev/null; then
+                echo "  ✓ Добавлен ${var_name}"
+            else
+                echo "  ⚠️  Не удалось добавить ${var_name}"
+                return 1
+            fi
+        else
+            echo "  ⚠️  Не найдена строка '$after_line' для добавления ${var_name}"
+            return 1
+        fi
+    fi
+    return 0
+}
+
+# Обновляем переменные по порядку
+ERRORS=0
+
+if ! update_env_var "DATABASE_URL" "$DATABASE_URL" "NODE_ENV: 'production'"; then
+    ERRORS=$((ERRORS + 1))
 fi
 
-# Обновляем NEXTAUTH_URL
-if [ -n "$NEXTAUTH_URL" ]; then
-    ESCAPED_NEXTAUTH_URL=$(escape_sed "$NEXTAUTH_URL")
-    if grep -q "NEXTAUTH_URL:" ecosystem.config.cjs; then
-        sed -i "s|NEXTAUTH_URL:.*|NEXTAUTH_URL: '$ESCAPED_NEXTAUTH_URL',|g" ecosystem.config.cjs
-        echo "  ✓ Обновлен NEXTAUTH_URL"
-    else
-        sed -i "/DATABASE_URL:/a\      NEXTAUTH_URL: '$ESCAPED_NEXTAUTH_URL'," ecosystem.config.cjs
-        echo "  ✓ Добавлен NEXTAUTH_URL"
-    fi
+if ! update_env_var "NEXTAUTH_URL" "$NEXTAUTH_URL" "DATABASE_URL:"; then
+    ERRORS=$((ERRORS + 1))
 fi
 
-# Обновляем NEXTAUTH_SECRET
-if [ -n "$NEXTAUTH_SECRET" ]; then
-    ESCAPED_NEXTAUTH_SECRET=$(escape_sed "$NEXTAUTH_SECRET")
-    if grep -q "NEXTAUTH_SECRET:" ecosystem.config.cjs; then
-        sed -i "s|NEXTAUTH_SECRET:.*|NEXTAUTH_SECRET: '$ESCAPED_NEXTAUTH_SECRET',|g" ecosystem.config.cjs
-        echo "  ✓ Обновлен NEXTAUTH_SECRET"
-    else
-        sed -i "/NEXTAUTH_URL:/a\      NEXTAUTH_SECRET: '$ESCAPED_NEXTAUTH_SECRET'," ecosystem.config.cjs
-        echo "  ✓ Добавлен NEXTAUTH_SECRET"
-    fi
+if ! update_env_var "NEXTAUTH_SECRET" "$NEXTAUTH_SECRET" "NEXTAUTH_URL:"; then
+    ERRORS=$((ERRORS + 1))
 fi
 
-# Обновляем UPLOADS_DIR
-if [ -n "$UPLOADS_DIR" ]; then
-    ESCAPED_UPLOADS_DIR=$(escape_sed "$UPLOADS_DIR")
-    if grep -q "UPLOADS_DIR:" ecosystem.config.cjs; then
-        sed -i "s|UPLOADS_DIR:.*|UPLOADS_DIR: '$ESCAPED_UPLOADS_DIR',|g" ecosystem.config.cjs
-        echo "  ✓ Обновлен UPLOADS_DIR"
-    else
-        sed -i "/NEXTAUTH_SECRET:/a\      UPLOADS_DIR: '$ESCAPED_UPLOADS_DIR'," ecosystem.config.cjs
-        echo "  ✓ Добавлен UPLOADS_DIR"
-    fi
+if ! update_env_var "UPLOADS_DIR" "$UPLOADS_DIR" "NEXTAUTH_SECRET:"; then
+    ERRORS=$((ERRORS + 1))
 fi
 
-echo "✅ ecosystem.config.cjs обновлен успешно"
+if [ $ERRORS -eq 0 ]; then
+    echo "✅ ecosystem.config.cjs обновлен успешно"
+    exit 0
+else
+    echo "⚠️  Обновление завершено с $ERRORS ошибками"
+    exit 0  # Не прерываем деплой из-за ошибок обновления переменных
+fi
