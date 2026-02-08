@@ -19,12 +19,14 @@ export async function GET(request: NextRequest) {
       orderBy: { name: 'asc' },
     });
 
-    // Add product count to each brand
-    const brandsWithCount = brands.map(brand => ({
-      ...brand,
-      productCount: brand._count.products,
-      _count: undefined,
-    }));
+    // Add product count to each brand and filter out brands with no products
+    const brandsWithCount = brands
+      .map(brand => ({
+        ...brand,
+        productCount: brand._count.products,
+        _count: undefined,
+      }))
+      .filter(brand => brand.productCount > 0); // Показываем только бренды с товарами
 
     return NextResponse.json(brandsWithCount);
   } catch (error) {

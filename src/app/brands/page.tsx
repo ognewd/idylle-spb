@@ -83,7 +83,9 @@ export default function BrandsPage() {
         const response = await fetch('/api/brands');
         if (response.ok) {
           const data = await response.json();
-          setBrands(data);
+          // Фильтруем только бренды с товарами (дополнительная проверка на клиенте)
+          const brandsWithProducts = data.filter((brand: Brand) => brand.productCount > 0);
+          setBrands(brandsWithProducts);
         }
       } catch (error) {
         console.error('Error fetching brands:', error);
