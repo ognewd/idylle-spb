@@ -1,8 +1,23 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    domains: ['localhost', 'idylle.spb.ru'],
     remotePatterns: [
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+      },
+      {
+        protocol: 'https',
+        hostname: 'localhost',
+      },
+      {
+        protocol: 'https',
+        hostname: 'idylle.spb.ru',
+      },
+      {
+        protocol: 'http',
+        hostname: 'idylle.spb.ru',
+      },
       {
         protocol: 'https',
         hostname: 'aromarussia.ru',
