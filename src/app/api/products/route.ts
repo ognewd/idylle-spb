@@ -237,9 +237,14 @@ export async function GET(request: NextRequest) {
     }
 
     // Базовый URL из запроса (учитываем прокси: x-forwarded-proto/host), чтобы картинки в каталоге вели на текущий домен
-    const proto = request.headers.get('x-forwarded-proto') || new URL(request.url).protocol.replace(/:$/, '');
-    const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || new URL(request.url).host;
-    const requestOrigin = `${proto}://${host}`;
+    let requestOrigin = 'https://aromarussia.ru'; // fallback
+    try {
+      const proto = request.headers.get('x-forwarded-proto') || 'https';
+      const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || 'aromarussia.ru';
+      requestOrigin = `${proto}://${host}`;
+    } catch (error) {
+      console.error('Error getting request origin:', error);
+    }
 
     // Calculate average ratings and apply seasonal discounts to price
     const productsWithRatings = products.map(product => {
