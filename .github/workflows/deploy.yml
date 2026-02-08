@@ -173,6 +173,14 @@ jobs:
             echo "📋 Проверка логов..."
             pm2 logs idylle-spb --lines 10 --nostream | grep -i "error\|fatal\|cannot" && echo "⚠️  Обнаружены ошибки в логах" || echo "✅ Логи выглядят нормально"
             
+            # Проверка подключения к БД
+            echo ""
+            echo "🔍 Проверка подключения к базе данных..."
+            if [ -f scripts/check-db-connection.sh ]; then
+                chmod +x scripts/check-db-connection.sh
+                bash scripts/check-db-connection.sh || echo "⚠️  Предупреждение при проверке БД"
+            fi
+            
             # Финальная проверка здоровья приложения
             echo ""
             echo "🏥 Финальная проверка здоровья приложения..."
