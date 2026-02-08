@@ -111,10 +111,12 @@ jobs:
             
             # Очистить старые build файлы перед новой сборкой
             echo "🧹 Очистка старых файлов сборки..."
+            # Более агрессивная очистка для предотвращения ошибок webpack
             rm -rf .next
             rm -rf node_modules/.cache
-            # Также очищаем возможные поврежденные chunk файлы
-            find .next -name "*.js.map" -delete 2>/dev/null || true
+            # Удаляем возможные поврежденные файлы
+            find .next -type f -name "*.js.map" -delete 2>/dev/null || true
+            find .next -type d -name "chunks" -exec rm -rf {} + 2>/dev/null || true
             
             # Собрать приложение
             echo "🔨 Сборка приложения..."
