@@ -121,10 +121,15 @@ jobs:
             # Собрать приложение
             echo "🔨 Сборка приложения..."
             echo "⏱️  Начало сборки: $(date)"
-            if ! npm run build; then
+            # Сохраняем вывод сборки для диагностики
+            if ! npm run build 2>&1 | tee /tmp/build.log; then
                 echo "❌ Ошибка при сборке!"
-                echo "📋 Проверяю логи сборки..."
+                echo "📋 Последние 50 строк логов сборки:"
+                tail -50 /tmp/build.log || true
+                echo "📋 Проверяю логи PM2:"
                 pm2 logs idylle-spb --lines 20 --nostream || true
+                echo "📋 Проверяю наличие .next директории:"
+                ls -la .next/ 2>/dev/null | head -20 || echo "  .next директория не найдена"
                 exit 1
             fi
             echo "⏱️  Сборка завершена: $(date)"
