@@ -64,11 +64,10 @@ jobs:
             
             # Установить зависимости
             echo "📦 Установка зависимостей..."
-            npm ci --prefer-offline --no-audit
-            
-            # Установить sharp для оптимизации изображений (рекомендуется Next.js)
-            echo "📦 Установка sharp для оптимизации изображений..."
-            npm install sharp --save --no-audit || echo "⚠️  Не удалось установить sharp, продолжаем без него"
+            if ! npm ci --prefer-offline --no-audit; then
+                echo "⚠️  npm ci не удался, используем npm install..."
+                npm install --no-audit
+            fi
             
             if [ -f .env ]; then
                 export $(grep -v '^#' .env | xargs)
