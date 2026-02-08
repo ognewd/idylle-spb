@@ -148,11 +148,27 @@ jobs:
             fi
             echo "✅ next найден: $(which next || echo 'node_modules/.bin/next')"
             
-            # Перезапустить PM2
+            # Перезапустить PM2 с обновленными переменными окружения
             echo "🔄 Перезапуск приложения..."
             if [ -f ecosystem.config.cjs ]; then
+                # Проверяем синтаксис ecosystem.config.cjs перед запуском
+                if node -c ecosystem.config.cjs 2>/dev/null; then
+                    echo "✅ Синтаксис ecosystem.config.cjs корректен"
+                else
+                    echo "❌ ОШИБКА: Синтаксическая ошибка в ecosystem.config.cjs!"
+                    echo "📋 Проверяю файл:"
+                    cat ecosystem.config.cjs | head -20
+                    echo ""
+                    echo "⚠️  Пытаюсь исправить..."
+                    # Запускаем скрипт обновления еще раз
+                    if [ -f scripts/update-ecosystem-env.sh ]; then
+                        bash scripts/update-ecosystem-env.sh || true
+                    fi
+                fi
+                
                 pm2 delete idylle-spb 2>/dev/null || true
                 pm2 start ecosystem.config.cjs
+                pm2 save
             else
                 # Если нет ecosystem.config.cjs, используем прямой путь к next
                 pm2 delete idylle-spb 2>/dev/null || true
@@ -160,6 +176,7 @@ jobs:
                     echo "⚠️  Попытка альтернативного запуска..."
                     pm2 start npm --name idylle-spb -- start --update-env || true
                 }
+                pm2 save
             fi
             
             # Проверить статус
