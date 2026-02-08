@@ -111,10 +111,15 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { products } = body;
+    const { products, importMode = 'update' } = body;
 
     if (!Array.isArray(products) || products.length === 0) {
       return NextResponse.json({ error: 'Массив товаров пуст' }, { status: 400 });
+    }
+
+    // Валидация режима импорта
+    if (importMode !== 'update' && importMode !== 'replace') {
+      return NextResponse.json({ error: 'Неверный режим импорта' }, { status: 400 });
     }
 
     const results = {
@@ -201,11 +206,19 @@ export async function POST(request: NextRequest) {
           const categoryMapping: Record<string, string> = {
             'уют и интерьер': 'uyut-i-interer',
             'ароматы для дома': 'aromaty-dlya-doma',
+            'аромат для дома': 'aromaty-dlya-doma', // Вариант без "ы"
+            'аромат для дома': 'aromaty-dlya-doma', // Дополнительные варианты
             'подарок': 'podarki',
             'подарки': 'podarki',
           };
           
-          const normalizedCategoryName = categoryName.toLowerCase().trim();
+          // Нормализация названия категории: убираем множественное/единственное число для "аромат(ы) для дома"
+          let normalizedCategoryName = categoryName.toLowerCase().trim();
+          // Нормализуем "аромат для дома" -> "ароматы для дома"
+          if (normalizedCategoryName === 'аромат для дома' || normalizedCategoryName.startsWith('аромат для дома')) {
+            normalizedCategoryName = 'ароматы для дома';
+          }
+          
           const targetSlug = categoryMapping[normalizedCategoryName] || generateSlug(categoryName);
           
           // Сначала пытаемся найти категорию по slug
@@ -244,56 +257,104 @@ export async function POST(request: NextRequest) {
 
         if (isUpdate && existingProductId) {
           // Обновляем существующий товар
-          const updateData: any = {
-            name,
-            shortName: shortName || undefined,
-            description: description ?? undefined,
-            shortDescription: shortDescription ?? undefined,
-            price: price ?? 0,
-            comparePrice: comparePrice ?? undefined,
-            stock: stock ?? 0,
-            brandId: brand.id,
-            sku: sku ?? undefined,
-            myWarehouseCode: myWarehouseCode || undefined,
-            manufacturerSku: manufacturerSku || undefined,
-            productType: productType || undefined,
-            volume: volume || undefined,
-            weight: weight != null && weight !== '' ? new Prisma.Decimal(Number(weight)) : undefined,
-            dimensions: dimensions || undefined,
-            aromaDescription: aromaDescription || undefined,
-            topNotes: topNotes || undefined,
-            aromaFamily: aromaFamily || undefined,
-            gender: gender || undefined,
-            purpose: purpose || undefined,
-            usageInstructions: usageInstructions || undefined,
-            ingredients: ingredients || undefined,
-            brandCountry: brandCountry || undefined,
-            manufactureCountry: manufactureCountry || undefined,
-            warehouseLocation: warehouseLocation || undefined,
-            barcode: barcode || undefined,
-            ...(isActive !== null && isActive !== undefined && { isActive }),
-            ...(isFeatured !== null && isFeatured !== undefined && { isFeatured }),
-          };
+          let updateData: any = {};
+          
+          if (importMode === 'replace') {
+            // Режим "Удалить и загрузить заново" - полная перезапись
+            updateData = {
+              name,
+              shortName: shortName || undefined,
+              description: description ?? undefined,
+              shortDescription: shortDescription ?? undefined,
+              price: price ?? 0,
+              comparePrice: comparePrice ?? undefined,
+              stock: stock ?? 0,
+              brandId: brand.id,
+              sku: sku ?? undefined,
+              myWarehouseCode: myWarehouseCode || undefined,
+              manufacturerSku: manufacturerSku || undefined,
+              productType: productType || undefined,
+              volume: volume || undefined,
+              weight: weight != null && weight !== '' ? new Prisma.Decimal(Number(weight)) : undefined,
+              dimensions: dimensions || undefined,
+              aromaDescription: aromaDescription || undefined,
+              topNotes: topNotes || undefined,
+              aromaFamily: aromaFamily || undefined,
+              gender: gender || undefined,
+              purpose: purpose || undefined,
+              usageInstructions: usageInstructions || undefined,
+              ingredients: ingredients || undefined,
+              brandCountry: brandCountry || undefined,
+              manufactureCountry: manufactureCountry || undefined,
+              warehouseLocation: warehouseLocation || undefined,
+              barcode: barcode || undefined,
+              ...(isActive !== null && isActive !== undefined && { isActive }),
+              ...(isFeatured !== null && isFeatured !== undefined && { isFeatured }),
+            };
+          } else {
+            // Режим "Обновить" - дополняем только те поля, которые есть в файле
+            if (name) updateData.name = name;
+            if (shortName !== null && shortName !== undefined) updateData.shortName = shortName || undefined;
+            if (description !== null && description !== undefined) updateData.description = description ?? undefined;
+            if (shortDescription !== null && shortDescription !== undefined) updateData.shortDescription = shortDescription ?? undefined;
+            if (price !== null && price !== undefined) updateData.price = price ?? 0;
+            if (comparePrice !== null && comparePrice !== undefined) updateData.comparePrice = comparePrice ?? undefined;
+            if (stock !== null && stock !== undefined) updateData.stock = stock ?? 0;
+            if (brand?.id) updateData.brandId = brand.id;
+            if (sku !== null && sku !== undefined) updateData.sku = sku ?? undefined;
+            if (myWarehouseCode !== null && myWarehouseCode !== undefined) updateData.myWarehouseCode = myWarehouseCode || undefined;
+            if (manufacturerSku !== null && manufacturerSku !== undefined) updateData.manufacturerSku = manufacturerSku || undefined;
+            if (productType !== null && productType !== undefined) updateData.productType = productType || undefined;
+            if (volume !== null && volume !== undefined) updateData.volume = volume || undefined;
+            if (weight !== null && weight !== undefined && weight !== '') updateData.weight = new Prisma.Decimal(Number(weight));
+            if (dimensions !== null && dimensions !== undefined) updateData.dimensions = dimensions || undefined;
+            if (aromaDescription !== null && aromaDescription !== undefined) updateData.aromaDescription = aromaDescription || undefined;
+            if (topNotes !== null && topNotes !== undefined) updateData.topNotes = topNotes || undefined;
+            if (aromaFamily !== null && aromaFamily !== undefined) updateData.aromaFamily = aromaFamily || undefined;
+            if (gender !== null && gender !== undefined) updateData.gender = gender || undefined;
+            if (purpose !== null && purpose !== undefined) updateData.purpose = purpose || undefined;
+            if (usageInstructions !== null && usageInstructions !== undefined) updateData.usageInstructions = usageInstructions || undefined;
+            if (ingredients !== null && ingredients !== undefined) updateData.ingredients = ingredients || undefined;
+            if (brandCountry !== null && brandCountry !== undefined) updateData.brandCountry = brandCountry || undefined;
+            if (manufactureCountry !== null && manufactureCountry !== undefined) updateData.manufactureCountry = manufactureCountry || undefined;
+            if (warehouseLocation !== null && warehouseLocation !== undefined) updateData.warehouseLocation = warehouseLocation || undefined;
+            if (barcode !== null && barcode !== undefined) updateData.barcode = barcode || undefined;
+            if (isActive !== null && isActive !== undefined) updateData.isActive = isActive;
+            if (isFeatured !== null && isFeatured !== undefined) updateData.isFeatured = isFeatured;
+          }
 
-          await prisma.product.update({
-            where: { id: existingProductId },
-            data: updateData,
-          });
+          if (Object.keys(updateData).length > 0) {
+            await prisma.product.update({
+              where: { id: existingProductId },
+              data: updateData,
+            });
+          }
 
           // Обновляем категории
           if (categoryIdFinal) {
-            // Удаляем старые связи с категориями
-            await prisma.productCategory.deleteMany({
-              where: { productId: existingProductId },
-            });
-            // Создаем новую связь
-            await prisma.productCategory.create({
-              data: {
+            if (importMode === 'replace') {
+              // Удаляем старые связи с категориями
+              await prisma.productCategory.deleteMany({
+                where: { productId: existingProductId },
+              });
+            }
+            // Проверяем, нет ли уже такой связи
+            const existingCategory = await prisma.productCategory.findFirst({
+              where: {
                 productId: existingProductId,
                 categoryId: categoryIdFinal,
-                isPrimary: true,
               },
             });
+            if (!existingCategory) {
+              // Создаем новую связь
+              await prisma.productCategory.create({
+                data: {
+                  productId: existingProductId,
+                  categoryId: categoryIdFinal,
+                  isPrimary: true,
+                },
+              });
+            }
           }
 
           productIdForPhoto = existingProductId;
@@ -344,32 +405,80 @@ export async function POST(request: NextRequest) {
           results.created++;
         }
 
-        // При импорте с фото — перезаписываем все фото товара (удаляем старые, чтобы не было дублей)
+        // Обработка изображений
         const hasPhotoFromImport =
           (photoUrl && typeof photoUrl === 'string' && (photoUrl.startsWith('http://') || photoUrl.startsWith('https://'))) ||
           (Array.isArray(additionalImageUrls) && additionalImageUrls.some((u: string) => typeof u === 'string' && (u.startsWith('http://') || u.startsWith('https://'))));
-        if (isUpdate && existingProductId && hasPhotoFromImport) {
+        
+        // В режиме "replace" удаляем старые изображения перед добавлением новых
+        if (importMode === 'replace' && isUpdate && existingProductId && hasPhotoFromImport) {
           await prisma.productImage.deleteMany({
             where: { productId: existingProductId },
           });
         }
 
-        // Фото по URL: скачиваем и сохраняем как главное изображение
+        // Определяем начальный sortOrder для новых изображений
         let nextSortOrder = 0;
+        let isFirstImage = true; // Флаг для определения главного изображения
+        
+        if (importMode === 'update' && isUpdate && existingProductId) {
+          // В режиме "update" находим максимальный sortOrder существующих изображений
+          const maxSortOrder = await prisma.productImage.findFirst({
+            where: { productId: existingProductId },
+            orderBy: { sortOrder: 'desc' },
+            select: { sortOrder: true },
+          });
+          nextSortOrder = maxSortOrder ? maxSortOrder.sortOrder + 1 : 0;
+          isFirstImage = false; // В режиме update не делаем главным
+        } else if (importMode === 'replace' && isUpdate && existingProductId) {
+          // В режиме replace после удаления изображений - следующее будет первым
+          isFirstImage = true;
+          nextSortOrder = 0;
+        }
+
+        // Фото по URL: скачиваем и сохраняем
         if (photoUrl && typeof photoUrl === 'string' && (photoUrl.startsWith('http://') || photoUrl.startsWith('https://'))) {
           try {
             const savedUrl = await downloadImageAsUpload(photoUrl);
             if (savedUrl) {
-              await prisma.productImage.create({
-                data: {
-                  productId: productIdForPhoto,
-                  url: savedUrl,
-                  alt: name,
-                  sortOrder: 0,
-                  isPrimary: true,
-                },
-              });
-              nextSortOrder = 1;
+              // Проверяем, нет ли уже такого изображения (в режиме update)
+              if (importMode === 'update' && isUpdate && existingProductId) {
+                const existingImage = await prisma.productImage.findFirst({
+                  where: {
+                    productId: existingProductId,
+                    url: savedUrl,
+                  },
+                });
+                if (existingImage) {
+                  // Изображение уже существует, пропускаем
+                  nextSortOrder = Math.max(nextSortOrder, existingImage.sortOrder + 1);
+                } else {
+                  // Добавляем как дополнительное изображение (не перезаписываем главное)
+                  await prisma.productImage.create({
+                    data: {
+                      productId: productIdForPhoto,
+                      url: savedUrl,
+                      alt: name,
+                      sortOrder: nextSortOrder,
+                      isPrimary: false, // В режиме update не перезаписываем главное
+                    },
+                  });
+                  nextSortOrder++;
+                }
+              } else {
+                // В режиме replace или для нового товара - создаем как главное (если это первое изображение)
+                await prisma.productImage.create({
+                  data: {
+                    productId: productIdForPhoto,
+                    url: savedUrl,
+                    alt: name,
+                    sortOrder: 0,
+                    isPrimary: isFirstImage, // Главное только если это первое изображение
+                  },
+                });
+                nextSortOrder = 1;
+                isFirstImage = false; // Следующие изображения уже не будут главными
+              }
             }
           } catch (imgErr: any) {
             results.photoErrors.push(`Товар "${name}": фото не загружено — ${imgErr?.message || String(imgErr)}`);
@@ -384,6 +493,19 @@ export async function POST(request: NextRequest) {
           try {
             const savedUrl = await downloadImageAsUpload(url);
             if (savedUrl) {
+              // Проверяем, нет ли уже такого изображения (в режиме update)
+              if (importMode === 'update' && isUpdate && existingProductId) {
+                const existingImage = await prisma.productImage.findFirst({
+                  where: {
+                    productId: existingProductId,
+                    url: savedUrl,
+                  },
+                });
+                if (existingImage) {
+                  // Изображение уже существует, пропускаем
+                  continue;
+                }
+              }
               await prisma.productImage.create({
                 data: {
                   productId: productIdForPhoto,

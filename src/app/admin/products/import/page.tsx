@@ -13,6 +13,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from '@/components/ui/select';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { ArrowLeft, Upload, CheckCircle2, XCircle, AlertCircle, Loader2, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
 
 interface FileColumn {
@@ -134,6 +135,7 @@ export default function ImportProductsPage() {
     photoErrors?: string[];
   } | null>(null);
   const [progressMessage, setProgressMessage] = useState<string>('');
+  const [importMode, setImportMode] = useState<'update' | 'replace'>('update');
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -283,6 +285,7 @@ export default function ImportProductsPage() {
         },
         body: JSON.stringify({
           products: parsedData.products,
+          importMode: importMode, // 'update' или 'replace'
         }),
       });
 
@@ -623,6 +626,27 @@ export default function ImportProductsPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
+                  {/* Выбор режима импорта */}
+                  <div className="rounded-lg border bg-blue-50 p-4">
+                    <Label className="text-base font-semibold mb-3 block">Режим импорта для существующих товаров:</Label>
+                    <RadioGroup value={importMode} onValueChange={(value) => setImportMode(value as 'update' | 'replace')}>
+                      <div className="flex items-center space-x-2 mb-2">
+                        <RadioGroupItem value="update" id="update" />
+                        <Label htmlFor="update" className="cursor-pointer">
+                          <span className="font-medium">Обновить</span> — дополняем существующий товар информацией из файла, не перезаписывая существующие данные. 
+                          Если есть фото в файле — добавляем их как дополнительные, сохраняя текущие.
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="replace" id="replace" />
+                        <Label htmlFor="replace" className="cursor-pointer">
+                          <span className="font-medium">Удалить и загрузить заново</span> — полностью перезагружаем товар с информацией из файла. 
+                          Старые изображения будут удалены.
+                        </Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+
                   {/* Кнопка применения — сверху, без прокрутки */}
                   <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border bg-gray-50 p-4">
                     <p className="text-sm text-gray-600">
