@@ -113,6 +113,8 @@ jobs:
             echo "🧹 Очистка старых файлов сборки..."
             rm -rf .next
             rm -rf node_modules/.cache
+            # Также очищаем возможные поврежденные chunk файлы
+            find .next -name "*.js.map" -delete 2>/dev/null || true
             
             # Собрать приложение
             echo "🔨 Сборка приложения..."
