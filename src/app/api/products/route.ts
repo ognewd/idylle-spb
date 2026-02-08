@@ -277,11 +277,18 @@ export async function GET(request: NextRequest) {
         price: discountedPrice,
         comparePrice: seasonal ? basePrice : (product.comparePrice ? Number(product.comparePrice) : null),
         seasonalDiscount: seasonal || null,
-        images: product.images.map(img => ({
-          url: getImageUrl(img.url, { baseUrl: requestOrigin }),
-          alt: img.alt,
-          isPrimary: img.isPrimary,
-        })),
+        images: product.images.map(img => {
+          // Для /uploads/ путей возвращаем относительный путь (Nginx раздаст напрямую)
+          // Для других путей формируем полный URL
+          const imageUrl = img.url?.startsWith('/uploads/') 
+            ? img.url 
+            : getImageUrl(img.url, { baseUrl: requestOrigin });
+          return {
+            url: imageUrl,
+            alt: img.alt,
+            isPrimary: img.isPrimary,
+          };
+        }),
         variants: product.variants.map(v => ({
           id: v.id,
           name: v.name,

@@ -205,11 +205,18 @@ export async function GET(
         comparePrice: seasonal ? basePrice : (product.comparePrice ? Number(product.comparePrice) : null),
         seasonalDiscount: seasonal || null,
         weight: product.weight ? Number(product.weight) : null,
-        images: product.images.map(img => ({
-          url: getImageUrl(img.url, { baseUrl: requestOrigin }),
-          alt: img.alt,
-          isPrimary: img.isPrimary,
-        })),
+        images: product.images.map(img => {
+          // Для /uploads/ путей возвращаем относительный путь (Nginx раздаст напрямую)
+          // Для других путей формируем полный URL
+          const imageUrl = img.url?.startsWith('/uploads/') 
+            ? img.url 
+            : getImageUrl(img.url, { baseUrl: requestOrigin });
+          return {
+            url: imageUrl,
+            alt: img.alt,
+            isPrimary: img.isPrimary,
+          };
+        }),
         variants: product.variants.map(v => ({
           id: v.id,
           name: v.name,
@@ -233,11 +240,18 @@ export async function GET(
       },
       relatedProducts: relatedProductsWithRatings.map(relatedProduct => ({
         ...relatedProduct,
-        images: relatedProduct.images.map(img => ({
-          url: getImageUrl(img.url, { baseUrl: requestOrigin }),
-          alt: img.alt,
-          isPrimary: img.isPrimary,
-        })),
+        images: relatedProduct.images.map(img => {
+          // Для /uploads/ путей возвращаем относительный путь (Nginx раздаст напрямую)
+          // Для других путей формируем полный URL
+          const imageUrl = img.url?.startsWith('/uploads/') 
+            ? img.url 
+            : getImageUrl(img.url, { baseUrl: requestOrigin });
+          return {
+            url: imageUrl,
+            alt: img.alt,
+            isPrimary: img.isPrimary,
+          };
+        }),
       })),
       ...(canonicalSlug && { canonicalSlug }),
     };

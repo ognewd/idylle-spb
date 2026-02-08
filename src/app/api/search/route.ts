@@ -98,15 +98,23 @@ export async function GET(request: NextRequest) {
       console.error('Error getting request origin:', error);
     }
 
-    const results = products.map((product) => ({
-      id: product.id,
-      name: product.name,
-      slug: product.slug,
-      price: product.price,
-      brand: product.brand?.name,
-      category: product.productCategories[0]?.category?.name,
-      image: getImageUrl(product.images[0]?.url, { baseUrl: requestOrigin }),
-    }));
+    const results = products.map((product) => {
+      // Для /uploads/ путей возвращаем относительный путь (Nginx раздаст напрямую)
+      // Для других путей формируем полный URL
+      const imageUrl = product.images[0]?.url?.startsWith('/uploads/')
+        ? product.images[0].url
+        : getImageUrl(product.images[0]?.url, { baseUrl: requestOrigin });
+      
+      return {
+        id: product.id,
+        name: product.name,
+        slug: product.slug,
+        price: product.price,
+        brand: product.brand?.name,
+        category: product.productCategories[0]?.category?.name,
+        image: imageUrl,
+      };
+    });
 
     return NextResponse.json({ results });
   } catch (error) {
