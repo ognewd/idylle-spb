@@ -180,6 +180,15 @@ export async function POST(request: NextRequest) {
           isUpdate,
           existingProductId,
         } = productData;
+        
+        // Логируем данные для отладки
+        console.log(`[Import Apply] Product "${name}": Received data:`, {
+          photoUrl,
+          additionalImageUrls,
+          additionalImageUrlsType: typeof additionalImageUrls,
+          additionalImageUrlsIsArray: Array.isArray(additionalImageUrls),
+          additionalImageUrlsLength: Array.isArray(additionalImageUrls) ? additionalImageUrls.length : 'N/A',
+        });
 
         // Получаем или создаем бренд
         let brand;
@@ -497,9 +506,23 @@ export async function POST(request: NextRequest) {
 
         // Доп. изображения: URL через запятую, скачиваем и создаём ProductImage (isPrimary: false)
         const urls = Array.isArray(additionalImageUrls) ? additionalImageUrls : [];
+        console.log(`[Import Apply] Product "${name}": additionalImageUrls from productData:`, additionalImageUrls);
+        console.log(`[Import Apply] Product "${name}": Processing ${urls.length} additional images, nextSortOrder=${nextSortOrder}`);
+        
+        if (urls.length === 0) {
+          console.log(`[Import Apply] Product "${name}": No additional images to process (urls array is empty)`);
+        }
+        
         for (let i = 0; i < urls.length; i++) {
           const url = urls[i];
-          if (typeof url !== 'string' || (!url.startsWith('http://') && !url.startsWith('https://'))) continue;
+          console.log(`[Import Apply] Product "${name}": Processing additional image ${i + 1}/${urls.length}, URL:`, url, `Type:`, typeof url);
+          
+          if (typeof url !== 'string' || (!url.startsWith('http://') && !url.startsWith('https://'))) {
+            console.log(`[Import Apply] Product "${name}": Skipping invalid additional image URL ${i + 1}:`, url, `(starts with http/https: ${typeof url === 'string' && (url.startsWith('http://') || url.startsWith('https://'))})`);
+            continue;
+          }
+          
+          console.log(`[Import Apply] Product "${name}": Downloading additional image ${i + 1}/${urls.length}:`, url);
           try {
             const savedUrl = await downloadImageAsUpload(url);
             if (savedUrl) {
@@ -513,20 +536,30 @@ export async function POST(request: NextRequest) {
                 });
                 if (existingImage) {
                   // Изображение уже существует, пропускаем
+                  console.log(`[Import Apply] Product "${name}": Additional image ${i + 1} already exists, skipping`);
                   continue;
                 }
               }
+              
+              // Используем правильный sortOrder: после основного изображения
+              const additionalSortOrder = nextSortOrder + i;
+              console.log(`[Import Apply] Product "${name}": Creating additional image ${i + 1} with sortOrder=${additionalSortOrder}`);
+              
               await prisma.productImage.create({
                 data: {
                   productId: productIdForPhoto,
                   url: savedUrl,
                   alt: `${name} — фото ${i + 1}`,
-                  sortOrder: nextSortOrder + i,
+                  sortOrder: additionalSortOrder,
                   isPrimary: false,
                 },
               });
+              console.log(`[Import Apply] Product "${name}": Successfully created additional image ${i + 1} at ${savedUrl} with sortOrder=${additionalSortOrder}`);
+            } else {
+              console.log(`[Import Apply] Product "${name}": Failed to download additional image ${i + 1}, downloadImageAsUpload returned null`);
             }
           } catch (imgErr: any) {
+            console.error(`[Import Apply] Product "${name}": Error processing additional image ${i + 1}:`, imgErr);
             results.photoErrors.push(`Товар "${name}": доп. изображение ${i + 1} не загружено — ${imgErr?.message || String(imgErr)}`);
           }
         }

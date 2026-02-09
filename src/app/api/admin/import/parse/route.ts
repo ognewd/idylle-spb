@@ -123,9 +123,10 @@ export async function POST(request: NextRequest) {
     // Нормализация для маппинга: нижний регистр, единый вид запятой/пробела (Excel может дать unicode)
     const normalizeHeader = (s: string) =>
       s.toLowerCase()
-        .replace(/\s+/g, ' ')
-        .replace(/[\u00a0\u2007\u202f]/g, ' ')
+        .replace(/\s+/g, ' ') // Заменяем все пробелы (включая неразрывные) на обычные
+        .replace(/[\u00a0\u2007\u202f\u2009\u200a]/g, ' ') // Неразрывные пробелы
         .replace(/[,，\u060c\u3001]/g, ',')
+        .replace(/[\u200b\u200c\u200d\ufeff]/g, '') // Удаляем невидимые символы
         .trim();
     const headersLower = headers.map((h: string) => normalizeHeader(h));
     
@@ -149,8 +150,66 @@ export async function POST(request: NextRequest) {
       }
     } else {
       // Стандартный шаблон: колонки как в таблице пользователя (автоопределение)
+      console.log('[Import Parse] All column headers:', headers.map((h, i) => `${i}: "${h}"`).join(', '));
+      console.log('[Import Parse] Normalized headers:', headersLower.map((h, i) => `${i}: "${h}"`).join(', '));
+      
+      // Сначала собираем все колонки с изображениями, чтобы правильно их классифицировать
+      const imageColumns: Array<{ index: number; header: string; normalized: string }> = [];
       headersLower.forEach((header: string, index: number) => {
         const normalized = header.toLowerCase();
+        if (normalized.includes('изображен') || normalized.includes('фото') || normalized.includes('image') || normalized.includes('photo') || normalized.includes('картинка')) {
+          imageColumns.push({ index, header: headers[index], normalized });
+          console.log(`[Import Parse] Found image-related column ${index}: "${headers[index]}" -> normalized: "${normalized}"`);
+        }
+      });
+      
+      // Классифицируем колонки с изображениями: сначала ищем дополнительные, потом основные
+      imageColumns.forEach(({ index, header, normalized }) => {
+        // Проверяем, является ли это колонкой дополнительных изображений
+        if (
+          normalized === 'дополнительное изображение' ||
+          normalized.includes('дополнительное изображение') ||
+          normalized.includes('дополнительные изображения') ||
+          normalized.includes('доп. изображение') ||
+          normalized.includes('доп. изображения') ||
+          normalized.includes('дополнительное фото') ||
+          normalized.includes('дополнительные фото') ||
+          (normalized.includes('доп') && (normalized.includes('изображен') || normalized.includes('фото'))) ||
+          normalized.includes('extra images') ||
+          normalized.includes('extra image') ||
+          normalized.includes('additional images') ||
+          normalized.includes('additional image') ||
+          normalized.includes('дополнит') ||
+          (normalized.includes('url') && normalized.includes('доп')) ||
+          normalized.match(/доп.*изображен/i) ||
+          normalized.match(/доп.*фото/i) ||
+          normalized.match(/additional.*image/i) ||
+          normalized.match(/extra.*image/i)
+        ) {
+          columnMap.additionalPhotos = index;
+          console.log(`[Import Parse] ✅ Classified as additionalPhotos column at index ${index}: "${header}" (normalized: "${normalized}")`);
+        } else if (
+          // Основное изображение - только если это НЕ дополнительное
+          !normalized.includes('доп') &&
+          !normalized.includes('дополнит') &&
+          !normalized.match(/доп.*изображен/i) &&
+          !normalized.match(/доп.*фото/i)
+        ) {
+          // Если основное изображение еще не найдено, устанавливаем его
+          if (columnMap.photo === undefined) {
+            columnMap.photo = index;
+            console.log(`[Import Parse] ✅ Classified as photo column at index ${index}: "${header}" (normalized: "${normalized}")`);
+          }
+        }
+      });
+      
+      // Теперь обрабатываем остальные колонки
+      headersLower.forEach((header: string, index: number) => {
+        const normalized = header.toLowerCase();
+        // Пропускаем колонки с изображениями - они уже обработаны
+        if (normalized.includes('изображен') || normalized.includes('фото') || normalized.includes('image') || normalized.includes('photo') || normalized.includes('картинка')) {
+          return; // Пропускаем, уже обработали выше
+        }
         if (normalized.includes('код мой склад')) {
           columnMap.myWarehouseCode = index;
         } else if (normalized.includes('артикул производителя')) {
@@ -215,24 +274,15 @@ export async function POST(request: NextRequest) {
           columnMap.isActive = index;
         } else if (normalized.includes('рекомендуемый') || normalized.includes('хит') || normalized.includes('featured')) {
           columnMap.isFeatured = index;
-        } else if (
-          (normalized.includes('доп') && (normalized.includes('изображен') || normalized.includes('фото'))) ||
-          normalized.includes('дополнительные изображения') ||
-          normalized.includes('extra images') ||
-          normalized.includes('additional images') ||
-          (normalized.includes('url') && normalized.includes('доп'))
-        ) {
-          columnMap.additionalPhotos = index;
-        } else if (
-          normalized.includes('фото') ||
-          normalized.includes('изображение') ||
-          normalized.includes('картинка') ||
-          normalized.includes('image') ||
-          normalized.includes('photo') ||
-          (normalized.includes('url') && (normalized.includes('фото') || normalized.includes('img')))
-        ) {
-          columnMap.photo = index;
         }
+      });
+
+      // Логируем найденные колонки для отладки
+      console.log('[Import Parse] Column mapping:', {
+        photo: columnMap.photo !== undefined ? headers[columnMap.photo] : 'not found',
+        additionalPhotos: columnMap.additionalPhotos !== undefined ? headers[columnMap.additionalPhotos] : 'not found',
+        photoIndex: columnMap.photo,
+        additionalPhotosIndex: columnMap.additionalPhotos,
       });
 
       // Резерв: колонка "Вес, гр" / "Вес, кг" / "Вес (г)" по заголовку, если ещё не найдена
@@ -411,13 +461,21 @@ export async function POST(request: NextRequest) {
           additionalImageUrls: columnMap.additionalPhotos !== undefined
             ? (() => {
                 const raw = String(row[columnMap.additionalPhotos!] ?? '').trim();
-                if (!raw) return [];
-                return raw
+                if (!raw) {
+                  console.log(`[Import Parse] Row ${rowNum}: additionalPhotos column is empty`);
+                  return [];
+                }
+                const urls = raw
                   .split(/[,;\n]+/)
                   .map((s: string) => s.trim())
                   .filter((s: string) => s && (s.startsWith('http://') || s.startsWith('https://')));
+                console.log(`[Import Parse] Row ${rowNum}: Found ${urls.length} additional image URLs from column ${columnMap.additionalPhotos}:`, urls);
+                return urls;
               })()
-            : [],
+            : (() => {
+                console.log(`[Import Parse] Row ${rowNum}: additionalPhotos column not found in columnMap. Available columns:`, headers.map((h, i) => `${i}: "${h}"`).join(', '));
+                return [];
+              })(),
           isUpdate: !!existingProduct,
           existingProductId: existingProduct?.id || null,
           rawData,
@@ -451,12 +509,23 @@ export async function POST(request: NextRequest) {
       errors: errors.length,
     };
 
+    // Собираем информацию о распознавании колонок для отображения пользователю
+    const columnMappingInfo = {
+      photo: columnMap.photo !== undefined 
+        ? { index: columnMap.photo, name: headers[columnMap.photo], found: true }
+        : { found: false, message: 'Колонка с основным изображением не найдена' },
+      additionalPhotos: columnMap.additionalPhotos !== undefined
+        ? { index: columnMap.additionalPhotos, name: headers[columnMap.additionalPhotos], found: true }
+        : { found: false, message: 'Колонка "Дополнительное изображение" не найдена. Проверьте название колонки в файле.' },
+    };
+
     return NextResponse.json({
       products,
       errors,
       stats,
       columns: headers.map((h, i) => ({ index: i, name: h })),
       columnMap, // Для отладки
+      columnMappingInfo, // Информация о распознавании колонок для пользователя
     });
   } catch (error: any) {
     console.error('Import parse error:', error);

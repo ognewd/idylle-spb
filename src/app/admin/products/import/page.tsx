@@ -127,6 +127,10 @@ export default function ImportProductsPage() {
     errors: string[];
     stats: ImportStats;
     columns: FileColumn[];
+    columnMappingInfo?: {
+      photo?: { index: number; name: string; found: boolean } | { found: false; message: string };
+      additionalPhotos?: { index: number; name: string; found: boolean } | { found: false; message: string };
+    };
   } | null>(null);
   const [applyResults, setApplyResults] = useState<{
     created: number;
@@ -690,6 +694,49 @@ export default function ImportProductsPage() {
                     <div className="text-2xl font-bold text-red-600">{parsedData.stats.errors}</div>
                   </div>
                 </div>
+
+                {/* Информация о распознавании колонок */}
+                {parsedData.columnMappingInfo && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                    <h3 className="font-semibold text-blue-800 mb-3">Информация о распознавании колонок:</h3>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-center gap-2">
+                        {parsedData.columnMappingInfo.photo?.found ? (
+                          <>
+                            <CheckCircle2 className="h-4 w-4 text-green-600" />
+                            <span className="text-green-700">
+                              Основное изображение: найдена колонка "{parsedData.columnMappingInfo.photo.name}" (индекс {parsedData.columnMappingInfo.photo.index})
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <XCircle className="h-4 w-4 text-yellow-600" />
+                            <span className="text-yellow-700">
+                              Основное изображение: {parsedData.columnMappingInfo.photo?.message || 'не найдена'}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {parsedData.columnMappingInfo.additionalPhotos?.found ? (
+                          <>
+                            <CheckCircle2 className="h-4 w-4 text-green-600" />
+                            <span className="text-green-700">
+                              Дополнительные изображения: найдена колонка "{parsedData.columnMappingInfo.additionalPhotos.name}" (индекс {parsedData.columnMappingInfo.additionalPhotos.index})
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <XCircle className="h-4 w-4 text-red-600" />
+                            <span className="text-red-700">
+                              Дополнительные изображения: {parsedData.columnMappingInfo.additionalPhotos?.message || 'не найдена'}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Ошибки */}
                 {parsedData.errors && parsedData.errors.length > 0 && (
