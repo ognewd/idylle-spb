@@ -316,7 +316,13 @@ export function Header() {
                           className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 text-left"
                         >
                           <div className="relative w-10 h-10 flex-shrink-0 rounded overflow-hidden">
-                            <Image src={getImageUrl(product.image)} alt={product.name} fill className="object-cover" />
+                            <Image 
+                              src={product.image || '/placeholder-product.jpg'} 
+                              alt={product.name} 
+                              fill 
+                              className="object-cover"
+                              unoptimized={product.image?.startsWith('http')}
+                            />
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="text-sm font-medium text-gray-900 truncate">{product.name}</div>

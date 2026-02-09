@@ -102,9 +102,21 @@ export async function GET(request: NextRequest) {
     }
 
     const results = products.map((product) => {
-      // Используем getImageUrl для всех путей, включая /uploads/
-      // На localhost это сформирует полный URL, на проде - относительный (для Nginx)
-      const imageUrl = getImageUrl(product.images[0]?.url, { baseUrl: requestOrigin });
+      // Для поиска всегда формируем полный URL, так как это используется в клиентском компоненте
+      // и Next.js Image может требовать полный URL для корректной загрузки
+      let imageUrl = product.images[0]?.url;
+      if (imageUrl) {
+        // Если URL уже полный, используем как есть
+        if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+          imageUrl = imageUrl;
+        } else {
+          // Для относительных путей формируем полный URL
+          const cleanUrl = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`;
+          imageUrl = `${requestOrigin.replace(/\/$/, '')}${cleanUrl}`;
+        }
+      } else {
+        imageUrl = '/placeholder-product.jpg';
+      }
       
       return {
         id: product.id,
