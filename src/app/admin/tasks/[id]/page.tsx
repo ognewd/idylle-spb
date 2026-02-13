@@ -9,17 +9,140 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Send, FileText, Download, Calendar, User, CheckCircle2, Clock, Circle, Edit2, Trash2, Paperclip, X } from 'lucide-react';
+import { ArrowLeft, Send, FileText, Download, Calendar, User, CheckCircle2, Clock, Circle, Edit2, Trash2, Paperclip, X, Eye, File } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+
+interface TaskFile {
+  id: string;
+  url: string;
+  fileName: string;
+  fileType: string | null;
+  fileSize: number | null;
+  createdAt: string;
+}
+
+// Компонент для предпросмотра файла
+function FilePreviewItem({ file }: { file: TaskFile }) {
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewError, setPreviewError] = useState(false);
+
+  const isImage = file.fileType?.startsWith('image/');
+  const isPdf = file.fileType === 'application/pdf';
+  const isWord = file.fileType?.includes('wordprocessingml') || file.fileName?.endsWith('.doc') || file.fileName?.endsWith('.docx');
+  const isExcel = file.fileType?.includes('spreadsheetml') || file.fileName?.endsWith('.xls') || file.fileName?.endsWith('.xlsx');
+
+  const formatFileSize = (bytes: number | null) => {
+    if (!bytes) return 'Неизвестно';
+    if (bytes < 1024) return `${bytes} Б`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} КБ`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} МБ`;
+  };
+
+  const handlePreview = () => {
+    if (isImage || isPdf) {
+      setPreviewUrl(file.url);
+      setIsPreviewOpen(true);
+    } else {
+      // Для Word и Excel открываем в новой вкладке (браузер может показать предпросмотр или скачать)
+      window.open(file.url, '_blank');
+    }
+  };
+
+  return (
+    <>
+      <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div className="flex-shrink-0">
+            {isImage ? (
+              <FileText className="h-5 w-5 text-blue-500" />
+            ) : isWord ? (
+              <FileText className="h-5 w-5 text-blue-600" />
+            ) : isExcel ? (
+              <FileText className="h-5 w-5 text-green-600" />
+            ) : isPdf ? (
+              <FileText className="h-5 w-5 text-red-500" />
+            ) : (
+              <File className="h-5 w-5 text-gray-500" />
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium truncate">{file.fileName}</p>
+            <p className="text-xs text-gray-500">{formatFileSize(file.fileSize)}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {(isImage || isPdf) && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handlePreview}
+              title="Предпросмотр"
+            >
+              <Eye className="h-4 w-4" />
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.open(file.url, '_blank')}
+            title="Скачать"
+          >
+            <Download className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Диалог предпросмотра для изображений и PDF */}
+      <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>{file.fileName}</DialogTitle>
+          </DialogHeader>
+          <div className="mt-4 max-h-[80vh] overflow-auto">
+            {isImage && previewUrl && (
+              <img
+                src={previewUrl}
+                alt={file.fileName}
+                className="max-w-full h-auto"
+                onError={() => setPreviewError(true)}
+              />
+            )}
+            {isPdf && previewUrl && !previewError && (
+              <iframe
+                src={previewUrl}
+                className="w-full h-[70vh] border-0"
+                title={file.fileName}
+                onError={() => setPreviewError(true)}
+              />
+            )}
+            {previewError && (
+              <div className="text-center py-8 text-gray-500">
+                <p>Не удалось загрузить предпросмотр</p>
+                <Button
+                  variant="outline"
+                  className="mt-4"
+                  onClick={() => window.open(file.url, '_blank')}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Скачать файл
+                </Button>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
 
 interface Task {
   id: string;
   title: string;
   description: string | null;
-  status: 'new' | 'in_progress' | 'done';
+  status: 'new' | 'in_progress' | 'review' | 'done';
   priority: 'urgent' | 'normal' | 'someday';
-  fileUrl: string | null;
-  fileName: string | null;
   createdAt: string;
   updatedAt: string;
   createdBy: {
@@ -27,6 +150,12 @@ interface Task {
     name: string | null;
     email: string;
   };
+  assignedTo: {
+    id: string;
+    name: string | null;
+    email: string;
+  } | null;
+  files: TaskFile[];
   messages: TaskMessage[];
 }
 
@@ -47,12 +176,14 @@ interface TaskMessage {
 const statusLabels = {
   new: 'Новая',
   in_progress: 'В процессе',
+  review: 'На проверке',
   done: 'Готово',
 };
 
 const statusColors = {
   new: 'bg-blue-500',
   in_progress: 'bg-yellow-500',
+  review: 'bg-purple-500',
   done: 'bg-green-500',
 };
 
@@ -74,7 +205,7 @@ export default function TaskDetailPage() {
   const [message, setMessage] = useState('');
   const [messageFile, setMessageFile] = useState<File | null>(null);
   const [isSending, setIsSending] = useState(false);
-  const [status, setStatus] = useState<'new' | 'in_progress' | 'done'>('new');
+  const [status, setStatus] = useState<'new' | 'in_progress' | 'review' | 'done'>('new');
   const [currentUser, setCurrentUser] = useState<{ id: string; name: string | null; email: string } | null>(null);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editMessageText, setEditMessageText] = useState('');
@@ -387,7 +518,7 @@ export default function TaskDetailPage() {
     }
   };
 
-  const handleStatusChange = async (newStatus: 'new' | 'in_progress' | 'done') => {
+  const handleStatusChange = async (newStatus: 'new' | 'in_progress' | 'review' | 'done') => {
     try {
       const token = localStorage.getItem('admin_token');
       if (!token) {
@@ -475,13 +606,19 @@ export default function TaskDetailPage() {
               </Button>
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">{task.title}</h1>
-                <div className="flex items-center gap-2 mt-2">
+                <div className="flex items-center gap-2 mt-2 flex-wrap">
                   <Badge className={statusColors[task.status]}>
                     {statusLabels[task.status]}
                   </Badge>
                   <Badge variant="outline" className={priorityColors[task.priority]}>
                     {priorityLabels[task.priority]}
                   </Badge>
+                  {task.assignedTo && (
+                    <Badge variant="outline" className="bg-gray-100">
+                      <User className="h-3 w-3 mr-1" />
+                      Назначено: {task.assignedTo.name || task.assignedTo.email}
+                    </Badge>
+                  )}
                 </div>
               </div>
             </div>
@@ -504,19 +641,13 @@ export default function TaskDetailPage() {
                 ) : (
                   <p className="text-muted-foreground">Описание отсутствует</p>
                 )}
-                {task.fileUrl && (
+                {task.files && task.files.length > 0 && (
                   <div className="mt-4 pt-4 border-t">
-                    <div className="flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm">{task.fileName}</span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => window.open(task.fileUrl!, '_blank')}
-                      >
-                        <Download className="h-4 w-4 mr-2" />
-                        Скачать
-                      </Button>
+                    <h4 className="text-sm font-semibold mb-3">Прикрепленные файлы ({task.files.length}):</h4>
+                    <div className="space-y-2">
+                      {task.files.map((file) => (
+                        <FilePreviewItem key={file.id} file={file} />
+                      ))}
                     </div>
                   </div>
                 )}
@@ -782,6 +913,12 @@ export default function TaskDetailPage() {
                         <div className="flex items-center gap-2">
                           <Clock className="h-4 w-4 text-yellow-500" />
                           В процессе
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="review">
+                        <div className="flex items-center gap-2">
+                          <AlertCircle className="h-4 w-4 text-purple-500" />
+                          На проверке
                         </div>
                       </SelectItem>
                       <SelectItem value="done">

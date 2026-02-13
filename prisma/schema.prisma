@@ -28,6 +28,7 @@ model User {
   reviews              Review[]
   wishlist             WishlistItem[]
   createdTasks         Task[]           @relation("TaskCreator")
+  assignedTasks        Task[]           @relation("TaskAssignee")
   taskMessages          TaskMessage[]    @relation("TaskMessageAuthor")
 
   @@map("users")
@@ -421,17 +422,31 @@ model Task {
   id          String        @id @default(cuid())
   title       String
   description String?        @db.Text
-  status      String        @default("new") // "new", "in_progress", "done"
+  status      String        @default("new") // "new", "in_progress", "review", "done"
   priority    String        @default("normal") // "urgent", "normal", "someday"
-  fileUrl     String?
-  fileName    String?
   createdById String
+  assignedToId String?      // Назначенный пользователь
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   createdBy   User          @relation("TaskCreator", fields: [createdById], references: [id])
+  assignedTo  User?         @relation("TaskAssignee", fields: [assignedToId], references: [id])
+  files       TaskFile[]
   messages    TaskMessage[]
 
   @@map("tasks")
+}
+
+model TaskFile {
+  id        String   @id @default(cuid())
+  taskId    String
+  url       String
+  fileName  String
+  fileType  String?  // MIME type: application/vnd.openxmlformats-officedocument.wordprocessingml.document, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, etc.
+  fileSize  Int?     // Размер файла в байтах
+  createdAt DateTime @default(now())
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@map("task_files")
 }
 
 model TaskMessage {

@@ -5,27 +5,40 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus, ArrowLeft, CheckCircle2, Circle, Clock, AlertCircle, Calendar, FileText } from 'lucide-react';
+import { Plus, ArrowLeft, CheckCircle2, Circle, Clock, AlertCircle, Calendar, FileText, User, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
+interface TaskFile {
+  id: string;
+  url: string;
+  fileName: string;
+  fileType: string | null;
+  fileSize: number | null;
+  createdAt: string;
+}
+
 interface Task {
   id: string;
   title: string;
   description: string | null;
-  status: 'new' | 'in_progress' | 'done';
+  status: 'new' | 'in_progress' | 'review' | 'done';
   priority: 'urgent' | 'normal' | 'someday';
-  fileUrl: string | null;
-  fileName: string | null;
   createdAt: string;
   createdBy: {
     id: string;
     name: string | null;
     email: string;
   };
+  assignedTo: {
+    id: string;
+    name: string | null;
+    email: string;
+  } | null;
+  files: TaskFile[];
   _count: {
     messages: number;
   };
@@ -34,12 +47,14 @@ interface Task {
 const statusLabels = {
   new: 'Новая',
   in_progress: 'В процессе',
+  review: 'На проверке',
   done: 'Готово',
 };
 
 const statusColors = {
   new: 'bg-blue-500',
   in_progress: 'bg-yellow-500',
+  review: 'bg-purple-500',
   done: 'bg-green-500',
 };
 
@@ -63,7 +78,8 @@ export default function AdminTasksPage() {
     title: '',
     description: '',
     priority: 'normal' as 'urgent' | 'normal' | 'someday',
-    file: null as File | null,
+    files: [] as File[],
+    assignedToEmail: 'ognewd@gmail.com',
   });
   const router = useRouter();
 
@@ -112,7 +128,8 @@ export default function AdminTasksPage() {
       title: '',
       description: '',
       priority: 'normal',
-      file: null,
+      files: [],
+      assignedToEmail: 'ognewd@gmail.com',
     });
     setIsModalOpen(true);
   };
@@ -123,14 +140,25 @@ export default function AdminTasksPage() {
       title: '',
       description: '',
       priority: 'normal',
-      file: null,
+      files: [],
+      assignedToEmail: 'ognewd@gmail.com',
     });
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFormData({ ...formData, file: e.target.files[0] });
+  const handleFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const newFiles = Array.from(e.target.files);
+      setFormData({ ...formData, files: [...formData.files, ...newFiles] });
+      // Сбрасываем input для возможности повторной загрузки
+      e.target.value = '';
     }
+  };
+
+  const removeFile = (index: number) => {
+    setFormData({
+      ...formData,
+      files: formData.files.filter((_, i) => i !== index),
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -145,13 +173,12 @@ export default function AdminTasksPage() {
         return;
       }
 
-      let fileUrl = null;
-      let fileName = null;
-
-      // Если есть файл, загружаем его
-      if (formData.file) {
+      // Загружаем все файлы
+      const fileUrls: Array<{ url: string; fileName: string; fileType: string; fileSize: number }> = [];
+      
+      for (const file of formData.files) {
         const uploadFormData = new FormData();
-        uploadFormData.append('file', formData.file);
+        uploadFormData.append('file', file);
 
         const uploadResponse = await fetch('/api/admin/upload', {
           method: 'POST',
@@ -163,10 +190,14 @@ export default function AdminTasksPage() {
 
         if (uploadResponse.ok) {
           const uploadData = await uploadResponse.json();
-          fileUrl = uploadData.url;
-          fileName = formData.file.name;
+          fileUrls.push({
+            url: uploadData.url,
+            fileName: file.name,
+            fileType: file.type,
+            fileSize: file.size,
+          });
         } else {
-          alert('Ошибка при загрузке файла');
+          alert(`Ошибка при загрузке файла: ${file.name}`);
           setIsLoading(false);
           return;
         }
@@ -182,8 +213,8 @@ export default function AdminTasksPage() {
           title: formData.title,
           description: formData.description || null,
           priority: formData.priority,
-          fileUrl,
-          fileName,
+          fileUrls: fileUrls.length > 0 ? fileUrls : undefined,
+          assignedToEmail: formData.assignedToEmail || 'ognewd@gmail.com',
         }),
       });
 
@@ -277,6 +308,8 @@ export default function AdminTasksPage() {
                           <CheckCircle2 className="h-5 w-5 text-green-500" />
                         ) : task.status === 'in_progress' ? (
                           <Clock className="h-5 w-5 text-yellow-500" />
+                        ) : task.status === 'review' ? (
+                          <AlertCircle className="h-5 w-5 text-purple-500" />
                         ) : (
                           <Circle className="h-5 w-5 text-blue-500" />
                         )}
@@ -300,7 +333,7 @@ export default function AdminTasksPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center justify-between text-sm text-muted-foreground">
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-4 flex-wrap">
                       <div className="flex items-center gap-1">
                         <Calendar className="h-4 w-4" />
                         <span>{formatDate(task.createdAt)}</span>
@@ -308,10 +341,16 @@ export default function AdminTasksPage() {
                       <div>
                         Создал: {task.createdBy.name || task.createdBy.email}
                       </div>
-                      {task.fileName && (
+                      {task.assignedTo && (
+                        <div className="flex items-center gap-1">
+                          <User className="h-4 w-4" />
+                          <span>Назначено: {task.assignedTo.name || task.assignedTo.email}</span>
+                        </div>
+                      )}
+                      {task.files && task.files.length > 0 && (
                         <div className="flex items-center gap-1">
                           <FileText className="h-4 w-4" />
-                          <span>{task.fileName}</span>
+                          <span>{task.files.length} {task.files.length === 1 ? 'файл' : 'файлов'}</span>
                         </div>
                       )}
                     </div>
@@ -382,17 +421,54 @@ export default function AdminTasksPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="file">Приложить файл (опционально)</Label>
+              <Label htmlFor="assignedTo">Назначить на</Label>
               <Input
-                id="file"
-                type="file"
-                onChange={handleFileChange}
-                accept="image/*,.pdf,.doc,.docx"
+                id="assignedTo"
+                type="email"
+                value={formData.assignedToEmail}
+                onChange={(e) => setFormData({ ...formData, assignedToEmail: e.target.value })}
+                placeholder="ognewd@gmail.com"
               />
-              {formData.file && (
-                <p className="text-sm text-muted-foreground">
-                  Выбран файл: {formData.file.name}
-                </p>
+              <p className="text-xs text-muted-foreground">
+                Email пользователя, на которого назначается задача (по умолчанию: ognewd@gmail.com)
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="files">Приложить файлы (опционально)</Label>
+              <Input
+                id="files"
+                type="file"
+                multiple
+                onChange={handleFilesChange}
+                accept=".doc,.docx,.xls,.xlsx,.pdf,image/*"
+              />
+              <p className="text-xs text-muted-foreground">
+                Можно выбрать несколько файлов: Word (.doc, .docx), Excel (.xls, .xlsx), PDF, изображения
+              </p>
+              {formData.files.length > 0 && (
+                <div className="mt-2 space-y-2">
+                  {formData.files.map((file, index) => (
+                    <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded border">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm">{file.name}</span>
+                        <span className="text-xs text-gray-500">
+                          ({(file.size / 1024).toFixed(1)} КБ)
+                        </span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeFile(index)}
+                        className="h-6 w-6 p-0"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
 

@@ -22,6 +22,18 @@ export async function GET(request: NextRequest) {
             email: true,
           },
         },
+        assignedTo: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        files: {
+          orderBy: {
+            createdAt: 'asc',
+          },
+        },
         _count: {
           select: {
             messages: true,
@@ -77,7 +89,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { title, description, priority, fileUrl, fileName } = body;
+    const { title, description, priority, fileUrls, assignedToEmail } = body;
 
     if (!title) {
       return NextResponse.json(
@@ -86,15 +98,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
-      const task = await prisma.task.create({
+    // Находим назначенного пользователя по email (по умолчанию ognewd@gmail.com)
+    let assignedToId: string | null = null;
+    const targetEmail = assignedToEmail || 'ognewd@gmail.com';
+    const assignedUser = await prisma.user.findUnique({
+      where: { email: targetEmail },
+      select: { id: true },
+    });
+    if (assignedUser) {
+      assignedToId = assignedUser.id;
+    }
+
+    const task = await prisma.task.create({
       data: {
         title,
         description: description || null,
         priority: priority || 'normal',
         status: 'new',
-        fileUrl: fileUrl || null,
-        fileName: fileName || null,
         createdById: authResult.user.id,
+        assignedToId,
+        files: fileUrls && Array.isArray(fileUrls) && fileUrls.length > 0
+          ? {
+              create: fileUrls.map((file: { url: string; fileName: string; fileType?: string; fileSize?: number }) => ({
+                url: file.url,
+                fileName: file.fileName,
+                fileType: file.fileType || null,
+                fileSize: file.fileSize || null,
+              })),
+            }
+          : undefined,
       },
       include: {
         createdBy: {
@@ -102,6 +134,18 @@ export async function POST(request: NextRequest) {
             id: true,
             name: true,
             email: true,
+          },
+        },
+        assignedTo: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        files: {
+          orderBy: {
+            createdAt: 'asc',
           },
         },
       },

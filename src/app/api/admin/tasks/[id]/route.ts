@@ -26,6 +26,18 @@ export async function GET(
             email: true,
           },
         },
+        assignedTo: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        files: {
+          orderBy: {
+            createdAt: 'asc',
+          },
+        },
         messages: {
           include: {
             user: {
@@ -83,7 +95,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { title, description, status, priority, fileUrl, fileName } = body;
+    const { title, description, status, priority } = body;
 
     const updatedTask = await prisma.task.update({
       where: { id: params.id },
@@ -92,8 +104,6 @@ export async function PUT(
         ...(description !== undefined && { description: description || null }),
         ...(status && { status }),
         ...(priority && { priority }),
-        ...(fileUrl !== undefined && { fileUrl: fileUrl || null }),
-        ...(fileName !== undefined && { fileName: fileName || null }),
       },
       include: {
         createdBy: {
@@ -101,6 +111,18 @@ export async function PUT(
             id: true,
             name: true,
             email: true,
+          },
+        },
+        assignedTo: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        files: {
+          orderBy: {
+            createdAt: 'asc',
           },
         },
       },
