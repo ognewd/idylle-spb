@@ -10,7 +10,24 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ArrowLeft, Save, Upload, X, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Save, Upload, X, RefreshCw, ChevronUp, ChevronDown, GripVertical } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { generateSlug } from '@/lib/transliterate';
 
 interface Category {
@@ -67,6 +84,165 @@ interface ProductFormData {
     file?: File;
   }>;
   variants: ProductVariant[];
+}
+
+// Компонент для сортируемого элемента изображения
+function SortableImageItem({
+  image,
+  index,
+  total,
+  onUpdate,
+  onRemove,
+  onSetPrimary,
+  onMove,
+  onFileUpload,
+}: {
+  image: { url: string; alt: string; isPrimary: boolean; file?: File };
+  index: number;
+  total: number;
+  onUpdate: (field: 'url' | 'alt', value: string) => void;
+  onRemove: () => void;
+  onSetPrimary: () => void;
+  onMove: (direction: 'up' | 'down') => void;
+  onFileUpload: (file: File) => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: index.toString() });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`flex space-x-4 p-4 border-2 rounded-lg bg-white transition-all ${
+        isDragging ? 'border-blue-500 shadow-lg' : 'border-gray-200 hover:border-gray-300'
+      } ${image.isPrimary ? 'ring-2 ring-blue-400' : ''}`}
+    >
+      {/* Drag Handle */}
+      <div
+        {...attributes}
+        {...listeners}
+        className="flex items-center justify-center w-8 cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600"
+        title="Перетащите для изменения порядка"
+      >
+        <GripVertical className="h-5 w-5" />
+      </div>
+
+      {/* Image Preview */}
+      {image.url && (
+        <div className="w-32 h-32 flex-shrink-0 overflow-hidden flex items-center justify-center bg-gray-50 rounded-lg border border-gray-200">
+          <img
+            src={image.url}
+            alt={image.alt || `Preview ${index + 1}`}
+            className="max-w-full max-h-full w-auto h-auto object-contain"
+          />
+        </div>
+      )}
+
+      {/* Form Fields */}
+      <div className="flex-1 space-y-2">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded">
+            #{index + 1} {image.isPrimary && '⭐ Основное'}
+          </span>
+        </div>
+        <div>
+          <Label>Загрузить с устройства</Label>
+          <Input
+            type="file"
+            accept="image/*"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                onFileUpload(file);
+              }
+            }}
+            className="mt-1"
+          />
+        </div>
+        <div>
+          <Label>Или URL изображения</Label>
+          <Input
+            value={image.url}
+            onChange={(e) => onUpdate('url', e.target.value)}
+            placeholder="https://example.com/image.jpg"
+            className="mt-1"
+          />
+        </div>
+        <div>
+          <Label>Alt текст</Label>
+          <Input
+            value={image.alt}
+            onChange={(e) => onUpdate('alt', e.target.value)}
+            placeholder="Описание изображения"
+            className="mt-1"
+          />
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="flex flex-col space-y-2">
+        {/* Move Buttons */}
+        <div className="flex flex-col gap-1">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => onMove('up')}
+            disabled={index === 0}
+            className="h-8"
+            title="Переместить вверх"
+          >
+            <ChevronUp className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => onMove('down')}
+            disabled={index === total - 1}
+            className="h-8"
+            title="Переместить вниз"
+          >
+            <ChevronDown className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {/* Primary Button */}
+        <Button
+          type="button"
+          variant={image.isPrimary ? "default" : "outline"}
+          size="sm"
+          onClick={onSetPrimary}
+          className={image.isPrimary ? "bg-blue-600 hover:bg-blue-700" : ""}
+        >
+          {image.isPrimary ? "⭐ Основное" : "Сделать основным"}
+        </Button>
+
+        {/* Delete Button */}
+        <Button
+          type="button"
+          variant="destructive"
+          size="sm"
+          onClick={onRemove}
+          title="Удалить изображение"
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 export default function NewProductPage() {
@@ -242,6 +418,44 @@ export default function NewProductPage() {
       images: prev.images.filter((_, i) => i !== index),
     }));
   };
+
+  const moveImage = (fromIndex: number, toIndex: number) => {
+    if (toIndex < 0 || toIndex >= formData.images.length) return;
+    
+    setFormData(prev => {
+      const newImages = [...prev.images];
+      const [moved] = newImages.splice(fromIndex, 1);
+      newImages.splice(toIndex, 0, moved);
+      return {
+        ...prev,
+        images: newImages,
+      };
+    });
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (over && active.id !== over.id) {
+      setFormData(prev => {
+        const oldIndex = prev.images.findIndex((_, i) => i.toString() === active.id);
+        const newIndex = prev.images.findIndex((_, i) => i.toString() === over.id);
+        
+        return {
+          ...prev,
+          images: arrayMove(prev.images, oldIndex, newIndex),
+        };
+      });
+    }
+  };
+
+  // Настройка сенсоров для drag-and-drop
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const updateImage = (index: number, field: 'url' | 'alt', value: string) => {
     setFormData(prev => ({
@@ -904,72 +1118,41 @@ export default function NewProductPage() {
                 </p>
               </div>
               
-              {formData.images.map((image, index) => (
-                <div key={index} className="flex space-x-4 p-4 border rounded-lg">
-                  {image.url && (
-                    <div className="w-24 h-24 flex-shrink-0 overflow-visible flex items-center justify-center bg-white">
-                      <img 
-                        src={image.url} 
-                        alt={image.alt || `Preview ${index + 1}`}
-                        className="max-w-full max-h-full w-auto h-auto"
-                        style={{ objectFit: 'contain' }}
-                      />
+              {formData.images.length === 0 ? (
+                <p className="text-sm text-gray-500 text-center py-8">
+                  Нет изображений. Загрузите изображения выше или добавьте вручную.
+                </p>
+              ) : (
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext
+                    items={formData.images.map((_, i) => i.toString())}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    <div className="space-y-3">
+                      {formData.images.map((image, index) => (
+                        <SortableImageItem
+                          key={index}
+                          image={image}
+                          index={index}
+                          total={formData.images.length}
+                          onUpdate={(field, value) => updateImage(index, field, value)}
+                          onRemove={() => removeImage(index)}
+                          onSetPrimary={() => setPrimaryImage(index)}
+                          onMove={(direction) => {
+                            const newIndex = direction === 'up' ? index - 1 : index + 1;
+                            moveImage(index, newIndex);
+                          }}
+                          onFileUpload={(file) => handleImageFileUpload(index, file)}
+                        />
+                      ))}
                     </div>
-                  )}
-                  <div className="flex-1 space-y-2">
-                    <div>
-                      <Label>Загрузить с устройства</Label>
-                      <Input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            handleImageFileUpload(index, file);
-                          }
-                        }}
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <Label>Или URL изображения</Label>
-                      <Input
-                        value={image.url}
-                        onChange={(e) => updateImage(index, 'url', e.target.value)}
-                        placeholder="https://example.com/image.jpg"
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <Label>Alt текст</Label>
-                      <Input
-                        value={image.alt}
-                        onChange={(e) => updateImage(index, 'alt', e.target.value)}
-                        placeholder="Описание изображения"
-                        className="mt-1"
-                      />
-                    </div>
-                  </div>
-                  <div className="flex flex-col space-y-2">
-                    <Button
-                      type="button"
-                      variant={image.isPrimary ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setPrimaryImage(index)}
-                    >
-                      {image.isPrimary ? "Основное" : "Сделать основным"}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => removeImage(index)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                  </SortableContext>
+                </DndContext>
+              )}
 
               <Button
                 type="button"
