@@ -190,26 +190,48 @@ export default function NewProductPage() {
     if (!files || files.length === 0) return;
     
     const fileArray = Array.from(files);
-    fileArray.forEach((file, index) => {
-      const reader = new FileReader();
+    
+    // Получаем текущее состояние для определения основного изображения
+    setFormData(prev => {
+      const existingImagesCount = prev.images.length;
+      const hasExistingPrimary = prev.images.some(img => img.isPrimary);
       
-      reader.onload = (e) => {
-        const imageUrl = e.target?.result as string;
-        setFormData(prev => {
-          const existingImagesCount = prev.images.length;
-          const newImage = {
-            url: imageUrl,
-            alt: file.name,
-            isPrimary: existingImagesCount === 0 && index === 0,
-            file: file,
+      // Читаем все файлы параллельно
+      const readPromises = fileArray.map((file, index) => {
+        return new Promise<{ url: string; alt: string; isPrimary: boolean; file: File }>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const imageUrl = e.target?.result as string;
+            resolve({
+              url: imageUrl,
+              alt: file.name,
+              // Первое изображение из новой партии будет основным только если нет существующих изображений
+              isPrimary: !hasExistingPrimary && existingImagesCount === 0 && index === 0,
+              file: file,
+            });
           };
-          return {
-            ...prev,
-            images: [...prev.images, newImage],
+          reader.onerror = () => {
+            console.error('Error reading file:', file.name);
+            resolve({
+              url: '',
+              alt: file.name,
+              isPrimary: false,
+              file: file,
+            });
           };
+          reader.readAsDataURL(file);
         });
-      };
-      reader.readAsDataURL(file);
+      });
+      
+      // Ждем загрузки всех файлов и добавляем их все сразу
+      Promise.all(readPromises).then(newImages => {
+        setFormData(current => ({
+          ...current,
+          images: [...current.images, ...newImages.filter(img => img.url)], // Фильтруем только успешно загруженные
+        }));
+      });
+      
+      return prev; // Возвращаем предыдущее состояние, изменения применятся асинхронно через Promise.all
     });
   };
 
@@ -855,16 +877,22 @@ export default function NewProductPage() {
               <CardDescription>Загрузите фотографии товара с устройства или укажите URL</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="mb-4">
-                <Label>Выбрать несколько изображений</Label>
+              <div className="mb-4 p-4 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
+                <Label className="text-base font-semibold mb-2 block">Загрузить несколько изображений</Label>
                 <Input
                   type="file"
                   accept="image/*"
                   multiple
-                  onChange={(e) => handleMultipleImageUpload(e.target.files)}
-                  className="mt-1"
+                  onChange={(e) => {
+                    handleMultipleImageUpload(e.target.files);
+                    // Сбрасываем значение input, чтобы можно было загрузить те же файлы снова
+                    e.target.value = '';
+                  }}
+                  className="mt-1 cursor-pointer"
                 />
-                <p className="text-sm text-gray-500 mt-1">Можно выбрать несколько файлов одновременно (Ctrl/Cmd + клик)</p>
+                <p className="text-sm text-gray-600 mt-2">
+                  💡 Можно выбрать несколько файлов одновременно: удерживайте <kbd className="px-1 py-0.5 bg-white border border-gray-300 rounded text-xs">Ctrl</kbd> (Windows) или <kbd className="px-1 py-0.5 bg-white border border-gray-300 rounded text-xs">Cmd</kbd> (Mac) и кликайте по файлам
+                </p>
               </div>
               
               {formData.images.map((image, index) => (
