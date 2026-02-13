@@ -8,6 +8,23 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { getImageUrl } from '@/lib/image-url';
 
+// Нормализует изображение из корзины (может быть строкой или объектом)
+function normalizeCartImage(image: string | { url?: string } | undefined): string {
+  if (!image) {
+    return '/placeholder-product.jpg';
+  }
+  
+  if (typeof image === 'string') {
+    return image;
+  }
+  
+  if (typeof image === 'object' && image.url) {
+    return image.url;
+  }
+  
+  return '/placeholder-product.jpg';
+}
+
 export default function CartPage() {
   const { items, removeItem, updateQuantity, totalPrice, totalItems } = useCart();
 
