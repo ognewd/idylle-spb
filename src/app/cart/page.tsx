@@ -47,11 +47,15 @@ export default function CartPage() {
                     {/* Product Image */}
                     <div className="relative w-24 h-24 flex-shrink-0 bg-muted rounded-lg overflow-hidden">
                       <Image
-                        src={getImageUrl(item.image)}
+                        src={getImageUrl(normalizeCartImage(item.image))}
                         alt={item.name}
                         fill
                         className="object-cover"
                         loading="lazy"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.src = '/placeholder-product.jpg';
+                        }}
                       />
                     </div>
 

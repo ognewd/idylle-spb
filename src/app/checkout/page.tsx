@@ -1084,11 +1084,21 @@ Email: info@idylle.spb.ru
                       <div key={item.id} className="flex gap-3">
                         <div className="relative w-16 h-16 flex-shrink-0 bg-muted rounded-md overflow-hidden">
                           <Image
-                            src={getImageUrl(item.image)}
+                            src={getImageUrl(
+                              typeof item.image === 'string' 
+                                ? item.image 
+                                : (typeof item.image === 'object' && item.image?.url)
+                                  ? item.image.url
+                                  : '/placeholder-product.jpg'
+                            )}
                             alt={item.name}
                             fill
                             className="object-cover"
                             loading="lazy"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.src = '/placeholder-product.jpg';
+                            }}
                           />
                         </div>
                         <div className="flex-1 min-w-0">

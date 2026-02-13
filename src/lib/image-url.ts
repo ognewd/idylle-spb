@@ -32,8 +32,17 @@ export function getImageUrl(
       return `${imageBase.replace(/\/$/, '')}${cleanUrl}`;
     }
     
-    // На клиенте возвращаем относительный путь - браузер сам добавит origin
+    // На клиенте: для продакшена формируем полный URL, для dev - относительный
     if (typeof window !== 'undefined') {
+      const isProduction = process.env.NODE_ENV === 'production';
+      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      
+      // В продакшене всегда формируем полный URL для надежности
+      if (isProduction && !isLocalhost) {
+        return `${window.location.origin}${cleanUrl}`;
+      }
+      
+      // В dev режиме возвращаем относительный путь
       return cleanUrl;
     }
     
@@ -48,10 +57,18 @@ export function getImageUrl(
         // Для localhost/dev всегда формируем полный URL
         return `${options.baseUrl.replace(/\/$/, '')}${cleanUrl}`;
       }
+      
+      // В продакшене тоже формируем полный URL для надежности
+      return `${options.baseUrl.replace(/\/$/, '')}${cleanUrl}`;
     }
     
-    // На проде (без baseUrl или с production baseUrl) возвращаем относительный путь
-    // Nginx раздаст файлы напрямую
+    // На сервере без baseUrl: в продакшене используем NEXT_PUBLIC_BASE_URL
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+    if (baseUrl && process.env.NODE_ENV === 'production') {
+      return `${baseUrl.replace(/\/$/, '')}${cleanUrl}`;
+    }
+    
+    // Fallback: возвращаем относительный путь
     return cleanUrl;
   }
 

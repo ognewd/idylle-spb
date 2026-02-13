@@ -128,12 +128,24 @@ export function ProductInfo({ product, className }: ProductInfoProps) {
 
   const handleAddToCart = () => {
     const weightGrams = product.weight != null ? Math.round(Number(product.weight)) : undefined;
+    
+    // Нормализуем изображение - всегда сохраняем как строку
+    let imageUrl = '/placeholder-product.jpg';
+    if (product.images && product.images.length > 0) {
+      const firstImage = product.images[0];
+      if (typeof firstImage === 'string') {
+        imageUrl = firstImage;
+      } else if (firstImage?.url) {
+        imageUrl = firstImage.url;
+      }
+    }
+    
     const cartItem = {
       id: selectedVariant ? `${product.id}-${selectedVariant.id}` : product.id,
       productId: product.id,
       name: `${product.name}${selectedVariant ? ` - ${selectedVariant.value}` : ''}`,
       price: finalPrice,
-      image: product.images?.[0]?.url || '/placeholder-product.jpg',
+      image: imageUrl,
       weight: weightGrams,
       variant: selectedVariant ? {
         id: selectedVariant.id,
@@ -436,7 +448,17 @@ export function ProductInfo({ product, className }: ProductInfoProps) {
                         productId: product.id,
                         name: `${product.name} - ${variant.value}`,
                         price: variant.price,
-                        image: product.images?.[0]?.url || '/placeholder-product.jpg',
+                        image: (() => {
+                          if (product.images && product.images.length > 0) {
+                            const firstImage = product.images[0];
+                            if (typeof firstImage === 'string') {
+                              return firstImage;
+                            } else if (firstImage?.url) {
+                              return firstImage.url;
+                            }
+                          }
+                          return '/placeholder-product.jpg';
+                        })(),
                         weight: weightGrams,
                         variant: {
                           id: variant.id,
