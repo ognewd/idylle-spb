@@ -88,9 +88,16 @@ function CatalogContent() {
         
         // Build query string from search params
         const queryParams = new URLSearchParams();
-        searchParams.forEach((value, key) => {
-          queryParams.append(key, value);
-        });
+        if (searchParams) {
+          try {
+            searchParams.forEach((value, key) => {
+              queryParams.append(key, value);
+            });
+          } catch (e) {
+            // Если searchParams.forEach вызывает ошибку, просто продолжаем без параметров
+            console.warn('Error iterating searchParams:', e);
+          }
+        }
 
         // Fetch products
         const productsResponse = await fetch(`/api/products?${queryParams.toString()}`);
@@ -214,9 +221,15 @@ function CatalogContent() {
       
       // Build query string from search params
       const queryParams = new URLSearchParams();
-      searchParams.forEach((value, key) => {
-        queryParams.append(key, value);
-      });
+      if (searchParams) {
+        try {
+          searchParams.forEach((value, key) => {
+            queryParams.append(key, value);
+          });
+        } catch (e) {
+          console.warn('Error iterating searchParams in loadMore:', e);
+        }
+      }
       queryParams.set('page', nextPage.toString());
 
       const response = await fetch(`/api/products?${queryParams.toString()}`);
@@ -280,7 +293,13 @@ function CatalogContent() {
 
   // Load category content when category is selected
   useEffect(() => {
-    const categorySlug = searchParams.get('category');
+    let categorySlug: string | null = null;
+    try {
+      categorySlug = searchParams?.get('category') || null;
+    } catch (e) {
+      console.warn('Error getting category from searchParams:', e);
+    }
+    
     if (categorySlug) {
       // Добавляем timestamp для предотвращения кэширования
       const timestamp = Date.now();
@@ -393,7 +412,7 @@ function CatalogContent() {
           {/* Правая колонка — сортировка + сетка товаров */}
           <main className="flex-1 min-w-0 flex flex-col">
             <SortSelector 
-              currentSort={searchParams.get('sort') || 'newest'}
+              currentSort={(searchParams?.get('sort') || 'newest') as 'newest' | 'price-asc' | 'price-desc' | 'name-asc' | 'name-desc'}
               totalProducts={pagination.total}
               viewMode={viewMode}
               onViewModeChange={setViewMode}
@@ -415,7 +434,14 @@ function CatalogContent() {
               <ProductGrid
                 products={products}
                 pagination={pagination}
-                searchParams={Object.fromEntries(searchParams.entries())}
+                searchParams={(() => {
+                  try {
+                    return searchParams ? Object.fromEntries(searchParams.entries()) : {};
+                  } catch (e) {
+                    console.warn('Error converting searchParams to object:', e);
+                    return {};
+                  }
+                })()}
                 viewMode={viewMode}
                 loadingMore={loadingMore}
                 hasMore={pagination.page < pagination.totalPages}
