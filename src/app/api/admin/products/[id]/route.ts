@@ -290,3 +290,96 @@ export async function PUT(
     );
   }
 }
+
+// DELETE /api/admin/products/[id] - Удалить товар
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> | { id: string } }
+) {
+  try {
+    // Поддержка как синхронных, так и асинхронных params (Next.js 15+)
+    const resolvedParams = await Promise.resolve(params);
+    const productId = resolvedParams.id;
+    
+    const authHeader = request.headers.get('authorization') || request.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const token = authHeader.substring(7);
+    const secret = getJwtSecret();
+    if (!secret) return NextResponse.json({ error: 'Unauthorized' }, { status: 500 });
+    
+    try {
+      const decoded = jwt.verify(token, secret) as any;
+
+      const user = await prisma.user.findUnique({
+        where: { id: decoded.userId },
+      });
+
+      if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+    } catch (jwtError) {
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    }
+
+    // Проверяем существование товара
+    const existingProduct = await prisma.product.findUnique({
+      where: { id: productId },
+    });
+
+    if (!existingProduct) {
+      return NextResponse.json(
+        { error: 'Product not found' },
+        { status: 404 }
+      );
+    }
+
+    // Удаляем связанные записи перед удалением товара
+    // Это необходимо для избежания проблем с foreign key constraints
+    await prisma.productCategory.deleteMany({
+      where: { productId: productId },
+    });
+    
+    await prisma.productImage.deleteMany({
+      where: { productId: productId },
+    });
+    
+    await prisma.productVariant.deleteMany({
+      where: { productId: productId },
+    });
+    
+    await prisma.orderItem.deleteMany({
+      where: { productId: productId },
+    });
+    
+    await prisma.wishlistItem.deleteMany({
+      where: { productId: productId },
+    });
+    
+    await prisma.review.deleteMany({
+      where: { productId: productId },
+    });
+    
+    await prisma.seasonalDiscountProduct.deleteMany({
+      where: { productId: productId },
+    });
+
+    // Удаляем сам товар
+    await prisma.product.delete({
+      where: { id: productId },
+    });
+
+    return NextResponse.json({ 
+      success: true,
+      message: 'Product deleted successfully' 
+    });
+  } catch (error: any) {
+    console.error('Product DELETE error:', error instanceof Error ? error.message : 'Unknown');
+    return NextResponse.json(
+      { error: 'Internal server error', details: error.message },
+      { status: 500 }
+    );
+  }
+}

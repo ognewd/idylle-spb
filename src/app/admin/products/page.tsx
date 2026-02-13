@@ -187,24 +187,39 @@ export default function AdminProductsPage() {
   };
 
   const deleteProduct = async (productId: string) => {
-    if (!confirm('Вы уверены, что хотите удалить этот товар?')) {
+    if (!confirm('Вы уверены, что хотите удалить этот товар? Это действие нельзя отменить.')) {
       return;
     }
 
     try {
       const token = localStorage.getItem('admin_token');
+      if (!token) {
+        alert('Ошибка: токен авторизации отсутствует. Пожалуйста, войдите снова.');
+        router.push('/admin/login');
+        return;
+      }
+
       const response = await fetch(`/api/admin/products/${productId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
       });
 
+      const data = await response.json();
+
       if (response.ok) {
+        // Удаляем товар из списка
         setProducts(products.filter(p => p.id !== productId));
+        alert('Товар успешно удален');
+      } else {
+        console.error('Delete error:', data);
+        alert(`Ошибка при удалении товара: ${data.error || 'Неизвестная ошибка'}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting product:', error);
+      alert(`Ошибка при удалении товара: ${error.message || 'Неизвестная ошибка'}`);
     }
   };
 
