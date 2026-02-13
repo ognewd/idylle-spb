@@ -1,81 +1,442 @@
-import { Metadata } from 'next';
+'use client';
 
-export const metadata: Metadata = {
-  title: 'Дилерам | Aroma Idylle',
-  description: 'Станьте нашим партнером',
-};
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { Download, Mail, CheckCircle2, TrendingUp, Users, Shield, FileText, UserCheck, Target } from 'lucide-react';
 
 export default function DealersPage() {
+  const [activeTab, setActiveTab] = useState<'partners' | 'dealers'>('partners');
+
+  useEffect(() => {
+    // Устанавливаем метаданные страницы
+    document.title = 'Сотрудничество | AROMARUSSIA';
+    const metaDescription = document.querySelector('meta[name="description"]');
+    if (metaDescription) {
+      metaDescription.setAttribute('content', 'Партнерство с брендами и дилерами. Станьте частью AROMARUSSIA');
+    }
+
+    // Определяем активную вкладку на основе хэша URL
+    const hash = window.location.hash;
+    if (hash === '#dealers') {
+      setActiveTab('dealers');
+    } else {
+      setActiveTab('partners');
+    }
+
+    // Обработчик изменения хэша при прокрутке
+    const handleHashChange = () => {
+      const currentHash = window.location.hash;
+      if (currentHash === '#dealers') {
+        setActiveTab('dealers');
+      } else {
+        setActiveTab('partners');
+      }
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  const handleTabClick = (tab: 'partners' | 'dealers', e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    setActiveTab(tab);
+    const element = document.getElementById(tab);
+    if (element) {
+      const offset = 100; // Отступ от верха
+      const elementPosition = element.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.pageYOffset - offset;
+
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth'
+      });
+      
+      // Обновляем хэш без прокрутки
+      setTimeout(() => {
+        window.history.pushState(null, '', `#${tab}`);
+      }, 100);
+    }
+  };
+
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-gray-50">
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white">
-        <div className="container mx-auto px-4 py-20">
-          <div className="mb-4">
-            <h1 className="text-4xl font-bold">Сотрудничество с дилерами</h1>
-          </div>
-          <p className="text-xl opacity-90 max-w-2xl">
-            Присоединяйтесь к нашей сети партнеров и развивайте свой бизнес
+      <div className="bg-gradient-to-br from-[#1a1a1a] via-[#2d2d2d] to-[#1a1a1a] text-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+          <h1 className="text-4xl md:text-5xl font-bold mb-4">Сотрудничество</h1>
+          <p className="text-xl md:text-2xl opacity-90 max-w-3xl">
+            Два направления партнерства для развития бизнеса в сфере премиальных ароматов
           </p>
         </div>
       </div>
 
-      {/* Benefits */}
-      <div className="container mx-auto px-4 py-16">
-        <h2 className="text-3xl font-bold text-center mb-12">Преимущества сотрудничества</h2>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
-          <div className="text-center">
-            <div className="bg-blue-100 rounded-full p-4 w-16 h-16 flex items-center justify-center mx-auto mb-4">
-              <span className="text-2xl">📈</span>
-            </div>
-            <h3 className="text-xl font-semibold mb-2">Выгодные условия</h3>
-            <p className="text-muted-foreground">
-              Специальные цены для партнеров и гибкие условия оплаты
-            </p>
-          </div>
-          
-          <div className="text-center">
-            <div className="bg-green-100 rounded-full p-4 w-16 h-16 flex items-center justify-center mx-auto mb-4">
-              <span className="text-2xl">🏪</span>
-            </div>
-            <h3 className="text-xl font-semibold mb-2">Маркетинговая поддержка</h3>
-            <p className="text-muted-foreground">
-              Предоставляем рекламные материалы и маркетинговую поддержку
-            </p>
-          </div>
-          
-          <div className="text-center">
-            <div className="bg-purple-100 rounded-full p-4 w-16 h-16 flex items-center justify-center mx-auto mb-4">
-              <span className="text-2xl">👥</span>
-            </div>
-            <h3 className="text-xl font-semibold mb-2">Обучение</h3>
-            <p className="text-muted-foreground">
-              Тренинги для вашей команды и консультации от наших экспертов
-            </p>
-          </div>
-          
-          <div className="text-center">
-            <div className="bg-orange-100 rounded-full p-4 w-16 h-16 flex items-center justify-center mx-auto mb-4">
-              <span className="text-2xl">🤝</span>
-            </div>
-            <h3 className="text-xl font-semibold mb-2">Долгосрочное партнерство</h3>
-            <p className="text-muted-foreground">
-              Выстраиваем долгосрочные отношения с нашими партнерами
-            </p>
-          </div>
+      {/* Navigation Tabs */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8">
+        <div className="bg-white rounded-lg shadow-lg p-1 flex gap-2">
+          <a
+            href="#partners"
+            onClick={(e) => handleTabClick('partners', e)}
+            className={`flex-1 text-center py-3 px-4 rounded-md font-medium transition-colors ${
+              activeTab === 'partners'
+                ? 'bg-[#D4830F] text-white'
+                : 'text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            Партнерам
+          </a>
+          <a
+            href="#dealers"
+            onClick={(e) => handleTabClick('dealers', e)}
+            className={`flex-1 text-center py-3 px-4 rounded-md font-medium transition-colors ${
+              activeTab === 'dealers'
+                ? 'bg-[#D4830F] text-white'
+                : 'text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            Дилерам
+          </a>
         </div>
+      </div>
 
-        {/* CTA */}
-        <div className="bg-muted rounded-lg p-8 text-center">
-          <h2 className="text-2xl font-bold mb-4">Станьте нашим партнером</h2>
-          <p className="text-lg text-muted-foreground mb-6">
-            Заполните форму, и мы свяжемся с вами для обсуждения условий сотрудничества
-          </p>
-          <div className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-semibold transition-colors inline-block cursor-pointer">
-            Оставить заявку
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        {/* Раздел: Партнерам */}
+        <section id="partners" className="mb-20 scroll-mt-8">
+          <div className="mb-8">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              Партнерам
+            </h2>
+            <p className="text-lg text-gray-600">
+              Брендам и поставщикам
+            </p>
           </div>
-        </div>
+
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle className="text-2xl">Станьте частью AROMARUSSIA</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <p className="text-gray-700 leading-relaxed">
+                <strong>AROMARUSSIA</strong> — это современная платформа премиальных ароматов для дома и решений в сфере бизнес-ароматизации. Мы формируем культуру интерьерной парфюмерии в России, объединяя сильные бренды, качественный сервис и профессиональный подход к продвижению.
+              </p>
+              <p className="text-gray-700 leading-relaxed">
+                Мы открыты к сотрудничеству с производителями и официальными дистрибьюторами ароматов для дома, парфюмерии, интерьерных решений и сопутствующих аксессуаров.
+              </p>
+              <p className="text-gray-700 leading-relaxed">
+                Наша цель — создавать устойчивые партнерства и развивать бренды на российском рынке в долгосрочной перспективе.
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Что получает партнер */}
+          <div className="mb-8">
+            <h3 className="text-2xl font-bold text-gray-900 mb-6">Что получает партнер</h3>
+            
+            <div className="grid md:grid-cols-2 gap-6 mb-8">
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center gap-3 mb-2">
+                    <TrendingUp className="h-6 w-6 text-[#D4830F]" />
+                    <CardTitle className="text-xl">Профессиональное продвижение</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-700 mb-4">
+                    Мы инвестируем в маркетинг, контент и развитие бренда внутри нашей экосистемы:
+                  </p>
+                  <ul className="space-y-2 text-gray-700">
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                      <span>качественные карточки товаров и экспертные описания</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                      <span>рекламные кампании</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                      <span>продвижение в digital-каналах</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                      <span>работа с постоянной аудиторией премиум-сегмента</span>
+                    </li>
+                  </ul>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center gap-3 mb-2">
+                    <Users className="h-6 w-6 text-[#D4830F]" />
+                    <CardTitle className="text-xl">Выход на рынок России</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-700">
+                    Мы обеспечиваем доступ к клиентам по всей территории РФ — от крупных городов до удаленных регионов. Интернет-формат позволяет представить продукцию максимально широкой аудитории.
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center gap-3 mb-2">
+                    <Shield className="h-6 w-6 text-[#D4830F]" />
+                    <CardTitle className="text-xl">Репутация и доверие</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-700">
+                    Мы работаем только с оригинальной продукцией и тщательно контролируем качество. Высокий уровень сервиса, прозрачная логистика и поддержка клиентов формируют устойчивую лояльность к представленным брендам.
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center gap-3 mb-2">
+                    <FileText className="h-6 w-6 text-[#D4830F]" />
+                    <CardTitle className="text-xl">Прозрачность сотрудничества</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-700">
+                    Четкие договоренности, соблюдение финансовых обязательств и уважение к партнеру — основа нашей работы. Нас интересует стратегическое, взаимовыгодное сотрудничество.
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          {/* Требования */}
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle className="text-2xl">Требования к рассмотрению предложения</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-3 text-gray-700">
+                <li className="flex items-start gap-2">
+                  <span className="text-[#D4830F] font-bold">—</span>
+                  <span>Продукция должна быть оригинальной и сертифицированной</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#D4830F] font-bold">—</span>
+                  <span>Необходимо предоставить информацию о бренде, прайс-листы и официальный сайт</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#D4830F] font-bold">—</span>
+                  <span>Указать статус компании в РФ: представительство, дистрибьютор, эксклюзивный дистрибьютор</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#D4830F] font-bold">—</span>
+                  <span>Контактные данные для связи</span>
+                </li>
+              </ul>
+              <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <p className="text-gray-700 mb-3">
+                  Скачайте и заполните прилагаемую заявку. Заполненный файл высылайте на наш e-mail: <a href="mailto:office@aromarussia.ru" className="text-[#D4830F] font-semibold hover:underline">office@aromarussia.ru</a>
+                </p>
+                <a 
+                  href="/Partner.xls" 
+                  download 
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#D4830F] hover:bg-[#b8700d] text-white rounded-md font-medium transition-colors"
+                >
+                  <Download className="h-4 w-4" />
+                  Скачать бланк заявки (Excel)
+                </a>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+
+        <Separator className="my-16" />
+
+        {/* Раздел: Дилерам */}
+        <section id="dealers" className="scroll-mt-8">
+          <div className="mb-8">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              Дилерам и оптовым партнерам
+            </h2>
+            <p className="text-lg text-gray-600">
+              B2B, онлайн-заказ, договор
+            </p>
+          </div>
+
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle className="text-2xl">Сотрудничество в сфере премиальных ароматов</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-gray-700 leading-relaxed">
+                <strong>AROMARUSSIA</strong> предлагает профессиональные решения для:
+              </p>
+              <ul className="space-y-2 text-gray-700 ml-4">
+                <li className="flex items-start gap-2">
+                  <span className="text-[#D4830F] font-bold">—</span>
+                  <span>интерьерной парфюмерии</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#D4830F] font-bold">—</span>
+                  <span>премиальных ароматов для дома</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#D4830F] font-bold">—</span>
+                  <span>ароматизации бизнеса (отели, банки, салоны, офисы, бутики, девелопмент)</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#D4830F] font-bold">—</span>
+                  <span>интерьерных аксессуаров для дома и подарочных решений</span>
+                </li>
+              </ul>
+              <p className="text-gray-700 leading-relaxed font-medium mt-4">
+                Мы создаем не просто продукт, а атмосферу, которая усиливает ценность пространства.
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Почему с нами выгодно работать */}
+          <div className="mb-8">
+            <h3 className="text-2xl font-bold text-gray-900 mb-6">Почему с нами выгодно работать</h3>
+            <p className="text-gray-700 mb-6">
+              Ваши клиенты ценят качество, эстетику и статус. Мы предлагаем ассортимент, который соответствует этим ожиданиям.
+            </p>
+            
+            <div className="grid md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center gap-3 mb-2">
+                    <Target className="h-6 w-6 text-[#D4830F]" />
+                    <CardTitle className="text-xl">Сильный продукт</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <ul className="space-y-2 text-gray-700">
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                      <span>премиальные композиции</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                      <span>устойчивые формулы</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                      <span>узнаваемые бренды</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                      <span>востребованность в сегменте среднего и высокого ценового уровня</span>
+                    </li>
+                  </ul>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center gap-3 mb-2">
+                    <UserCheck className="h-6 w-6 text-[#D4830F]" />
+                    <CardTitle className="text-xl">Поддержка партнера</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <ul className="space-y-2 text-gray-700">
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                      <span>маркетинговые материалы</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                      <span>консультационная поддержка</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                      <span>обучение по продукту</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                      <span>помощь в подборе ассортимента</span>
+                    </li>
+                  </ul>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          {/* Условия сотрудничества */}
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle className="text-2xl">Условия сотрудничества</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-3 text-gray-700">
+                <li className="flex items-start gap-2">
+                  <span className="text-[#D4830F] font-bold">—</span>
+                  <span>Работа по договору</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#D4830F] font-bold">—</span>
+                  <span>Онлайн-кабинет для заказов</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#D4830F] font-bold">—</span>
+                  <span>Минимальный закупочный объем обсуждается индивидуально</span>
+                </li>
+              </ul>
+              <p className="text-gray-700 mt-4">
+                Мы рассматриваем индивидуальные условия для каждого партнера.
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Потенциал прибыли */}
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle className="text-2xl">Потенциал прибыли</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-700 mb-4">
+                Мы предоставляем:
+              </p>
+              <ul className="space-y-2 text-gray-700">
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                  <span>рекомендованные розничные цены</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                  <span>оптовые цены для партнера</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                  <span>расчет маржинальности</span>
+                </li>
+              </ul>
+              <p className="text-gray-700 mt-4">
+                Это позволяет заранее оценить экономику проекта и планировать развитие.
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Как начать сотрудничество */}
+          <Card className="bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] text-white">
+            <CardHeader>
+              <CardTitle className="text-2xl text-white">Как начать сотрудничество</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-white/90 mb-6 leading-relaxed">
+                Для подключения к дилерской программе необходимо направить запрос: <a href="mailto:office@aromarussia.ru" className="text-[#D4830F] font-semibold hover:underline">office@aromarussia.ru</a> и дождаться ответа менеджера. После согласования условий предоставляется доступ к B2B-кабинету.
+              </p>
+              <a 
+                href="mailto:office@aromarussia.ru" 
+                className="inline-flex items-center justify-center gap-2 px-8 py-3 bg-[#D4830F] hover:bg-[#b8700d] text-white rounded-md font-medium transition-colors text-base"
+              >
+                <Mail className="h-5 w-5" />
+                Написать нам
+              </a>
+            </CardContent>
+          </Card>
+        </section>
       </div>
     </div>
   );

@@ -454,7 +454,7 @@ export function Header() {
             <Link href="/uyut-i-interer" className="px-4 py-2 rounded-lg text-sm font-medium text-gray-800 hover:bg-gray-100 transition-colors">Уют и интерьер</Link>
             <Link href="/vannaya-komnata" className="px-4 py-2 rounded-lg text-sm font-medium text-gray-800 hover:bg-gray-100 transition-colors">Ванная комната</Link>
             <Link href="/podarki" className="px-4 py-2 rounded-lg text-sm font-medium text-gray-800 hover:bg-gray-100 transition-colors">Подарки</Link>
-            <Link href="/dealers" className="px-4 py-2 rounded-lg text-sm font-medium text-gray-800 hover:bg-gray-100 transition-colors">Дилерам</Link>
+            <Link href="/dealers" className="px-4 py-2 rounded-lg text-sm font-medium text-gray-800 hover:bg-gray-100 transition-colors">Сотрудничество</Link>
             <Link href="/brands" className="px-4 py-2 rounded-lg text-sm font-medium text-gray-800 hover:bg-gray-100 transition-colors">Бренды</Link>
             <Link href="/sale" className="px-4 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">SALE</Link>
           </div>
@@ -484,7 +484,7 @@ export function Header() {
             <Link href="/uyut-i-interer" onClick={() => setIsMobileMenuOpen(false)} className="block py-2.5 text-gray-800 text-sm hover:underline">Уют и интерьер</Link>
             <Link href="/vannaya-komnata" onClick={() => setIsMobileMenuOpen(false)} className="block py-2.5 text-gray-800 text-sm hover:underline">Ванная комната</Link>
             <Link href="/podarki" onClick={() => setIsMobileMenuOpen(false)} className="block py-2.5 text-gray-800 text-sm hover:underline">Подарки</Link>
-            <Link href="/dealers" onClick={() => setIsMobileMenuOpen(false)} className="block py-2.5 text-gray-800 text-sm hover:underline">Дилерам</Link>
+            <Link href="/dealers" onClick={() => setIsMobileMenuOpen(false)} className="block py-2.5 text-gray-800 text-sm hover:underline">Сотрудничество</Link>
             <Link href="/brands" onClick={() => setIsMobileMenuOpen(false)} className="block py-2.5 text-gray-800 text-sm hover:underline">Бренды</Link>
             <Link href="/sale" onClick={() => setIsMobileMenuOpen(false)} className="block py-2.5 text-red-600 text-sm hover:underline">SALE</Link>
             <div className="pt-4 mt-4 border-t border-gray-100 space-y-1">
