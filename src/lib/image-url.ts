@@ -34,16 +34,15 @@ export function getImageUrl(
     
     // На клиенте: для продакшена формируем полный URL, для dev - относительный
     if (typeof window !== 'undefined') {
-      const isProduction = process.env.NODE_ENV === 'production';
       const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
       
-      // В продакшене всегда формируем полный URL для надежности
-      if (isProduction && !isLocalhost) {
-        return `${window.location.origin}${cleanUrl}`;
+      // На localhost всегда возвращаем относительный путь (работает через Next.js)
+      if (isLocalhost) {
+        return cleanUrl;
       }
       
-      // В dev режиме возвращаем относительный путь
-      return cleanUrl;
+      // В продакшене (не localhost) формируем полный URL для надежности
+      return `${window.location.origin}${cleanUrl}`;
     }
     
     // На сервере в API: если передан baseUrl (из request origin), используем его
