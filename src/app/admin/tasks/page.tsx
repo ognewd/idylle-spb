@@ -338,13 +338,19 @@ export default function AdminTasksPage() {
                         <Calendar className="h-4 w-4" />
                         <span>{formatDate(task.createdAt)}</span>
                       </div>
-                      <div>
-                        Создал: {task.createdBy.name || task.createdBy.email}
+                      <div className="flex items-center gap-1">
+                        <User className="h-4 w-4" />
+                        <span>Создал: {task.createdBy.name || task.createdBy.email}</span>
                       </div>
-                      {task.assignedTo && (
-                        <div className="flex items-center gap-1">
+                      {task.assignedTo ? (
+                        <div className="flex items-center gap-1 text-blue-600 font-medium">
                           <User className="h-4 w-4" />
                           <span>Назначено: {task.assignedTo.name || task.assignedTo.email}</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1 text-gray-400 italic">
+                          <User className="h-4 w-4" />
+                          <span>Не назначено</span>
                         </div>
                       )}
                       {task.files && task.files.length > 0 && (

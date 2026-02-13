@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -85,8 +85,8 @@ export default function AdminLoginPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@idylle.spb.ru"
-                  autoComplete="email"
+                  placeholder={isLocalhost ? "admin@example.com" : "admin@idylle.spb.ru"}
+                  autoComplete={isLocalhost ? "off" : "email"}
                   required
                 />
               </div>

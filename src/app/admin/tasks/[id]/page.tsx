@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Send, FileText, Download, Calendar, User, CheckCircle2, Clock, Circle, Edit2, Trash2, Paperclip, X, Eye, File } from 'lucide-react';
+import { ArrowLeft, Send, FileText, Download, Calendar, User, CheckCircle2, Clock, Circle, Edit2, Trash2, Paperclip, X, Eye, File, AlertCircle } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
@@ -199,6 +199,13 @@ const priorityColors = {
   someday: 'bg-gray-500',
 };
 
+interface AdminUser {
+  id: string;
+  name: string | null;
+  email: string;
+  isActive: boolean;
+}
+
 export default function TaskDetailPage() {
   const [task, setTask] = useState<Task | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -209,6 +216,10 @@ export default function TaskDetailPage() {
   const [currentUser, setCurrentUser] = useState<{ id: string; name: string | null; email: string } | null>(null);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editMessageText, setEditMessageText] = useState('');
+  const [admins, setAdmins] = useState<AdminUser[]>([]);
+  const [isLoadingAdmins, setIsLoadingAdmins] = useState(false);
+  const [selectedAssigneeEmail, setSelectedAssigneeEmail] = useState<string>('');
+  const [isUpdatingAssignee, setIsUpdatingAssignee] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const isInitialLoadRef = useRef(true);
@@ -252,6 +263,7 @@ export default function TaskDetailPage() {
       });
     
     loadTask();
+    loadAdmins();
     
     // Обновляем задачу каждые 5 секунд для получения новых сообщений
     const interval = setInterval(() => {
@@ -260,6 +272,66 @@ export default function TaskDetailPage() {
 
     return () => clearInterval(interval);
   }, [router, taskId]);
+
+  const loadAdmins = async () => {
+    try {
+      setIsLoadingAdmins(true);
+      const token = localStorage.getItem('admin_token');
+      if (!token) return;
+
+      const response = await fetch('/api/admin/admins', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.admins) {
+          setAdmins(data.admins.filter((admin: AdminUser) => admin.isActive));
+        }
+      }
+    } catch (error) {
+      console.error('Error loading admins:', error);
+    } finally {
+      setIsLoadingAdmins(false);
+    }
+  };
+
+  const handleAssignTask = async (email: string | null) => {
+    if (isUpdatingAssignee) return;
+    
+    setIsUpdatingAssignee(true);
+    try {
+      const token = localStorage.getItem('admin_token');
+      if (!token) {
+        alert('Вы не авторизованы.');
+        return;
+      }
+
+      const response = await fetch(`/api/admin/tasks/${taskId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ assignedToEmail: email || null }),
+      });
+
+      if (response.ok) {
+        await loadTask();
+        setSelectedAssigneeEmail(email || '');
+      } else {
+        const errorData = await response.json();
+        alert(`Ошибка: ${errorData.error || 'Неизвестная ошибка'}`);
+      }
+    } catch (error) {
+      console.error('Error assigning task:', error);
+      alert('Ошибка при назначении задачи.');
+    } finally {
+      setIsUpdatingAssignee(false);
+    }
+  };
 
   // Проверяем, находится ли пользователь внизу чата
   const isNearBottom = () => {
@@ -307,6 +379,7 @@ export default function TaskDetailPage() {
         const data = await response.json();
         setTask(data);
         setStatus(data.status);
+        setSelectedAssigneeEmail(data.assignedTo?.email || '');
       } else {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         console.error('Failed to load task:', errorData);
@@ -613,12 +686,10 @@ export default function TaskDetailPage() {
                   <Badge variant="outline" className={priorityColors[task.priority]}>
                     {priorityLabels[task.priority]}
                   </Badge>
-                  {task.assignedTo && (
-                    <Badge variant="outline" className="bg-gray-100">
-                      <User className="h-3 w-3 mr-1" />
-                      Назначено: {task.assignedTo.name || task.assignedTo.email}
-                    </Badge>
-                  )}
+                  <Badge variant="outline" className={task.assignedTo ? "bg-blue-50 text-blue-700 border-blue-200" : "bg-gray-50 text-gray-500 border-gray-200"}>
+                    <User className="h-3 w-3 mr-1" />
+                    {task.assignedTo ? `Назначено: ${task.assignedTo.name || task.assignedTo.email}` : "Не назначено"}
+                  </Badge>
                 </div>
               </div>
             </div>
@@ -872,6 +943,64 @@ export default function TaskDetailPage() {
                   <p className="font-medium">
                     {task.createdBy.name || task.createdBy.email}
                   </p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Назначено на</Label>
+                  <div className="mt-2 space-y-2">
+                    {task.assignedTo ? (
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4 text-blue-600" />
+                        <p className="font-medium text-blue-600 flex-1">
+                          {task.assignedTo.name || task.assignedTo.email}
+                        </p>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleAssignTask(null)}
+                          disabled={isUpdatingAssignee}
+                          className="h-6 px-2 text-xs"
+                          title="Снять назначение"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="font-medium text-gray-400 italic text-sm mb-2">Не назначено</p>
+                    )}
+                    <Select
+                      value={selectedAssigneeEmail || undefined}
+                      onValueChange={(value) => {
+                        setSelectedAssigneeEmail(value);
+                        handleAssignTask(value);
+                      }}
+                      disabled={isUpdatingAssignee || isLoadingAdmins}
+                    >
+                      <SelectTrigger className="h-8 text-sm">
+                        <SelectValue placeholder={task.assignedTo ? "Изменить назначение" : "Назначить на..."} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {admins.map((admin) => (
+                          <SelectItem key={admin.id} value={admin.email}>
+                            {admin.name || admin.email}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {task.assignedTo && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleAssignTask(null)}
+                        disabled={isUpdatingAssignee}
+                        className="w-full mt-2 h-8 text-xs"
+                      >
+                        <X className="h-3 w-3 mr-1" />
+                        Снять назначение
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <Label className="text-xs text-muted-foreground">Дата создания</Label>

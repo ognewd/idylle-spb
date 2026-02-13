@@ -95,7 +95,28 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { title, description, status, priority } = body;
+    const { title, description, status, priority, assignedToEmail } = body;
+
+    // Если передан assignedToEmail, находим пользователя
+    let assignedToId: string | null | undefined = undefined;
+    if (assignedToEmail !== undefined) {
+      if (assignedToEmail === null || assignedToEmail === '') {
+        assignedToId = null; // Снять назначение
+      } else {
+        const assignedUser = await prisma.user.findUnique({
+          where: { email: assignedToEmail },
+          select: { id: true },
+        });
+        if (assignedUser) {
+          assignedToId = assignedUser.id;
+        } else {
+          return NextResponse.json(
+            { error: `Пользователь с email ${assignedToEmail} не найден` },
+            { status: 404 }
+          );
+        }
+      }
+    }
 
     const updatedTask = await prisma.task.update({
       where: { id: params.id },
@@ -104,6 +125,7 @@ export async function PUT(
         ...(description !== undefined && { description: description || null }),
         ...(status && { status }),
         ...(priority && { priority }),
+        ...(assignedToId !== undefined && { assignedToId }),
       },
       include: {
         createdBy: {
