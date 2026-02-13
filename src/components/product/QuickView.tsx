@@ -7,9 +7,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Heart, ShoppingCart, Star, X, Minus, Plus } from 'lucide-react';
+import { Heart, ShoppingCart, Star, X, Minus, Plus, ZoomIn } from 'lucide-react';
 import { cn, getReviewWord } from '@/lib/utils';
 import { useCart } from '@/contexts/CartContext';
+import { getImageUrl } from '@/lib/image-url';
+import { ImageLightbox } from './ImageLightbox';
 
 interface ProductVariant {
   id: string;
@@ -36,7 +38,8 @@ interface QuickViewProduct {
   images: Array<{
     url: string;
     alt?: string;
-  }>;
+    isPrimary?: boolean;
+  }> | string[];
   brand: {
     name: string;
     slug: string;
@@ -65,15 +68,78 @@ export function QuickView({ product, isOpen, onClose, onAddToCart }: QuickViewPr
   const [quantity, setQuantity] = useState(1);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+
+  // Блокируем прокрутку только если открыт QuickView (но не lightbox)
+  useEffect(() => {
+    if (isOpen && !isLightboxOpen) {
+      // Сохраняем текущую позицию прокрутки
+      const scrollY = window.scrollY;
+      
+      // Блокируем прокрутку на body
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+      document.body.style.overflow = 'hidden';
+      document.body.style.height = '100vh';
+      
+      // Блокируем прокрутку на html
+      document.documentElement.style.overflow = 'hidden';
+      document.documentElement.style.height = '100vh';
+    } else if (!isOpen && !isLightboxOpen) {
+      // Восстанавливаем прокрутку
+      const scrollY = document.body.style.top;
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.width = '';
+      document.body.style.overflow = '';
+      document.body.style.height = '';
+      document.documentElement.style.overflow = '';
+      document.documentElement.style.height = '';
+      
+      if (scrollY) {
+        window.scrollTo(0, parseInt(scrollY || '0') * -1);
+      }
+    }
+
+    return () => {
+      if (!isLightboxOpen) {
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        document.body.style.overflow = '';
+        document.body.style.height = '';
+        document.documentElement.style.overflow = '';
+        document.documentElement.style.height = '';
+      }
+    };
+  }, [isOpen, isLightboxOpen]);
 
   useEffect(() => {
     if (product?.variants && product.variants.length > 0) {
       const sorted = [...product.variants].sort((a, b) => a.price - b.price);
       setSelectedVariant(sorted[0]);
     }
+    // Сбрасываем индекс изображения при открытии нового товара
+    setCurrentImageIndex(0);
+    setQuantity(1);
   }, [product]);
 
   if (!product) return null;
+
+  // Нормализуем изображения: преобразуем строки в объекты с url
+  const normalizedImages = product.images 
+    ? product.images.map((img: any) => {
+        let url: string;
+        if (typeof img === 'string') {
+          url = img;
+        } else {
+          url = img.url || img;
+        }
+        // Используем getImageUrl для правильной обработки путей
+        return { url: getImageUrl(url), alt: (typeof img === 'object' ? img.alt : undefined) || product.name };
+      })
+    : [];
 
   const currentPrice = selectedVariant ? selectedVariant.price : product.price;
   const currentComparePrice = selectedVariant ? selectedVariant.comparePrice : product.comparePrice;
@@ -87,8 +153,8 @@ export function QuickView({ product, isOpen, onClose, onAddToCart }: QuickViewPr
     : 0;
 
   const handleAddToCart = () => {
-    const imageUrl = product.images && product.images.length > 0
-      ? product.images[0]?.url || '/placeholder-product.jpg'
+    const imageUrl = normalizedImages.length > 0
+      ? normalizedImages[0]?.url || '/placeholder-product.jpg'
       : '/placeholder-product.jpg';
 
     // Add quantity times
@@ -120,50 +186,78 @@ export function QuickView({ product, isOpen, onClose, onAddToCart }: QuickViewPr
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+    <Dialog open={isOpen} onOpenChange={onClose} modal={true}>
+      <DialogContent 
+        className="max-w-5xl max-h-[90vh] overflow-y-auto p-0 z-[101]"
+        onInteractOutside={(e) => {
+          // Закрываем при клике вне модального окна
+          onClose();
+        }}
+        onEscapeKeyDown={onClose}
+      >
+        <DialogHeader className="px-6 pt-6 pb-0">
           <DialogTitle className="sr-only">Быстрый просмотр</DialogTitle>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 px-6 pb-6">
           {/* Images */}
           <div className="space-y-4">
             {/* Main Image */}
             <div className="relative bg-muted overflow-visible flex items-center justify-center" style={{ minHeight: '300px' }}>
-              {product.images && product.images.length > 0 ? (
-                <div className="relative w-full max-w-full">
+              {normalizedImages.length > 0 ? (
+                <div className="relative w-full max-w-full group/image">
                   <img
-                    src={product.images[currentImageIndex]?.url || '/placeholder-product.jpg'}
-                    alt={product.name}
-                    className="w-full h-auto max-w-full"
+                    src={normalizedImages[currentImageIndex]?.url || '/placeholder-product.jpg'}
+                    alt={normalizedImages[currentImageIndex]?.alt || product.name}
+                    className="w-full h-auto max-w-full cursor-zoom-in"
                     style={{ objectFit: 'contain' }}
+                    onClick={() => setIsLightboxOpen(true)}
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.src = '/placeholder-product.jpg';
+                    }}
                   />
+                  {/* Кнопка увеличения */}
+                  <button
+                    onClick={() => setIsLightboxOpen(true)}
+                    className="absolute top-2 right-2 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white opacity-0 group-hover/image:opacity-100 transition-opacity"
+                    aria-label="Увеличить изображение"
+                  >
+                    <ZoomIn className="h-5 w-5" />
+                  </button>
                 </div>
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                  Нет изображения
+                  <div className="text-center">
+                    <svg className="w-16 h-16 mx-auto mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <p className="text-sm">Нет изображения</p>
+                  </div>
                 </div>
               )}
             </div>
 
             {/* Thumbnail Images */}
-            {product.images && product.images.length > 1 && (
+            {normalizedImages.length > 1 && (
               <div className="grid grid-cols-4 gap-2">
-                {product.images.map((image, index) => (
+                {normalizedImages.map((image, index) => (
                   <button
                     key={index}
                     className={cn(
-                      "relative bg-muted overflow-visible transition-opacity",
-                      index === currentImageIndex ? "opacity-100" : "opacity-70 hover:opacity-100"
+                      "relative bg-muted overflow-hidden rounded transition-opacity aspect-square",
+                      index === currentImageIndex ? "opacity-100 ring-2 ring-primary" : "opacity-70 hover:opacity-100"
                     )}
                     onClick={() => setCurrentImageIndex(index)}
                   >
                     <img
                       src={image.url}
                       alt={image.alt || product.name}
-                      className="w-full h-full"
-                      style={{ objectFit: 'contain' }}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = '/placeholder-product.jpg';
+                      }}
                     />
                   </button>
                 ))}
@@ -350,6 +444,17 @@ export function QuickView({ product, isOpen, onClose, onAddToCart }: QuickViewPr
           </div>
         </div>
       </DialogContent>
+      
+      {/* Lightbox для полноэкранного просмотра изображения */}
+      {normalizedImages.length > 0 && (
+        <ImageLightbox
+          images={normalizedImages}
+          currentIndex={currentImageIndex}
+          isOpen={isLightboxOpen}
+          onClose={() => setIsLightboxOpen(false)}
+          productName={product.name}
+        />
+      )}
     </Dialog>
   );
 }

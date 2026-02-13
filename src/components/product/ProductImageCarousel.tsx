@@ -1,11 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, ZoomIn, Image as ImageIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getImageUrl } from '@/lib/image-url';
+import { ImageLightbox } from './ImageLightbox';
 
 interface ProductImageCarouselProps {
   images: string[];
@@ -15,7 +15,10 @@ interface ProductImageCarouselProps {
 
 export function ProductImageCarousel({ images, name, className }: ProductImageCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isZoomed, setIsZoomed] = useState(false);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  
+  // Логируем изображения для отладки
+  console.log(`[ProductImageCarousel] Product "${name}": Received ${images.length} images:`, images);
 
   const nextImage = () => {
     setCurrentIndex((prev) => (prev + 1) % images.length);
@@ -79,7 +82,7 @@ export function ProductImageCarousel({ images, name, className }: ProductImageCa
           variant="secondary"
           size="icon"
           className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-          onClick={() => setIsZoomed(true)}
+          onClick={() => setIsLightboxOpen(true)}
         >
           <ZoomIn className="h-4 w-4" />
         </Button>
@@ -117,30 +120,15 @@ export function ProductImageCarousel({ images, name, className }: ProductImageCa
         </div>
       )}
 
-      {/* Zoom Modal */}
-      {isZoomed && (
-        <div
-          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
-          onClick={() => setIsZoomed(false)}
-        >
-          <div className="relative max-w-4xl max-h-full">
-            <Image
-              src={getImageUrl(images[currentIndex])}
-              alt={`${name} - увеличенное изображение`}
-              width={800}
-              height={800}
-              className="object-contain max-h-[80vh] max-w-full"
-            />
-            <Button
-              variant="secondary"
-              size="icon"
-              className="absolute top-4 right-4"
-              onClick={() => setIsZoomed(false)}
-            >
-              ×
-            </Button>
-          </div>
-        </div>
+      {/* Lightbox для полноэкранного просмотра изображения */}
+      {images.length > 0 && (
+        <ImageLightbox
+          images={images}
+          currentIndex={currentIndex}
+          isOpen={isLightboxOpen}
+          onClose={() => setIsLightboxOpen(false)}
+          productName={name}
+        />
       )}
     </div>
   );
