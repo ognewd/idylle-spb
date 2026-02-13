@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -77,6 +77,7 @@ interface ProductFormData {
 }
 
 export default function EditProductPage({ params }: { params: { id: string } }) {
+  const isUploadingRef = useRef(false);
   const [formData, setFormData] = useState<ProductFormData>({
     name: '',
     shortName: '',
@@ -337,9 +338,16 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
   const handleMultipleImageUpload = (files: FileList | null) => {
     if (!files || files.length === 0) return;
     
+    // Защита от повторного вызова во время загрузки
+    if (isUploadingRef.current) {
+      console.log('Upload already in progress, skipping...');
+      return;
+    }
+    
+    isUploadingRef.current = true;
     const fileArray = Array.from(files);
     
-    // Получаем текущее состояние для определения основного изображения
+    // Получаем текущее состояние один раз для определения основного изображения
     setFormData(prev => {
       const existingImagesCount = prev.images.length;
       const hasExistingPrimary = prev.images.some(img => img.isPrimary);
@@ -373,10 +381,32 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
       
       // Ждем загрузки всех файлов и добавляем их все сразу
       Promise.all(readPromises).then(newImages => {
-        setFormData(current => ({
-          ...current,
-          images: [...current.images, ...newImages.filter(img => img.url)], // Фильтруем только успешно загруженные
-        }));
+        const validImages = newImages.filter(img => img.url);
+        if (validImages.length > 0) {
+          setFormData(current => {
+            // Проверяем, не были ли уже добавлены эти изображения
+            // Сравниваем по имени файла и URL
+            const existingUrls = new Set(current.images.map(img => img.url));
+            const existingFileNames = new Set(current.images.map(img => img.alt));
+            
+            const uniqueNewImages = validImages.filter(img => 
+              !existingUrls.has(img.url) && !existingFileNames.has(img.alt)
+            );
+            
+            if (uniqueNewImages.length > 0) {
+              return {
+                ...current,
+                images: [...current.images, ...uniqueNewImages],
+              };
+            }
+            return current;
+          });
+        }
+        // Сбрасываем флаг загрузки после завершения
+        isUploadingRef.current = false;
+      }).catch(error => {
+        console.error('Error uploading images:', error);
+        isUploadingRef.current = false;
       });
       
       return prev; // Возвращаем предыдущее состояние, изменения применятся асинхронно через Promise.all
@@ -1058,9 +1088,17 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
                   accept="image/*"
                   multiple
                   onChange={(e) => {
-                    handleMultipleImageUpload(e.target.files);
-                    // Сбрасываем значение input, чтобы можно было загрузить те же файлы снова
-                    e.target.value = '';
+                    const files = e.target.files;
+                    if (files && files.length > 0) {
+                      handleMultipleImageUpload(files);
+                    }
+                    // Сбрасываем значение input после обработки, чтобы можно было загрузить те же файлы снова
+                    // Используем setTimeout для избежания проблем с React batching
+                    setTimeout(() => {
+                      if (e.target) {
+                        e.target.value = '';
+                      }
+                    }, 0);
                   }}
                   className="mt-1 cursor-pointer"
                 />

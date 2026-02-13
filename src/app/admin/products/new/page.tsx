@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -70,6 +70,7 @@ interface ProductFormData {
 }
 
 export default function NewProductPage() {
+  const isUploadingRef = useRef(false);
   const [formData, setFormData] = useState<ProductFormData>({
     name: '',
     slug: '',
@@ -884,9 +885,17 @@ export default function NewProductPage() {
                   accept="image/*"
                   multiple
                   onChange={(e) => {
-                    handleMultipleImageUpload(e.target.files);
-                    // Сбрасываем значение input, чтобы можно было загрузить те же файлы снова
-                    e.target.value = '';
+                    const files = e.target.files;
+                    if (files && files.length > 0) {
+                      handleMultipleImageUpload(files);
+                    }
+                    // Сбрасываем значение input после обработки, чтобы можно было загрузить те же файлы снова
+                    // Используем setTimeout для избежания проблем с React batching
+                    setTimeout(() => {
+                      if (e.target) {
+                        e.target.value = '';
+                      }
+                    }, 0);
                   }}
                   className="mt-1 cursor-pointer"
                 />
