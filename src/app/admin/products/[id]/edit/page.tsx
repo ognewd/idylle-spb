@@ -206,12 +206,22 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
           isFeatured: product.isFeatured ?? false,
           categoryIds: product.productCategories?.map((pc: any) => pc.categoryId) || [],
           brandId: product.brandId || '',
-          images: product.images?.map((img: any) => ({
-            id: img.id,
-            url: img.url,
-            alt: img.alt || '',
-            isPrimary: img.isPrimary || false,
-          })) || [],
+          images: (() => {
+            const productImages = product.images || [];
+            // Если несколько изображений помечены как основные, оставляем только первое
+            const primaryImages = productImages.filter((img: any) => img.isPrimary === true);
+            const hasPrimary = primaryImages.length > 0;
+            
+            return productImages.map((img: any, index: number) => ({
+              id: img.id,
+              url: img.url,
+              alt: img.alt || '',
+              // Если есть основное изображение, используем его значение, иначе делаем первое основным
+              isPrimary: hasPrimary 
+                ? (img.isPrimary === true && primaryImages[0].id === img.id)
+                : (index === 0),
+            }));
+          })(),
           variants: product.variants?.map((v: any) => ({
             id: v.id,
             name: v.name || 'Объём',

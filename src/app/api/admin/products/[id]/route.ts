@@ -240,6 +240,9 @@ export async function PUT(
 
     // Обновляем изображения
     if (images && Array.isArray(images)) {
+      // Проверяем, есть ли хотя бы одно изображение с isPrimary: true
+      const hasPrimary = images.some((img: any) => img.isPrimary === true);
+      
       await prisma.productImage.deleteMany({
         where: { productId: productId },
       });
@@ -250,7 +253,9 @@ export async function PUT(
           url: img.url,
           alt: img.alt || name,
           sortOrder: index,
-          isPrimary: img.isPrimary || index === 0,
+          // Если ни одно изображение не помечено как основное, делаем первое основным
+          // Иначе используем значение из img.isPrimary (строго boolean)
+          isPrimary: hasPrimary ? (img.isPrimary === true) : (index === 0),
         })),
       });
     }
