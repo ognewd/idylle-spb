@@ -260,14 +260,14 @@ function GiftsContent() {
     );
 
     setTimeout(() => {
-      const sentinel = document.getElementById('scroll-sentinel-home');
+      const sentinel = document.getElementById('scroll-sentinel');
       if (sentinel) {
         observer.observe(sentinel);
       }
     }, 100);
 
       return () => {
-        const sentinel = document.getElementById('scroll-sentinel-home');
+        const sentinel = document.getElementById('scroll-sentinel');
         if (sentinel) {
           observer.unobserve(sentinel);
         }
@@ -409,17 +409,12 @@ function GiftsContent() {
                     loadingMore={loadingMore}
                     hasMore={currentPage < pagination.totalPages}
                   />
-                  {/* Scroll Sentinel для infinite scroll */}
+                  {/* Scroll Sentinel для infinite scroll - используем тот же ID что и в ProductGrid */}
                   {currentPage < pagination.totalPages && (
-                    <div id="scroll-sentinel-home" className="h-10 flex items-center justify-center mt-6">
+                    <div id="scroll-sentinel" className="h-10 flex items-center justify-center mt-6">
                       {loadingMore && (
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                       )}
-                    </div>
-                  )}
-                  {currentPage >= pagination.totalPages && filteredProducts.length > 0 && (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <p>Все товары загружены</p>
                     </div>
                   )}
                 </>
