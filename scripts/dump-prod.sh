@@ -5,7 +5,7 @@
 #   cd /root/idylle-spb
 #   source .env  # или export DATABASE_URL=...
 #   pg_dump "$DATABASE_URL" --no-owner --no-acl -F p -f prod_dump.sql
-#   # Скачать к себе: scp user@<YOUR_SERVER_IP>:/root/idylle-spb/prod_dump.sql .
+#   # Скачать к себе: scp user@147.45.98.110:/root/idylle-spb/prod_dump.sql .
 #
 # Или локально, если задан PROD_DATABASE_URL (не коммитить!):
 #   export PROD_DATABASE_URL="postgresql://..."  # из .env на проде
@@ -39,8 +39,8 @@ fi
 echo "Задай PROD_DATABASE_URL или запусти этот скрипт на сервере, где в .env указан DATABASE_URL прода."
 echo ""
 echo "Пример на сервере:"
-echo "  ssh root@<YOUR_SERVER_IP>"
+echo "  ssh root@147.45.98.110"
 echo "  cd /root/idylle-spb && source .env && pg_dump \"\$DATABASE_URL\" --no-owner --no-acl -F p -f prod_dump.sql"
 echo "  exit"
-echo "  scp root@<YOUR_SERVER_IP>:/root/idylle-spb/prod_dump.sql ."
+echo "  scp root@147.45.98.110:/root/idylle-spb/prod_dump.sql ."
 echo "  ./scripts/clone-prod-to-dev.sh prod_dump.sql"

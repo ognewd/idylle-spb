@@ -6,7 +6,7 @@
 
 ```bash
 # 1. Подключиться к серверу
-ssh root@<YOUR_SERVER_IP>
+ssh root@147.45.98.110
 
 # 2. Перейти в директорию проекта
 cd /root/idylle-spb

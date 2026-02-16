@@ -9,9 +9,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Send, FileText, Download, Calendar, User, CheckCircle2, Clock, Circle, Edit2, Trash2, Paperclip, X, Eye, File, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Send, FileText, Download, Calendar, User, CheckCircle2, Clock, Circle, Edit2, Trash2, Paperclip, X, Eye, File, AlertCircle, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { getImageUrl } from '@/lib/image-url';
 
 interface TaskFile {
   id: string;
@@ -27,6 +28,8 @@ function FilePreviewItem({ file }: { file: TaskFile }) {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewError, setPreviewError] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [thumbnailError, setThumbnailError] = useState(false);
 
   const isImage = file.fileType?.startsWith('image/');
   const isPdf = file.fileType === 'application/pdf';
@@ -44,10 +47,21 @@ function FilePreviewItem({ file }: { file: TaskFile }) {
     if (isImage || isPdf) {
       setPreviewUrl(file.url);
       setIsPreviewOpen(true);
+      setPreviewError(false);
+      setImageLoaded(false);
     } else {
       // Для Word и Excel открываем в новой вкладке (браузер может показать предпросмотр или скачать)
       window.open(file.url, '_blank');
     }
+  };
+
+  const handleImageClick = (e: React.MouseEvent) => {
+    // Если клик по самому изображению, не закрываем
+    e.stopPropagation();
+  };
+
+  const handleBackdropClick = () => {
+    setIsPreviewOpen(false);
   };
 
   return (
@@ -56,7 +70,21 @@ function FilePreviewItem({ file }: { file: TaskFile }) {
         <div className="flex items-center gap-3 flex-1 min-w-0">
           <div className="flex-shrink-0">
             {isImage ? (
-              <FileText className="h-5 w-5 text-blue-500" />
+              <div className="relative w-12 h-12 rounded overflow-hidden border border-gray-200 bg-gray-100">
+                {!thumbnailError ? (
+                  <img
+                    src={file.url}
+                    alt={file.fileName}
+                    className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                    onClick={handlePreview}
+                    onError={() => setThumbnailError(true)}
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <FileText className="h-5 w-5 text-blue-500" />
+                  </div>
+                )}
+              </div>
             ) : isWord ? (
               <FileText className="h-5 w-5 text-blue-600" />
             ) : isExcel ? (
@@ -94,45 +122,306 @@ function FilePreviewItem({ file }: { file: TaskFile }) {
         </div>
       </div>
 
-      {/* Диалог предпросмотра для изображений и PDF */}
-      <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh]">
-          <DialogHeader>
-            <DialogTitle>{file.fileName}</DialogTitle>
-          </DialogHeader>
-          <div className="mt-4 max-h-[80vh] overflow-auto">
-            {isImage && previewUrl && (
-              <img
-                src={previewUrl}
-                alt={file.fileName}
-                className="max-w-full h-auto"
-                onError={() => setPreviewError(true)}
-              />
-            )}
-            {isPdf && previewUrl && !previewError && (
-              <iframe
-                src={previewUrl}
-                className="w-full h-[70vh] border-0"
-                title={file.fileName}
-                onError={() => setPreviewError(true)}
-              />
-            )}
-            {previewError && (
-              <div className="text-center py-8 text-gray-500">
-                <p>Не удалось загрузить предпросмотр</p>
-                <Button
-                  variant="outline"
-                  className="mt-4"
-                  onClick={() => window.open(file.url, '_blank')}
+      {/* Улучшенный диалог предпросмотра для изображений */}
+      {isImage && (
+        <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+          <DialogContent 
+            className="max-w-[95vw] max-h-[95vh] p-0 bg-black/95 border-none"
+            onClick={handleBackdropClick}
+          >
+            <div className="relative w-full h-full flex items-center justify-center p-4">
+              {/* Кнопка закрытия */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute top-4 right-4 z-50 text-white hover:bg-white/20"
+                onClick={() => setIsPreviewOpen(false)}
+              >
+                <X className="h-6 w-6" />
+              </Button>
+
+              {/* Изображение */}
+              {previewUrl && (
+                <div 
+                  className="max-w-full max-h-[90vh] flex items-center justify-center"
+                  onClick={handleImageClick}
                 >
-                  <Download className="h-4 w-4 mr-2" />
-                  Скачать файл
-                </Button>
+                  {!previewError ? (
+                    <img
+                      src={getImageUrl(previewUrl)}
+                      alt={file.fileName}
+                      className="max-w-full max-h-[90vh] object-contain rounded-lg"
+                      onLoad={() => setImageLoaded(true)}
+                      onError={() => {
+                        setPreviewError(true);
+                        setImageLoaded(false);
+                      }}
+                      style={{ display: imageLoaded ? 'block' : 'none' }}
+                    />
+                  ) : (
+                    <div className="text-center py-8 text-white">
+                      <p className="mb-4">Не удалось загрузить изображение</p>
+                      <Button
+                        variant="outline"
+                        className="bg-white text-black hover:bg-gray-100"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          window.open(file.url, '_blank');
+                        }}
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        Скачать файл
+                      </Button>
+                    </div>
+                  )}
+                  
+                  {/* Индикатор загрузки */}
+                  {!imageLoaded && !previewError && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white"></div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Название файла внизу */}
+              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/70 text-white px-4 py-2 rounded-lg text-sm">
+                {file.fileName}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Диалог предпросмотра для PDF */}
+      {isPdf && (
+        <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh]">
+            <DialogHeader>
+              <DialogTitle>{file.fileName}</DialogTitle>
+            </DialogHeader>
+            <div className="mt-4 max-h-[80vh] overflow-auto">
+              {previewUrl && !previewError && (
+                <iframe
+                  src={previewUrl}
+                  className="w-full h-[70vh] border-0"
+                  title={file.fileName}
+                  onError={() => setPreviewError(true)}
+                />
+              )}
+              {previewError && (
+                <div className="text-center py-8 text-gray-500">
+                  <p>Не удалось загрузить предпросмотр</p>
+                  <Button
+                    variant="outline"
+                    className="mt-4"
+                    onClick={() => window.open(file.url, '_blank')}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Скачать файл
+                  </Button>
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
+  );
+}
+
+// Компонент для предпросмотра файла в сообщении
+function MessageFilePreview({ fileUrl, fileName }: { fileUrl: string; fileName: string }) {
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [previewError, setPreviewError] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [thumbnailError, setThumbnailError] = useState(false);
+
+  // Определяем тип файла по расширению
+  const getFileType = (filename: string, url: string): string | null => {
+    const ext = filename.split('.').pop()?.toLowerCase() || url.split('.').pop()?.toLowerCase();
+    if (!ext) return null;
+    
+    const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'];
+    const pdfExts = ['pdf'];
+    const wordExts = ['doc', 'docx'];
+    const excelExts = ['xls', 'xlsx'];
+    
+    if (imageExts.includes(ext)) return 'image';
+    if (pdfExts.includes(ext)) return 'pdf';
+    if (wordExts.includes(ext)) return 'word';
+    if (excelExts.includes(ext)) return 'excel';
+    return null;
+  };
+
+  const fileType = getFileType(fileName, fileUrl);
+  const isImage = fileType === 'image';
+  const isPdf = fileType === 'pdf';
+
+  const handlePreview = () => {
+    if (isImage || isPdf) {
+      setIsPreviewOpen(true);
+      setPreviewError(false);
+      setImageLoaded(false);
+    } else {
+      window.open(fileUrl, '_blank');
+    }
+  };
+
+  const handleImageClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
+
+  const handleBackdropClick = () => {
+    setIsPreviewOpen(false);
+  };
+
+  return (
+    <>
+      <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors">
+        {isImage ? (
+          <div className="relative w-10 h-10 rounded overflow-hidden border border-gray-200 bg-gray-100 flex-shrink-0">
+            {!thumbnailError ? (
+              <img
+                src={getImageUrl(fileUrl)}
+                alt={fileName}
+                className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                onClick={handlePreview}
+                onError={() => setThumbnailError(true)}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <FileText className="h-4 w-4 text-blue-500" />
               </div>
             )}
           </div>
-        </DialogContent>
-      </Dialog>
+        ) : (
+          <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+        )}
+        <span className="text-sm flex-1 truncate">{fileName}</span>
+        {(isImage || isPdf) && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handlePreview}
+            title="Предпросмотр"
+            className="flex-shrink-0"
+          >
+            <Eye className="h-3 w-3" />
+          </Button>
+        )}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => window.open(fileUrl, '_blank')}
+          title="Скачать"
+          className="flex-shrink-0"
+        >
+          <Download className="h-3 w-3" />
+        </Button>
+      </div>
+
+      {/* Улучшенный диалог предпросмотра для изображений */}
+      {isImage && (
+        <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+          <DialogContent 
+            className="max-w-[95vw] max-h-[95vh] p-0 bg-black/95 border-none"
+            onClick={handleBackdropClick}
+          >
+            <div className="relative w-full h-full flex items-center justify-center p-4">
+              {/* Кнопка закрытия */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute top-4 right-4 z-50 text-white hover:bg-white/20"
+                onClick={() => setIsPreviewOpen(false)}
+              >
+                <X className="h-6 w-6" />
+              </Button>
+
+              {/* Изображение */}
+              <div 
+                className="max-w-full max-h-[90vh] flex items-center justify-center"
+                onClick={handleImageClick}
+              >
+                {!previewError ? (
+                  <img
+                    src={getImageUrl(fileUrl)}
+                    alt={fileName}
+                    className="max-w-full max-h-[90vh] object-contain rounded-lg"
+                    onLoad={() => setImageLoaded(true)}
+                    onError={() => {
+                      setPreviewError(true);
+                      setImageLoaded(false);
+                    }}
+                    style={{ display: imageLoaded ? 'block' : 'none' }}
+                  />
+                ) : (
+                  <div className="text-center py-8 text-white">
+                    <p className="mb-4">Не удалось загрузить изображение</p>
+                    <Button
+                      variant="outline"
+                      className="bg-white text-black hover:bg-gray-100"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        window.open(fileUrl, '_blank');
+                      }}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Скачать файл
+                    </Button>
+                  </div>
+                )}
+                
+                {/* Индикатор загрузки */}
+                {!imageLoaded && !previewError && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white"></div>
+                  </div>
+                )}
+              </div>
+
+              {/* Название файла внизу */}
+              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/70 text-white px-4 py-2 rounded-lg text-sm">
+                {fileName}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Диалог предпросмотра для PDF */}
+      {isPdf && (
+        <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh]">
+            <DialogHeader>
+              <DialogTitle>{fileName}</DialogTitle>
+            </DialogHeader>
+            <div className="mt-4 max-h-[80vh] overflow-auto">
+              {!previewError ? (
+                <iframe
+                  src={fileUrl}
+                  className="w-full h-[70vh] border-0"
+                  title={fileName}
+                  onError={() => setPreviewError(true)}
+                />
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <p>Не удалось загрузить предпросмотр</p>
+                  <Button
+                    variant="outline"
+                    className="mt-4"
+                    onClick={() => window.open(fileUrl, '_blank')}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Скачать файл
+                  </Button>
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   );
 }
@@ -816,18 +1105,7 @@ export default function TaskDetailPage() {
                                 )}
                                 {msg.fileUrl && (
                                   <div className="mt-2 pt-2 border-t">
-                                    <div className="flex items-center gap-2">
-                                      <FileText className="h-4 w-4 text-muted-foreground" />
-                                      <span className="text-sm">{msg.fileName}</span>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => window.open(msg.fileUrl!, '_blank')}
-                                      >
-                                        <Download className="h-3 w-3 mr-1" />
-                                        Скачать
-                                      </Button>
-                                    </div>
+                                    <MessageFilePreview fileUrl={msg.fileUrl} fileName={msg.fileName || 'Файл'} />
                                   </div>
                                 )}
                               </>

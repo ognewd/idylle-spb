@@ -33,8 +33,13 @@ if PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "
     echo "  ✅ Подключение к локальной PostgreSQL успешно!"
     
     # Проверяем количество товаров
-    PRODUCT_COUNT=$(PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -tAc "SELECT COUNT(*) FROM \"Product\" WHERE \"isActive\" = true;" 2>/dev/null || echo "0")
-    echo "  📊 Активных товаров в БД: $PRODUCT_COUNT"
+    TOTAL_PRODUCTS=$(PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -tAc "SELECT COUNT(*) FROM \"Product\";" 2>/dev/null || echo "0")
+    ACTIVE_PRODUCTS=$(PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -tAc "SELECT COUNT(*) FROM \"Product\" WHERE \"isActive\" = true;" 2>/dev/null || echo "0")
+    echo "  📊 Всего товаров в БД: $TOTAL_PRODUCTS"
+    echo "  📊 Активных товаров в БД: $ACTIVE_PRODUCTS"
+    if [ "$ACTIVE_PRODUCTS" = "0" ] && [ "$TOTAL_PRODUCTS" != "0" ]; then
+        echo "  ⚠️  ВНИМАНИЕ: Все товары неактивны! Проверьте поле isActive в таблице Product."
+    fi
 else
     echo "  ❌ Не удалось подключиться к локальной PostgreSQL!"
     echo "  💡 Проверьте, что PostgreSQL запущен и учетные данные правильные"
@@ -140,7 +145,9 @@ if command -v curl >/dev/null 2>&1; then
     if echo "$HEALTH_RESPONSE" | grep -q "database.*connected"; then
         echo "  ✅ Health check показывает подключение к БД"
         PRODUCTS_IN_HEALTH=$(echo "$HEALTH_RESPONSE" | grep -oE '"products":[0-9]+' | grep -oE '[0-9]+' || echo "0")
-        echo "  📊 Товаров в health check: $PRODUCTS_IN_HEALTH"
+        ACTIVE_PRODUCTS_IN_HEALTH=$(echo "$HEALTH_RESPONSE" | grep -oE '"activeProducts":[0-9]+' | grep -oE '[0-9]+' || echo "0")
+        echo "  📊 Всего товаров в health check: $PRODUCTS_IN_HEALTH"
+        echo "  📊 Активных товаров в health check: $ACTIVE_PRODUCTS_IN_HEALTH"
     else
         echo "  ⚠️  Health check не показывает подключение к БД"
         echo "  📋 Ответ:"

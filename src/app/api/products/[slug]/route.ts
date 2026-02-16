@@ -4,11 +4,15 @@ import { getImageUrl } from '@/lib/image-url';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> | { slug: string } }
 ) {
   try {
+    // Поддержка как синхронных, так и асинхронных params (Next.js 14/15)
+    const resolvedParams = await Promise.resolve(params);
+    const slug = resolvedParams.slug;
+    
     let product = await prisma.product.findUnique({
-      where: { slug: params.slug },
+      where: { slug },
       include: {
         brand: true,
         productCategories: {
@@ -198,6 +202,11 @@ export async function GET(
     } catch (error) {
       console.error('Error getting request origin:', error);
     }
+
+    // Логируем количество изображений для отладки
+    console.log(`[API Products/${slug}] Product "${product.name}": Found ${product.images.length} images in DB:`, 
+      product.images.map(img => ({ url: img.url, isPrimary: img.isPrimary, sortOrder: img.sortOrder }))
+    );
 
     const body = {
       product: {

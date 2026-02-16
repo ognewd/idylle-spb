@@ -10,7 +10,7 @@
 Подключитесь к серверу и выполните:
 
 ```bash
-ssh root@<YOUR_SERVER_IP>
+ssh root@147.45.98.110
 cd /root/idylle-spb
 git pull origin main
 bash scripts/fix-pages-on-prod.sh
@@ -19,7 +19,7 @@ bash scripts/fix-pages-on-prod.sh
 ### Вариант 2: Выполнить команды вручную
 
 ```bash
-ssh root@<YOUR_SERVER_IP>
+ssh root@147.45.98.110
 cd /root/idylle-spb
 
 # Применить миграцию
@@ -40,7 +40,7 @@ pm2 restart idylle-spb
 Если миграция не применяется, можно проверить вручную:
 
 ```bash
-ssh root@<YOUR_SERVER_IP>
+ssh root@147.45.98.110
 cd /root/idylle-spb
 
 # Проверить, существует ли таблица

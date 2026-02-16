@@ -68,7 +68,7 @@
 #### Шаг 1: Установка Postfix
 
 ```bash
-ssh root@<YOUR_SERVER_IP>
+ssh root@147.45.98.110
 
 # Обновить систему
 apt update && apt upgrade -y
@@ -183,7 +183,7 @@ tail -f /var/log/mail.log
 ```
 Тип: TXT
 Имя: @ (или оставьте пустым)
-Значение: v=spf1 mx a ip4:<YOUR_SERVER_IP> ~all
+Значение: v=spf1 mx a ip4:147.45.98.110 ~all
 TTL: 3600
 ```
 

@@ -5,7 +5,7 @@
 ### 1. Проверьте статус PM2
 
 ```bash
-ssh root@<YOUR_SERVER_IP>
+ssh root@147.45.98.110
 cd /root/idylle-spb
 pm2 status
 ```
@@ -78,7 +78,7 @@ systemctl status nginx
 ### Вариант 1: Перезапустить приложение
 
 ```bash
-ssh root@<YOUR_SERVER_IP>
+ssh root@147.45.98.110
 cd /root/idylle-spb
 pm2 restart idylle-spb
 pm2 logs idylle-spb --lines 20
@@ -87,7 +87,7 @@ pm2 logs idylle-spb --lines 20
 ### Вариант 2: Если ошибка после деплоя
 
 ```bash
-ssh root@<YOUR_SERVER_IP>
+ssh root@147.45.98.110
 cd /root/idylle-spb
 
 # Проверьте, что миграция Prisma применена
@@ -109,7 +109,7 @@ pm2 logs idylle-spb --lines 50
 ### Вариант 3: Полный перезапуск
 
 ```bash
-ssh root@<YOUR_SERVER_IP>
+ssh root@147.45.98.110
 cd /root/idylle-spb
 
 # Остановите PM2

@@ -23,7 +23,7 @@
 ### Шаг 1: Подключиться к серверу
 
 ```bash
-ssh root@<YOUR_SERVER_IP>
+ssh root@147.45.98.110
 # Пароль: v6kvGJiGPaw^9-
 ```
 
@@ -40,7 +40,7 @@ cd /root/idylle-spb
 **Решение:** Добавить строку подключения к локальной PostgreSQL:
 
 ```bash
-echo 'DATABASE_URL="postgresql://user:password@localhost:5432/idylle_spb?schema=public"' >> .env
+echo 'DATABASE_URL="postgresql://idylle_user:wendw%40%40422ewd%21@localhost:5432/idylle_spb?schema=public"' >> .env
 ```
 
 **Проверка:**
@@ -96,7 +96,7 @@ migrations/
 
 ```bash
 cd /root/idylle-spb && \
-echo 'DATABASE_URL="postgresql://user:password@localhost:5432/idylle_spb?schema=public"' >> .env && \
+echo 'DATABASE_URL="postgresql://idylle_user:wendw%40%40422ewd%21@localhost:5432/idylle_spb?schema=public"' >> .env && \
 npx prisma migrate resolve --applied 20250120000000_add_review_is_approved && \
 npx prisma migrate status
 ```

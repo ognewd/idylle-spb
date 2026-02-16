@@ -29,7 +29,13 @@ async function checkHealth() {
 
     if (data.database) {
       console.log('\n📦 База данных:');
-      console.log(`  Товаров: ${data.database.products}`);
+      console.log(`  Всего товаров: ${data.database.products}`);
+      if (data.database.activeProducts !== undefined) {
+        console.log(`  Активных товаров: ${data.database.activeProducts}`);
+        if (data.database.activeProducts === 0 && data.database.products > 0) {
+          console.log(`  ⚠️  ВНИМАНИЕ: Все товары неактивны!`);
+        }
+      }
       console.log(`  Категорий: ${data.database.categories}`);
       console.log(`  Брендов: ${data.database.brands}`);
     }

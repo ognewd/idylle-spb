@@ -8,6 +8,10 @@ import { prisma } from '@/lib/prisma';
 import { generateSlug } from '@/lib/transliterate';
 import { getJwtSecret } from '@/lib/admin-auth';
 
+// Импорт товаров может занимать несколько минут (много товаров + загрузка изображений).
+// Увеличиваем лимит времени выполнения; nginx на сервере тоже должен иметь большой proxy_read_timeout.
+export const maxDuration = 300;
+
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.webp'];
 const MIME_TO_EXT: Record<string, string> = {

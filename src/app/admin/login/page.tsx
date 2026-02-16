@@ -14,19 +14,19 @@ export default function AdminLoginPage() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [isLocalhost, setIsLocalhost] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
-    // Определяем, работаем ли мы на localhost
-    if (typeof window !== 'undefined') {
-      setIsLocalhost(
-        window.location.hostname === 'localhost' ||
-        window.location.hostname === '127.0.0.1' ||
-        window.location.hostname === ''
-      );
-    }
+    setIsMounted(true);
   }, []);
+
+  // Определяем isLocalhost только на клиенте после монтирования
+  const isLocalhost = isMounted && typeof window !== 'undefined' && (
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1' ||
+    window.location.hostname === ''
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,8 +97,8 @@ export default function AdminLoginPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder={isLocalhost ? "admin@example.com" : "admin@idylle.spb.ru"}
-                  autoComplete={isLocalhost ? "off" : "email"}
+                  placeholder={isMounted && isLocalhost ? "admin@example.com" : "admin@idylle.spb.ru"}
+                  autoComplete={isMounted && isLocalhost ? "off" : "email"}
                   required
                 />
               </div>

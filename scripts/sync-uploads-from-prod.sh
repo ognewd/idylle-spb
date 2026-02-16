@@ -10,7 +10,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PROJECT_DIR"
 
-REMOTE="${REMOTE:-root@<YOUR_SERVER_IP>}"
+REMOTE="root@147.45.98.110"
 REMOTE_UPLOADS="/var/www/uploads"
 LOCAL_UPLOADS="public/uploads"
 

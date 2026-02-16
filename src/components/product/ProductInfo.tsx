@@ -226,12 +226,12 @@ export function ProductInfo({ product, className }: ProductInfoProps) {
         }
 
         const notesText = product.topNotes;
-        const anyHeader = /Верхние ноты:|Сердце аромата:|Средние ноты:|Ноты шлейфа:|Базовые ноты:/i;
-        const nextHeader = /(?=\s*(?:Верхние ноты:|Сердце аромата:|Средние ноты:|Ноты шлейфа:|Базовые ноты:)|$)/i;
+        const anyHeader = /Верхние ноты:|Сердце аромата:|Средние ноты:|Ноты сердца:|Ноты шлейфа:|Базовые ноты:/i;
+        const nextHeader = /(?=\s*(?:Верхние ноты:|Сердце аромата:|Средние ноты:|Ноты сердца:|Ноты шлейфа:|Базовые ноты:)|$)/i;
 
-        // Захватываем заголовок (до двоеточия) и контент — показываем только тот заголовок, что в тексте
+        // Захватываем заголовок (как в файле) и контент. «Ноты сердца» разбираем так же, как «Сердце аромата» — отдельный блок
         const topNotesMatch = notesText.match(new RegExp('(Верхние ноты:)\\s*([^]*?)' + nextHeader.source, 'i'));
-        const heartNotesMatch = notesText.match(new RegExp('(Сердце аромата:|Средние ноты:)\\s*([^]*?)' + nextHeader.source, 'i'));
+        const heartNotesMatch = notesText.match(new RegExp('(Сердце аромата:|Средние ноты:|Ноты сердца:)\\s*([^]*?)' + nextHeader.source, 'i'));
         const baseNotesMatch = notesText.match(new RegExp('(Ноты шлейфа:|Базовые ноты:)\\s*([^]*?)' + nextHeader.source, 'i'));
 
         const hasStructuredNotes = notesText.match(anyHeader);
@@ -260,7 +260,7 @@ export function ProductInfo({ product, className }: ProductInfoProps) {
       {(() => {
         // Проверяем, есть ли структурированные ноты (если да, не показываем topNotes в таблице)
         const hasStructuredNotes = product.topNotes &&
-          product.topNotes.match(/Верхние ноты:|Сердце аромата:|Средние ноты:|Ноты шлейфа:|Базовые ноты:/i);
+          product.topNotes.match(/Верхние ноты:|Сердце аромата:|Средние ноты:|Ноты сердца:|Ноты шлейфа:|Базовые ноты:/i);
         
         const showTopNotesInTable = product.topNotes && 
           product.topNotes.trim() && 
@@ -300,7 +300,7 @@ export function ProductInfo({ product, className }: ProductInfoProps) {
             
             {(() => {
               const hasStructuredNotes = product.topNotes &&
-                product.topNotes.match(/Верхние ноты:|Сердце аромата:|Средние ноты:|Ноты шлейфа:|Базовые ноты:/i);
+                product.topNotes.match(/Верхние ноты:|Сердце аромата:|Средние ноты:|Ноты сердца:|Ноты шлейфа:|Базовые ноты:/i);
               if (!product.topNotes || !product.topNotes.trim() || product.topNotes.trim() === '-' || hasStructuredNotes) return null;
               return (
                 <>

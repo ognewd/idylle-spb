@@ -95,8 +95,11 @@ export default async function HomePage() {
 
   // Получаем origin из headers для правильного формирования URL изображений
   const headersList = await headers();
-  const protocol = headersList.get('x-forwarded-proto') || 'https';
   const host = headersList.get('x-forwarded-host') || headersList.get('host') || 'aromarussia.ru';
+  // Определяем протокол: для localhost используем http, иначе берем из заголовка или используем https
+  const protocol = host.includes('localhost') || host.includes('127.0.0.1')
+    ? 'http'
+    : (headersList.get('x-forwarded-proto') || 'https');
   const baseUrl = `${protocol}://${host}`;
 
   const galleryItems: GalleryProduct[] = galleryProducts.map((p: { id: string; name: string; shortName?: string | null; slug: string; price: number; image: string; category?: string; isFeatured?: boolean }) => ({

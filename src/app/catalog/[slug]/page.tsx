@@ -72,7 +72,9 @@ interface Product {
 }
 
 interface ProductPageProps {
-  params: {
+  params: Promise<{
+    slug: string;
+  }> | {
     slug: string;
   };
 }
@@ -98,20 +100,32 @@ async function getProduct(slug: string, baseUrl: string): Promise<{ product: Pro
 }
 
 export default async function ProductPage({ params }: ProductPageProps) {
+  // Поддержка как синхронных, так и асинхронных params (Next.js 14/15)
+  const resolvedParams = await Promise.resolve(params);
+  const slug = resolvedParams.slug;
+  
   const headersList = headers();
-  const protocol = headersList.get('x-forwarded-proto') || 'https';
   const host = headersList.get('x-forwarded-host') || headersList.get('host') || 'aromarussia.ru';
+  // Определяем протокол: для localhost используем http, иначе берем из заголовка или используем https
+  const protocol = host.includes('localhost') || host.includes('127.0.0.1')
+    ? 'http'
+    : (headersList.get('x-forwarded-proto') || 'https');
   const baseUrl = `${protocol}://${host}`;
-  const data = await getProduct(params.slug, baseUrl);
+  const data = await getProduct(slug, baseUrl);
 
   if (!data) {
     notFound();
   }
 
   const { product, relatedProducts, canonicalSlug } = data;
-  if (canonicalSlug && canonicalSlug !== params.slug) {
+  if (canonicalSlug && canonicalSlug !== slug) {
     redirect(`/catalog/${canonicalSlug}`);
   }
+
+  // Логируем количество изображений для отладки
+  console.log(`[ProductPage] Product "${product.name}": Received ${product.images.length} images from API:`, 
+    product.images.map(img => ({ url: img.url, isPrimary: img.isPrimary }))
+  );
 
   // API уже возвращает полные URL изображений, дополнительная обработка не нужна
 

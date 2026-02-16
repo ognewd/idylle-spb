@@ -144,7 +144,7 @@ export function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-50 bg-white border-b border-gray-100">
+    <header className="sticky top-0 z-[102] bg-white border-b border-gray-100">
       {/* При скролле — компактная строка: лого | поиск | иконки */}
       {isScrolled ? (
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">

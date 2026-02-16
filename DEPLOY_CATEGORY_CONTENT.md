@@ -5,7 +5,7 @@
 ### 1. Подключитесь к серверу
 
 ```bash
-ssh root@<YOUR_SERVER_IP>
+ssh root@147.45.98.110
 ```
 
 ### 2. Перейдите в директорию проекта
@@ -118,7 +118,7 @@ pm2 save
 ## 📝 Краткая команда (все в одной строке)
 
 ```bash
-ssh root@<YOUR_SERVER_IP> "cd /root/idylle-spb && git pull && npx prisma db push && npx prisma generate && npm run build && pm2 restart idylle-spb"
+ssh root@147.45.98.110 "cd /root/idylle-spb && git pull && npx prisma db push && npx prisma generate && npm run build && pm2 restart idylle-spb"
 ```
 
 Но лучше выполнять по шагам, чтобы видеть, если что-то пойдет не так.

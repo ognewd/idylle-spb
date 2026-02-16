@@ -13,6 +13,7 @@ interface HealthCheckResponse {
   version: string;
   database?: {
     products: number;
+    activeProducts: number;
     categories: number;
     brands: number;
   };
@@ -38,8 +39,9 @@ export async function GET() {
     healthCheck.checks.database = 'connected';
 
     // Проверка количества записей в основных таблицах
-    const [productCount, categoryCount, brandCount] = await Promise.all([
+    const [productCount, activeProductCount, categoryCount, brandCount] = await Promise.all([
       prisma.product.count().catch(() => 0),
+      prisma.product.count({ where: { isActive: true } }).catch(() => 0),
       prisma.category.count().catch(() => 0),
       prisma.brand.count().catch(() => 0),
     ]);
@@ -47,6 +49,7 @@ export async function GET() {
     healthCheck.status = 'ok';
     healthCheck.database = {
       products: productCount,
+      activeProducts: activeProductCount,
       categories: categoryCount,
       brands: brandCount,
     };
