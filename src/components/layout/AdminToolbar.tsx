@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Shield, LogOut, PanelLeft } from 'lucide-react';
+import { Shield, LogOut, PanelLeft, Pencil } from 'lucide-react';
+import { useAdminEditProduct } from '@/contexts/AdminEditProductContext';
 
 export function AdminToolbar() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminLabel, setAdminLabel] = useState<string>('Администратор');
+  const { productId } = useAdminEditProduct();
 
   useEffect(() => {
     try {
@@ -44,6 +46,16 @@ export function AdminToolbar() {
             <span className="font-medium">{adminLabel}</span>
           </div>
           <div className="flex items-center gap-2">
+            {productId && (
+              <Link
+                href={`/admin/products/${productId}/edit`}
+                className="inline-flex items-center gap-2 rounded-md bg-white/10 hover:bg-white/20 transition-colors px-3 py-1"
+                title="Редактировать товар"
+              >
+                <Pencil className="h-4 w-4" />
+                Редактировать товар
+              </Link>
+            )}
             <Link
               href="/admin"
               className="inline-flex items-center gap-2 rounded-md bg-white/10 hover:bg-white/20 transition-colors px-3 py-1"

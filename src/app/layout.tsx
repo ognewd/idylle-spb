@@ -7,6 +7,7 @@ import { CartProvider } from '@/contexts/CartContext';
 import { WishlistProvider } from '@/contexts/WishlistContext';
 import { SessionProvider } from '@/components/providers/SessionProvider';
 import { MaintenancePage } from '@/components/maintenance/MaintenancePage';
+import { AdminEditProductProvider } from '@/contexts/AdminEditProductContext';
 
 const inter = Inter({ 
   subsets: ['latin'],
@@ -31,12 +32,13 @@ export default function RootLayout({
         <SessionProvider>
           <WishlistProvider>
             <CartProvider>
-              {/* Maintenance Page - показывается только для не-админов */}
-              <MaintenancePage />
-              
-              {/* Основной контент: в админке без шапки/подвала, на сайте — с шапкой и подвалом */}
-              <AdminToolbar />
-              <LayoutShell>{children}</LayoutShell>
+              <AdminEditProductProvider>
+                {/* Maintenance Page - показывается только для не-админов */}
+                <MaintenancePage />
+                {/* Основной контент: в админке без шапки/подвала, на сайте — с шапкой и подвалом */}
+                <AdminToolbar />
+                <LayoutShell>{children}</LayoutShell>
+              </AdminEditProductProvider>
             </CartProvider>
           </WishlistProvider>
         </SessionProvider>

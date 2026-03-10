@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ArrowLeft, Save, Upload, X, RefreshCw, ChevronUp, ChevronDown, GripVertical } from 'lucide-react';
+import { ArrowLeft, Save, Upload, X, RefreshCw, ChevronUp, ChevronDown, GripVertical, CopyMinus } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -294,6 +294,8 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [dedupeLoading, setDedupeLoading] = useState(false);
+  const [dedupeMessage, setDedupeMessage] = useState('');
   const router = useRouter();
 
   useEffect(() => {
@@ -635,6 +637,32 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
         isPrimary: i === index,
       })),
     }));
+  };
+
+  const handleDedupeImages = async () => {
+    if (!params?.id) return;
+    setDedupeMessage('');
+    setDedupeLoading(true);
+    try {
+      const token = localStorage.getItem('admin_token');
+      if (!token) {
+        setDedupeMessage('Нужна авторизация');
+        return;
+      }
+      const res = await fetch(`/api/admin/products/${params.id}/dedupe-images`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setDedupeMessage(data.error || 'Ошибка запроса');
+        return;
+      }
+      setDedupeMessage(data.deleted ? `Удалено дубликатов: ${data.deleted}` : (data.message || 'Готово'));
+      await loadProductData();
+    } finally {
+      setDedupeLoading(false);
+    }
   };
 
   // Variant management functions
@@ -1357,15 +1385,31 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
                 </DndContext>
               )}
 
-              <Button
-                type="button"
-                variant="outline"
-                onClick={addImage}
-                className="w-full"
-              >
-                <Upload className="h-4 w-4 mr-2" />
-                Добавить изображение
-              </Button>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={addImage}
+                  className="flex-1"
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Добавить изображение
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleDedupeImages}
+                  disabled={dedupeLoading || formData.images.length === 0}
+                  className="flex-1"
+                  title="Оставить по одному изображению на каждый URL (первое по порядку)"
+                >
+                  <CopyMinus className="h-4 w-4 mr-2" />
+                  {dedupeLoading ? 'Проверка...' : 'Удалить дубли фото'}
+                </Button>
+              </div>
+              {dedupeMessage && (
+                <p className="text-sm text-muted-foreground">{dedupeMessage}</p>
+              )}
             </CardContent>
           </Card>
 

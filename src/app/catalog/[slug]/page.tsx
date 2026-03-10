@@ -5,6 +5,7 @@ import { ProductInfo } from '@/components/product/ProductInfo';
 import { RelatedProducts } from '@/components/product/RelatedProducts';
 import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
 import { StickyImageContainer } from '@/components/product/StickyImageContainer';
+import { SetAdminEditProductId } from '@/components/admin/SetAdminEditProductId';
 
 interface Product {
   id: string;
@@ -141,6 +142,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
   return (
     <div className="min-h-screen bg-white">
+      <SetAdminEditProductId productId={product.id} />
       <div className="container mx-auto px-4 py-8">
         <Breadcrumbs items={breadcrumbItems} />
         

@@ -62,6 +62,7 @@
     "react-slick": "^0.30.2",
     "sdek-api-lib": "^1.0.0",
     "sharp": "^0.33.0",
+    "sharp-phash": "^2.2.0",
     "slick-carousel": "^1.8.1",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
