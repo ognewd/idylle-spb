@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -385,6 +386,9 @@ export default function ImportProductsPage() {
                 <h1 className="text-3xl font-bold text-gray-900">Импорт товаров</h1>
                 <p className="text-gray-600">Загрузка товаров из Excel файла</p>
               </div>
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/admin/products/update-stocks">Обновление остатков</Link>
+              </Button>
             </div>
           </div>
         </div>
