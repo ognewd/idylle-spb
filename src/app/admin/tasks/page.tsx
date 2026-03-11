@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, ArrowLeft, CheckCircle2, Circle, Clock, AlertCircle, Calendar, FileText, User, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -70,9 +71,36 @@ const priorityColors = {
   someday: 'bg-gray-500',
 };
 
+const UNASSIGNED_ID = '__unassigned__';
+const TASKS_PAGE_SIZE = 20;
+
+type StatusFilter = 'all' | 'new' | 'in_progress' | 'review' | 'done';
+
+interface AssigneeOption {
+  id: string;
+  name: string;
+}
+
+interface PaginationState {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
 export default function AdminTasksPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [assignees, setAssignees] = useState<AssigneeOption[]>([]);
+  const [pagination, setPagination] = useState<PaginationState>({
+    page: 1,
+    limit: TASKS_PAGE_SIZE,
+    total: 0,
+    totalPages: 1,
+  });
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [selectedAssigneeIds, setSelectedAssigneeIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
@@ -83,45 +111,60 @@ export default function AdminTasksPage() {
   });
   const router = useRouter();
 
+  const loadTasks = useCallback(
+    async (page: number, append: boolean = false) => {
+      const token = localStorage.getItem('admin_token');
+      if (!token) {
+        setIsLoading(false);
+        setLoadingMore(false);
+        return;
+      }
+      if (page === 1) setIsLoading(true);
+      else setLoadingMore(true);
+      try {
+        const params = new URLSearchParams();
+        params.set('page', String(page));
+        params.set('limit', String(TASKS_PAGE_SIZE));
+        if (statusFilter !== 'all') params.set('status', statusFilter);
+        if (selectedAssigneeIds.length > 0) params.set('assigneeIds', selectedAssigneeIds.join(','));
+
+        const response = await fetch(`/api/admin/tasks?${params.toString()}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+          alert(`Ошибка загрузки задач: ${errorData.error || 'Неизвестная ошибка'}`);
+          return;
+        }
+
+        const data = await response.json();
+        const list = data.tasks || [];
+        if (append) {
+          setTasks((prev) => [...prev, ...list]);
+        } else {
+          setTasks(list);
+        }
+        if (data.pagination) setPagination(data.pagination);
+        if (data.assignees && page === 1) setAssignees(data.assignees);
+      } catch (error) {
+        console.error('Error loading tasks:', error);
+        alert('Ошибка при загрузке задач.');
+      } finally {
+        setIsLoading(false);
+        setLoadingMore(false);
+      }
+    },
+    [statusFilter, selectedAssigneeIds]
+  );
+
   useEffect(() => {
-    const token = localStorage.getItem('admin_token');
-    if (!token) {
+    if (!localStorage.getItem('admin_token')) {
       router.push('/admin/login');
       return;
     }
-    loadTasks();
-  }, [router]);
-
-  const loadTasks = async () => {
-    try {
-      const token = localStorage.getItem('admin_token');
-      if (!token) {
-        console.error('No admin token found');
-        setIsLoading(false);
-        return;
-      }
-
-      const response = await fetch('/api/admin/tasks', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setTasks(data || []);
-      } else {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        console.error('Failed to load tasks:', errorData);
-        alert(`Ошибка загрузки задач: ${errorData.error || 'Неизвестная ошибка'}`);
-      }
-    } catch (error) {
-      console.error('Error loading tasks:', error);
-      alert('Ошибка при загрузке задач. Проверьте консоль браузера.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    loadTasks(1);
+  }, [loadTasks]);
 
   const handleOpenModal = () => {
     setFormData({
@@ -219,7 +262,7 @@ export default function AdminTasksPage() {
       });
 
       if (response.ok) {
-        await loadTasks();
+        await loadTasks(1);
         handleCloseModal();
       } else {
         const errorData = await response.json();
@@ -242,6 +285,53 @@ export default function AdminTasksPage() {
       hour: '2-digit',
       minute: '2-digit',
     });
+  };
+
+  const loadMore = useCallback(() => {
+    if (loadingMore || pagination.page >= pagination.totalPages) return;
+    loadTasks(pagination.page + 1, true);
+  }, [loadingMore, pagination.page, pagination.totalPages, loadTasks]);
+
+  useEffect(() => {
+    if (pagination.totalPages === 0 || isLoading) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !loadingMore && pagination.page < pagination.totalPages) {
+          loadMore();
+        }
+      },
+      { threshold: 0.1 }
+    );
+    const t = setTimeout(() => {
+      const sentinel = document.getElementById('tasks-scroll-sentinel');
+      if (sentinel) observer.observe(sentinel);
+    }, 100);
+    return () => {
+      clearTimeout(t);
+      observer.disconnect();
+    };
+  }, [pagination.page, pagination.totalPages, isLoading, loadingMore, loadMore]);
+
+  const toggleAssignee = (id: string) => {
+    setSelectedAssigneeIds((prev) => {
+      if (prev.length === 0) {
+        return assignees.filter((a) => a.id !== id).map((a) => a.id);
+      }
+      if (prev.includes(id)) {
+        const next = prev.filter((x) => x !== id);
+        return next.length === 0 ? [] : next;
+      }
+      return [...prev, id];
+    });
+  };
+
+  const isAssigneeChecked = (id: string) =>
+    selectedAssigneeIds.length === 0 ? true : selectedAssigneeIds.includes(id);
+
+  const isAllAssigneesChecked = selectedAssigneeIds.length === 0;
+
+  const setAllAssigneesChecked = (checked: boolean) => {
+    setSelectedAssigneeIds(checked ? [] : assignees.map((a) => a.id));
   };
 
   if (isLoading && tasks.length === 0) {
@@ -270,7 +360,11 @@ export default function AdminTasksPage() {
               </Button>
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">Задачи по сайту</h1>
-                <p className="text-gray-600">Всего задач: {tasks.length}</p>
+                <p className="text-gray-600">
+                  {pagination.totalPages <= 1 && tasks.length === pagination.total
+                    ? `Всего задач: ${pagination.total}`
+                    : `Показано: ${tasks.length} из ${pagination.total}`}
+                </p>
               </div>
             </div>
             <Button onClick={handleOpenModal}>
@@ -282,12 +376,80 @@ export default function AdminTasksPage() {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {tasks.length === 0 && !isLoading ? (
+        {/* Фильтры показываем всегда после загрузки — чтобы при пустом результате по фильтру можно было сменить статус/исполнителя */}
+        {!isLoading && (
+          <div className="space-y-4 mb-6">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-medium text-gray-700">Статус:</span>
+              {(
+                [
+                  { value: 'all' as const, label: 'Все' },
+                  { value: 'new' as const, label: statusLabels.new },
+                  { value: 'in_progress' as const, label: statusLabels.in_progress },
+                  { value: 'review' as const, label: statusLabels.review },
+                  { value: 'done' as const, label: statusLabels.done },
+                ] as const
+              ).map(({ value, label }) => (
+                <Button
+                  key={value}
+                  variant={statusFilter === value ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setStatusFilter(value)}
+                >
+                  {label}
+                </Button>
+              ))}
+            </div>
+            {assignees.length > 0 && (
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                <span className="text-sm font-medium text-gray-700">Исполнитель:</span>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="assignee-all"
+                    checked={isAllAssigneesChecked}
+                    onCheckedChange={(v) => setAllAssigneesChecked(!!v)}
+                  />
+                  <label htmlFor="assignee-all" className="text-sm cursor-pointer select-none">
+                    Все
+                  </label>
+                </div>
+                {assignees.map((a) => (
+                  <div key={a.id} className="flex items-center gap-2">
+                    <Checkbox
+                      id={`assignee-${a.id}`}
+                      checked={isAssigneeChecked(a.id)}
+                      onCheckedChange={() => toggleAssignee(a.id)}
+                    />
+                    <label
+                      htmlFor={`assignee-${a.id}`}
+                      className="text-sm cursor-pointer select-none"
+                    >
+                      {a.name}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Полное пустое состояние — только когда в системе вообще нет задач (без фильтров) */}
+        {tasks.length === 0 && !isLoading && statusFilter === 'all' && selectedAssigneeIds.length === 0 && pagination.total === 0 ? (
           <div className="text-center py-12">
             <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-900 mb-2">Задач пока нет</h3>
             <p className="text-gray-600 mb-6">Создайте первую задачу, чтобы начать работу</p>
             <Button onClick={handleOpenModal}>
+              <Plus className="h-4 w-4 mr-2" />
+              Создать задачу
+            </Button>
+          </div>
+        ) : tasks.length === 0 && !isLoading ? (
+          /* По выбранным фильтрам задач нет — фильтры уже видны выше, показываем подсказку */
+          <div className="text-center py-12 text-gray-600">
+            <p className="text-lg">По выбранным фильтрам задач не найдено.</p>
+            <p className="text-sm mt-2">Смените статус или исполнителя выше или создайте новую задачу.</p>
+            <Button onClick={handleOpenModal} className="mt-4">
               <Plus className="h-4 w-4 mr-2" />
               Создать задачу
             </Button>
@@ -371,6 +533,12 @@ export default function AdminTasksPage() {
                 </CardContent>
               </Card>
             ))}
+            <div id="tasks-scroll-sentinel" className="h-4" aria-hidden />
+            {loadingMore && (
+              <div className="flex justify-center py-4">
+                <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent" />
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -411,14 +579,14 @@ export default function AdminTasksPage() {
               <Label htmlFor="priority">Приоритет</Label>
               <Select
                 value={formData.priority}
-                onValueChange={(value: 'urgent' | 'normal' | 'someday') => 
+                onValueChange={(value: 'urgent' | 'normal' | 'someday') =>
                   setFormData({ ...formData, priority: value })
                 }
               >
-                <SelectTrigger>
-                  <SelectValue />
+                <SelectTrigger id="priority">
+                  <SelectValue placeholder="Выберите приоритет" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-[200]" position="popper">
                   <SelectItem value="urgent">Срочно</SelectItem>
                   <SelectItem value="normal">Нормально</SelectItem>
                   <SelectItem value="someday">Когда-нибудь</SelectItem>
