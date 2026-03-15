@@ -93,13 +93,13 @@ export function ProductWantAsGift({ productName, productSlug, className }: Produ
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button
-          variant="outline"
+          variant="ghost"
           className={cn(
-            'border-pink-200 bg-pink-50 text-pink-800 hover:bg-pink-100 hover:text-pink-900',
+            'inline-flex items-center gap-2 rounded-md border border-stone-200/80 bg-stone-50/80 text-stone-700 hover:bg-stone-100 hover:border-stone-300 hover:text-stone-900 font-medium text-sm py-2 px-3.5 shadow-sm transition-colors',
             className
           )}
         >
-          <Gift className="h-4 w-4 mr-2 shrink-0" />
+          <Gift className="h-4 w-4 text-amber-600/90 shrink-0" />
           Хочу это в подарок
         </Button>
       </DialogTrigger>
