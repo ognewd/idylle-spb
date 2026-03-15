@@ -14,6 +14,7 @@ jobs:
     outputs:
       need_full: ${{ steps.filter.outputs.source == 'true' || github.event.before == '0000000000000000000000000000000000000000' || github.event_name == 'workflow_dispatch' }}
       static_only: ${{ steps.filter.outputs.public == 'true' && steps.filter.outputs.source != 'true' && github.event_name != 'workflow_dispatch' }}
+      deps_changed: ${{ steps.filter.outputs.deps == 'true' }}
     steps:
       - uses: actions/checkout@v3
         with:
@@ -32,6 +33,9 @@ jobs:
               - '.github/**'
             public:
               - 'public/**'
+            deps:
+              - 'package.json'
+              - 'package-lock.json'
 
   # Быстрый деплой: только git pull (картинки/статика в public/) — без сборки, ~1 мин
   deploy-static:
@@ -62,6 +66,8 @@ jobs:
     if: needs.changes.outputs.need_full == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    env:
+      DEPS_CHANGED: ${{ needs.changes.outputs.deps_changed }}
     
     steps:
       - name: Checkout code
@@ -78,6 +84,7 @@ jobs:
         timeout-minutes: 22
         with:
           command_timeout: 20m
+          envs: DEPS_CHANGED
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
@@ -142,11 +149,15 @@ jobs:
                 echo "⚠️  Скрипт update-ecosystem-env.sh не найден, пропускаю обновление"
             fi
             
-            # Установить зависимости
-            echo "📦 Установка зависимостей..."
-            if ! npm ci --prefer-offline --no-audit; then
-                echo "⚠️  npm ci не удался, используем npm install..."
-                npm install --no-audit
+            # Установить зависимости (пропускаем npm ci, если менялся только код — экономия 2–4 мин)
+            if [ "$DEPS_CHANGED" = "false" ]; then
+                echo "📦 Зависимости не менялись, пропускаю npm ci"
+            else
+                echo "📦 Установка зависимостей..."
+                if ! npm ci --prefer-offline --no-audit; then
+                    echo "⚠️  npm ci не удался, используем npm install..."
+                    npm install --no-audit
+                fi
             fi
             
             if [ -f .env ]; then

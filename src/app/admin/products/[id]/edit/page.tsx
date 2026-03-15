@@ -103,6 +103,7 @@ function SortableImageItem({
   onSetPrimary,
   onMove,
   onFileUpload,
+  onFilesUpload,
 }: {
   image: { url: string; alt: string; isPrimary: boolean; file?: File };
   index: number;
@@ -112,6 +113,7 @@ function SortableImageItem({
   onSetPrimary: () => void;
   onMove: (direction: 'up' | 'down') => void;
   onFileUpload: (file: File) => void;
+  onFilesUpload?: (files: File[]) => void;
 }) {
   const {
     attributes,
@@ -169,14 +171,22 @@ function SortableImageItem({
           <Input
             type="file"
             accept="image/*"
+            multiple
             onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) {
-                onFileUpload(file);
+              const files = e.target.files;
+              if (!files || files.length === 0) return;
+              if (files.length === 1) {
+                onFileUpload(files[0]);
+              } else if (onFilesUpload) {
+                onFilesUpload(Array.from(files));
+              } else {
+                onFileUpload(files[0]);
               }
+              e.target.value = '';
             }}
-            className="mt-1"
+            className="mt-1 cursor-pointer"
           />
+          <p className="text-xs text-muted-foreground mt-1">Можно выбрать несколько файлов (Ctrl/Cmd + клик)</p>
         </div>
         <div>
           <Label>Или URL изображения</Label>
@@ -543,12 +553,52 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
       const url = e.target?.result as string;
       setFormData(prev => ({
         ...prev,
-        images: prev.images.map((img, i) => 
+        images: prev.images.map((img, i) =>
           i === index ? { ...img, url, file, alt: file.name } : img
         ),
       }));
     };
     reader.readAsDataURL(file);
+  };
+
+  /** Загрузка нескольких файлов из карточки: первый заменяет текущее изображение, остальные вставляются после */
+  const handleImageFilesUpload = (index: number, files: File[]) => {
+    if (files.length === 0) return;
+    if (files.length === 1) {
+      handleImageFileUpload(index, files[0]);
+      return;
+    }
+    const first = files[0];
+    const rest = files.slice(1);
+    handleImageFileUpload(index, first);
+    const readPromises = rest.map((file) => {
+      return new Promise<{ url: string; alt: string; isPrimary: boolean; file: File }>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          resolve({
+            url: (e.target?.result as string) || '',
+            alt: file.name,
+            isPrimary: false,
+            file,
+          });
+        };
+        reader.onerror = () => resolve({ url: '', alt: file.name, isPrimary: false, file });
+        reader.readAsDataURL(file);
+      });
+    });
+    Promise.all(readPromises).then((newImages) => {
+      const valid = newImages.filter((img) => img.url);
+      if (valid.length > 0) {
+        setFormData((prev) => ({
+          ...prev,
+          images: [
+            ...prev.images.slice(0, index + 1),
+            ...valid,
+            ...prev.images.slice(index + 1),
+          ],
+        }));
+      }
+    });
   };
 
   const handleMultipleImageUpload = (files: FileList | null) => {
@@ -1323,8 +1373,8 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
               <CardDescription>Загрузите фотографии товара с устройства или укажите URL</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="mb-4 p-4 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
-                <Label className="text-base font-semibold mb-2 block">Загрузить несколько изображений</Label>
+              <div id="upload-multiple" className="mb-4 p-4 border-2 border-dashed border-primary/40 rounded-lg bg-primary/5">
+                <Label className="text-base font-semibold mb-2 block">Загрузить несколько изображений сразу</Label>
                 <Input
                   type="file"
                   accept="image/*"
@@ -1334,18 +1384,14 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
                     if (files && files.length > 0) {
                       handleMultipleImageUpload(files);
                     }
-                    // Сбрасываем значение input после обработки, чтобы можно было загрузить те же файлы снова
-                    // Используем setTimeout для избежания проблем с React batching
                     setTimeout(() => {
-                      if (e.target) {
-                        e.target.value = '';
-                      }
+                      if (e.target) e.target.value = '';
                     }, 0);
                   }}
                   className="mt-1 cursor-pointer"
                 />
-                <p className="text-sm text-gray-600 mt-2">
-                  💡 Можно выбрать несколько файлов одновременно: удерживайте <kbd className="px-1 py-0.5 bg-white border border-gray-300 rounded text-xs">Ctrl</kbd> (Windows) или <kbd className="px-1 py-0.5 bg-white border border-gray-300 rounded text-xs">Cmd</kbd> (Mac) и кликайте по файлам
+                <p className="text-sm text-muted-foreground mt-2">
+                  Выберите несколько файлов: <kbd className="px-1 py-0.5 bg-background border rounded text-xs">Ctrl</kbd> (Win) или <kbd className="px-1 py-0.5 bg-background border rounded text-xs">Cmd</kbd> (Mac) + клик. Или используйте выбор нескольких файлов в любой карточке ниже.
                 </p>
               </div>
               
@@ -1378,6 +1424,7 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
                             moveImage(index, newIndex);
                           }}
                           onFileUpload={(file) => handleImageFileUpload(index, file)}
+                          onFilesUpload={(files) => handleImageFilesUpload(index, files)}
                         />
                       ))}
                     </div>
