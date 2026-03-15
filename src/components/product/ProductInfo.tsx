@@ -11,6 +11,7 @@ import { cn, getReviewWord } from '@/lib/utils';
 import { sanitizeHtml } from '@/lib/sanitize';
 import { useCart } from '@/contexts/CartContext';
 import { ReviewForm } from './ReviewForm';
+import { ProductWantAsGift } from './ProductWantAsGift';
 
 interface ProductVariant {
   id: string;
@@ -173,6 +174,11 @@ export function ProductInfo({ product, className }: ProductInfoProps) {
 
       {/* Product Name - используем shortName если есть, иначе name */}
       <h1 className="text-3xl font-bold">{product.shortName || product.name}</h1>
+
+      <ProductWantAsGift
+        productName={product.shortName || product.name}
+        productSlug={product.slug}
+      />
 
       {/* Rating and Reviews */}
       {reviewCount > 0 && (
