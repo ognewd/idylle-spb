@@ -26,6 +26,9 @@ export async function GET(
             { sortOrder: 'asc' },
           ],
         },
+        documents: {
+          orderBy: { sortOrder: 'asc' },
+        },
         variants: {
           orderBy: [
             { isDefault: 'desc' },
@@ -38,10 +41,10 @@ export async function GET(
     // Fallback: ищем по артикулу (manufacturerSku/sku), если slug не совпал
     let canonicalSlug: string | undefined;
     if (!product) {
-      const artMatch = params.slug.match(/-art-([a-zA-Z0-9_-]+)$/i);
+      const artMatch = slug.match(/-art-([a-zA-Z0-9_-]+)$/i);
       let code: string | null = artMatch ? artMatch[1].trim() : null;
       if (!code) {
-        const last = params.slug.split('-').pop();
+        const last = slug.split('-').pop();
         if (last && /^[a-zA-Z0-9]{6,}$/.test(last)) code = last;
       }
       if (code) {
@@ -59,6 +62,7 @@ export async function GET(
             brand: true,
             productCategories: { include: { category: true } },
             images: { orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }] },
+            documents: { orderBy: { sortOrder: 'asc' } },
             variants: { orderBy: [{ isDefault: 'desc' }, { sortOrder: 'asc' }] },
           },
         });
@@ -237,6 +241,12 @@ export async function GET(
           sku: v.sku,
           isDefault: v.isDefault,
         })),
+        documents: (product as { documents?: Array<{ id: string; type: string; title: string; fileUrl: string }> }).documents?.map(d => ({
+          id: d.id,
+          type: d.type,
+          title: d.title,
+          fileUrl: getImageUrl(d.fileUrl, { baseUrl: requestOrigin }),
+        })) ?? [],
         reviews: reviews.map(r => ({
           id: r.id,
           rating: r.rating,

@@ -123,6 +123,7 @@ model Product {
   orderItems        OrderItem[]
   productCategories ProductCategory[]
   images            ProductImage[]
+  documents         ProductDocument[]
   variants          ProductVariant[]
   brand             Brand                     @relation(fields: [brandId], references: [id])
   reviews           Review[]
@@ -156,6 +157,19 @@ model ProductImage {
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@map("product_images")
+}
+
+model ProductDocument {
+  id        String   @id @default(cuid())
+  productId String
+  type      String   // certificate, declaration, refusal, other
+  title     String
+  fileUrl   String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("product_documents")
 }
 
 model ProductVariant {

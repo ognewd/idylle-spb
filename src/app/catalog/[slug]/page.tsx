@@ -2,6 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 import { headers } from 'next/headers';
 import { ProductImageCarousel } from '@/components/product/ProductImageCarousel';
 import { ProductInfo } from '@/components/product/ProductInfo';
+import { ProductDocuments } from '@/components/product/ProductDocuments';
 import { RelatedProducts } from '@/components/product/RelatedProducts';
 import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
 import { StickyImageContainer } from '@/components/product/StickyImageContainer';
@@ -47,6 +48,12 @@ interface Product {
     url: string;
     alt?: string;
     isPrimary: boolean;
+  }>;
+  documents?: Array<{
+    id: string;
+    type: string;
+    title: string;
+    fileUrl: string;
   }>;
   variants: Array<{
     id: string;
@@ -163,6 +170,9 @@ export default async function ProductPage({ params }: ProductPageProps) {
         {/* Product Info */}
         <div id="product-info-container" className="space-y-6 lg:col-span-3">
           <ProductInfo product={product} />
+          {product.documents && product.documents.length > 0 && (
+            <ProductDocuments documents={product.documents} />
+          )}
         </div>
       </div>
 

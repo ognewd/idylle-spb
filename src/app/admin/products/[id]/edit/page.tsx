@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ArrowLeft, Save, Upload, X, RefreshCw, ChevronUp, ChevronDown, GripVertical, CopyMinus } from 'lucide-react';
+import { ArrowLeft, Save, Upload, X, RefreshCw, ChevronUp, ChevronDown, GripVertical, CopyMinus, FileText } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -306,6 +306,9 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
   const [success, setSuccess] = useState('');
   const [dedupeLoading, setDedupeLoading] = useState(false);
   const [dedupeMessage, setDedupeMessage] = useState('');
+  const [productDocuments, setProductDocuments] = useState<Array<{ id: string; type: string; title: string; fileUrl: string }>>([]);
+  const [docUploading, setDocUploading] = useState(false);
+  const [docForm, setDocForm] = useState({ type: 'certificate', title: '' });
   const router = useRouter();
 
   useEffect(() => {
@@ -325,7 +328,25 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
 
     loadProductData();
     loadCategoriesAndBrands();
+    loadProductDocuments();
   }, [params.id]);
+
+  const loadProductDocuments = async () => {
+    if (!params?.id) return;
+    const token = localStorage.getItem('admin_token');
+    if (!token) return;
+    try {
+      const res = await fetch(`/api/admin/products/${params.id}/documents`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const list = await res.json();
+        setProductDocuments(list);
+      }
+    } catch (e) {
+      console.error('Load product documents error:', e);
+    }
+  };
 
   const loadProductData = async () => {
     try {
@@ -1456,6 +1477,121 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
               </div>
               {dedupeMessage && (
                 <p className="text-sm text-muted-foreground">{dedupeMessage}</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Документы на товар */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Документы на товар
+              </CardTitle>
+              <CardDescription>
+                Сертификаты, декларации соответствия, отказные письма — загрузите PDF или изображения
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-wrap gap-4 items-end p-4 border rounded-lg bg-muted/30">
+                <div className="flex-1 min-w-[200px]">
+                  <Label>Тип документа</Label>
+                  <Select
+                    value={docForm.type}
+                    onValueChange={(v) => setDocForm((f) => ({ ...f, type: v }))}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="certificate">Сертификат гос. регистрации</SelectItem>
+                      <SelectItem value="declaration">Декларация соответствия</SelectItem>
+                      <SelectItem value="refusal">Отказное письмо</SelectItem>
+                      <SelectItem value="other">Прочее</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex-1 min-w-[200px]">
+                  <Label>Название (как показывать на сайте)</Label>
+                  <Input
+                    value={docForm.title}
+                    onChange={(e) => setDocForm((f) => ({ ...f, title: e.target.value }))}
+                    placeholder="Например: Декларация ЕАЭС"
+                    className="mt-1"
+                  />
+                </div>
+                <div className="flex-1 min-w-[200px]">
+                  <Label>Файл (PDF, JPG, PNG, DOC)</Label>
+                  <Input
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx"
+                    className="mt-1 cursor-pointer"
+                    id="product-doc-file"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file || !params?.id) return;
+                      setDocUploading(true);
+                      try {
+                        const fd = new FormData();
+                        fd.set('file', file);
+                        fd.set('type', docForm.type);
+                        fd.set('title', docForm.title || file.name);
+                        const token = localStorage.getItem('admin_token');
+                        const res = await fetch(`/api/admin/products/${params.id}/documents`, {
+                          method: 'POST',
+                          headers: { Authorization: `Bearer ${token}` },
+                          body: fd,
+                        });
+                        if (res.ok) {
+                          await loadProductDocuments();
+                          setDocForm({ type: 'certificate', title: '' });
+                          e.target.value = '';
+                        } else {
+                          const data = await res.json().catch(() => ({}));
+                          alert(data.error || 'Ошибка загрузки');
+                        }
+                      } catch (err) {
+                        alert('Ошибка загрузки');
+                      } finally {
+                        setDocUploading(false);
+                      }
+                    }}
+                  />
+                </div>
+                <Button type="button" disabled={docUploading}>
+                  {docUploading ? 'Загрузка...' : 'Добавить документ'}
+                </Button>
+              </div>
+              {productDocuments.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Нет загруженных документов. Добавьте сертификат или декларацию — они отобразятся на странице товара.</p>
+              ) : (
+                <ul className="space-y-2">
+                  {productDocuments.map((doc) => (
+                    <li key={doc.id} className="flex items-center justify-between gap-2 p-2 rounded border bg-background">
+                      <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline truncate flex items-center gap-2">
+                        <FileText className="h-4 w-4 shrink-0" />
+                        {doc.title}
+                      </a>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="shrink-0 text-destructive hover:text-destructive"
+                        onClick={async () => {
+                          if (!confirm('Удалить документ?')) return;
+                          const token = localStorage.getItem('admin_token');
+                          const res = await fetch(`/api/admin/products/documents/${doc.id}`, {
+                            method: 'DELETE',
+                            headers: { Authorization: `Bearer ${token}` },
+                          });
+                          if (res.ok) await loadProductDocuments();
+                        }}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
               )}
             </CardContent>
           </Card>
