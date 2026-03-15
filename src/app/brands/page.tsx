@@ -2,8 +2,19 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
 import { Search, Sparkles } from 'lucide-react';
 import {
@@ -48,6 +59,118 @@ function getFirstChar(name: string): string {
   return '0-9';
 }
 
+// Форма запроса по сотрудничеству (бренды)
+function BrandContactForm({ onSuccess }: { onSuccess?: () => void }) {
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [message, setMessage] = useState('');
+  const [acceptPrivacy, setAcceptPrivacy] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    if (!email.trim() || !phone.trim()) {
+      setError('Заполните электронную почту и телефон');
+      return;
+    }
+    if (!acceptPrivacy) {
+      setError('Необходимо согласие на обработку персональных данных');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/brands/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), phone: phone.trim(), message: message.trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error || 'Ошибка отправки');
+        return;
+      }
+      setSuccess(true);
+      setTimeout(() => onSuccess?.(), 1500);
+    } catch {
+      setError('Ошибка отправки');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (success) {
+    return (
+      <p className="text-center py-4 text-green-600">
+        Запрос отправлен. Мы свяжемся с вами.
+      </p>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <Label htmlFor="brand-contact-email">Электронная почта *</Label>
+        <Input
+          id="brand-contact-email"
+          type="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="example@company.ru"
+          className="mt-1"
+        />
+      </div>
+      <div>
+        <Label htmlFor="brand-contact-phone">Телефон *</Label>
+        <Input
+          id="brand-contact-phone"
+          type="tel"
+          required
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          placeholder="+7 (999) 123-45-67 или код страны и номер"
+          className="mt-1"
+        />
+      </div>
+      <div>
+        <Label htmlFor="brand-contact-message">Сообщение</Label>
+        <p className="text-xs text-muted-foreground mb-1">Расскажите о вашей компании, бренде и формате сотрудничества</p>
+        <Textarea
+          id="brand-contact-message"
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          placeholder=""
+          rows={4}
+          className="mt-1"
+        />
+      </div>
+      <div className="flex items-start gap-2">
+        <Checkbox
+          id="brand-contact-privacy"
+          checked={acceptPrivacy}
+          onCheckedChange={(checked) => setAcceptPrivacy(checked === true)}
+          required
+          className="mt-0.5"
+        />
+        <label htmlFor="brand-contact-privacy" className="text-sm cursor-pointer leading-tight">
+          Я согласен на обработку персональных данных в соответствии с{' '}
+          <Link href="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary underline hover:no-underline">
+            политикой конфиденциальности
+          </Link>{' '}
+          *
+        </label>
+      </div>
+      {error && <p className="text-sm text-destructive">{error}</p>}
+      <Button type="submit" disabled={submitting} className="w-full">
+        {submitting ? 'Отправка заявки...' : 'Отправить заявку'}
+      </Button>
+    </form>
+  );
+}
+
 // Группировка брендов по первой букве
 function groupBrandsByLetter(brands: Brand[]): Map<string, Brand[]> {
   const grouped = new Map<string, Brand[]>();
@@ -74,6 +197,7 @@ export default function BrandsPage() {
   const [loading, setLoading] = useState(true);
   const [selectedLetter, setSelectedLetter] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+  const [openBrandDialog, setOpenBrandDialog] = useState(false);
 
   // Загрузка брендов
   useEffect(() => {
@@ -391,9 +515,17 @@ export default function BrandsPage() {
         {!loading && brands.length > 0 && (
           <div className="mt-12 pt-8 border-t text-center">
             <p className="text-muted-foreground mb-2">Нет нужного бренда?</p>
-            <Button variant="outline" asChild>
-              <a href="mailto:info@idylle.spb.ru">Свяжитесь с нами</a>
-            </Button>
+            <Dialog open={openBrandDialog} onOpenChange={setOpenBrandDialog}>
+              <DialogTrigger asChild>
+                <Button variant="outline">Свяжитесь с нами</Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Свяжитесь с нами для обсуждения сотрудничества</DialogTitle>
+                </DialogHeader>
+                <BrandContactForm onSuccess={() => setOpenBrandDialog(false)} />
+              </DialogContent>
+            </Dialog>
           </div>
         )}
       </div>

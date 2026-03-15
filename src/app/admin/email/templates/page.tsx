@@ -7,6 +7,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { CheckCircle, XCircle, Save, Eye, EyeOff, Edit, X, Smartphone, Tablet, Monitor } from 'lucide-react';
 
 interface EmailTemplate {
@@ -226,22 +233,92 @@ Email: {{email}}
 Команда Idylle`,
 };
 
+const brandCooperationTemplate: EmailTemplate = {
+  id: 'brand-cooperation',
+  name: 'Запрос по сотрудничеству (бренды)',
+  subject: 'Заявка на сотрудничество: {{email}}',
+  htmlBody: `<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1a1a1a;">
+  <h2 style="margin-bottom: 20px;">Новая заявка на сотрудничество</h2>
+  <p style="color: #666; font-size: 14px; margin-bottom: 20px;">Заполнена форма «Свяжитесь с нами для обсуждения сотрудничества» (страница «Бренды»).</p>
+  <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+    <tr>
+      <td style="padding: 10px 0; border-bottom: 1px solid #eee; color: #666; width: 180px;">Электронная почта</td>
+      <td style="padding: 10px 0; border-bottom: 1px solid #eee;">{{email}}</td>
+    </tr>
+    <tr>
+      <td style="padding: 10px 0; border-bottom: 1px solid #eee; color: #666;">Телефон</td>
+      <td style="padding: 10px 0; border-bottom: 1px solid #eee;">{{phone}}</td>
+    </tr>
+    <tr>
+      <td style="padding: 10px 0; border-bottom: 1px solid #eee; color: #666; vertical-align: top;">Сообщение</td>
+      <td style="padding: 10px 0; border-bottom: 1px solid #eee; white-space: pre-wrap;">{{message}}</td>
+    </tr>
+  </table>
+  <p style="margin-top: 24px; color: #666; font-size: 13px;">Согласие на обработку персональных данных получено. Ответьте на указанный email или позвоните по телефону.</p>
+</body>
+</html>`,
+  textBody: `Новая заявка на сотрудничество
+
+Форма: «Свяжитесь с нами для обсуждения сотрудничества» (страница «Бренды»).
+
+Электронная почта: {{email}}
+Телефон: {{phone}}
+Сообщение:
+{{message}}
+
+Согласие на обработку персональных данных получено.`,
+};
+
+const TEMPLATES: Record<string, EmailTemplate> = {
+  'order-confirmation': defaultTemplate,
+  'brand-cooperation': brandCooperationTemplate,
+};
+
 export default function EmailTemplatesPage() {
+  const [templateId, setTemplateId] = useState<string>('order-confirmation');
   const [template, setTemplate] = useState<EmailTemplate>(defaultTemplate);
   const [showPreview, setShowPreview] = useState(true);
   const [editingField, setEditingField] = useState<string | null>(null);
   const [deviceType, setDeviceType] = useState<DeviceType>('desktop');
-  const [previewData, setPreviewData] = useState({});
+  const [previewData, setPreviewData] = useState<Record<string, unknown>>({});
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
-    loadTemplate();
+    setTemplate(TEMPLATES[templateId] ?? defaultTemplate);
+  }, [templateId]);
+
+  useEffect(() => {
     generatePreview();
   }, []);
 
+  useEffect(() => {
+    generatePreview();
+  }, [template, templateId]);
+
+  useEffect(() => {
+    if (templateId === 'brand-cooperation') loadTemplate();
+  }, [templateId]);
+
   const loadTemplate = async () => {
+    if (templateId !== 'brand-cooperation') return;
     try {
-      // TODO: Load from API
+      const token = localStorage.getItem('admin_token');
+      if (!token) return;
+      const res = await fetch('/api/admin/email/service-templates?id=brand-cooperation', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.subject !== undefined || data.htmlBody !== undefined) {
+        setTemplate((prev) => ({
+          ...prev,
+          subject: data.subject ?? prev.subject,
+          htmlBody: data.htmlBody ?? prev.htmlBody,
+        }));
+      }
     } catch (error) {
       console.error('Error loading template:', error);
     }
@@ -249,6 +326,30 @@ export default function EmailTemplatesPage() {
 
   const handleSave = async () => {
     try {
+      if (templateId === 'brand-cooperation') {
+        const token = localStorage.getItem('admin_token');
+        if (!token) {
+          setMessage({ type: 'error', text: 'Нужна авторизация' });
+          return;
+        }
+        const res = await fetch('/api/admin/email/service-templates', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            id: 'brand-cooperation',
+            subject: template.subject,
+            htmlBody: template.htmlBody,
+          }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          setMessage({ type: 'error', text: data.error || 'Ошибка сохранения' });
+          return;
+        }
+      }
       setMessage({ type: 'success', text: 'Шаблон сохранен!' });
     } catch (error) {
       setMessage({ type: 'error', text: 'Ошибка при сохранении' });
@@ -257,38 +358,45 @@ export default function EmailTemplatesPage() {
 
   const generatePreview = () => {
     const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-    const sampleData = {
-      orderNumber: 'idy123',
-      orderDate: new Date().toLocaleDateString('ru-RU', { 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-      }),
-      firstName: 'Иван',
-      lastName: 'Иванов',
-      email: 'ivan@example.com',
-      phone: '+7 (999) 123-45-67',
-      deliveryMethod: 'delivery',
-      deliveryMethodLabel: 'Доставка курьером',
-      city: 'Санкт-Петербург',
-      deliveryAddress: 'ул. Невский пр., д. 1, кв. 10',
-      paymentMethod: 'card',
-      paymentMethodLabel: 'Карта онлайн',
-      orderItems: [
-        { name: 'Ароматическая свеча "Лаванда"', variantInfo: '100 мл', quantity: 2, price: 1500, total: 3000 },
-        { name: 'Диффузор "Цитрус"', variantInfo: null, quantity: 1, price: 2500, total: 2500 },
-      ],
-      totalAmount: '5 500',
-      shippingAmount: '500',
-      notes: 'Позвонить за час до доставки',
-      logoUrl: `${baseUrl}/logo-idylle.png`,
-      companyName: '',
-      inn: '',
-      kpp: '',
-      companyAddress: '',
-      cdekPvzAddress: '',
-    };
-    setPreviewData(sampleData);
+    if (templateId === 'brand-cooperation') {
+      setPreviewData({
+        email: 'partner@example.com',
+        phone: '+7 (999) 123-45-67',
+        message: 'Представляем бренды домашней парфюмерии из Италии и Франции. Хотим обсудить условия сотрудничества.',
+      });
+    } else {
+      setPreviewData({
+        orderNumber: 'idy123',
+        orderDate: new Date().toLocaleDateString('ru-RU', { 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        }),
+        firstName: 'Иван',
+        lastName: 'Иванов',
+        email: 'ivan@example.com',
+        phone: '+7 (999) 123-45-67',
+        deliveryMethod: 'delivery',
+        deliveryMethodLabel: 'Доставка курьером',
+        city: 'Санкт-Петербург',
+        deliveryAddress: 'ул. Невский пр., д. 1, кв. 10',
+        paymentMethod: 'card',
+        paymentMethodLabel: 'Карта онлайн',
+        orderItems: [
+          { name: 'Ароматическая свеча "Лаванда"', variantInfo: '100 мл', quantity: 2, price: 1500, total: 3000 },
+          { name: 'Диффузор "Цитрус"', variantInfo: null, quantity: 1, price: 2500, total: 2500 },
+        ],
+        totalAmount: '5 500',
+        shippingAmount: '500',
+        notes: 'Позвонить за час до доставки',
+        logoUrl: `${baseUrl}/logo-idylle.png`,
+        companyName: '',
+        inn: '',
+        kpp: '',
+        companyAddress: '',
+        cdekPvzAddress: '',
+      });
+    }
   };
 
   const renderTemplate = (templateStr: string, data: any) => {
@@ -360,7 +468,19 @@ export default function EmailTemplatesPage() {
         </Alert>
       )}
 
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+        <div className="flex items-center gap-3">
+          <Label className="text-muted-foreground whitespace-nowrap">Шаблон:</Label>
+          <Select value={templateId} onValueChange={setTemplateId}>
+            <SelectTrigger className="w-[280px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="order-confirmation">Подтверждение заказа</SelectItem>
+              <SelectItem value="brand-cooperation">Запрос по сотрудничеству (бренды)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         <h2 className="text-2xl font-semibold">{template.name}</h2>
         <Button onClick={handleSave}>
           <Save className="mr-2 h-4 w-4" />
@@ -480,28 +600,42 @@ export default function EmailTemplatesPage() {
 
               {/* Variables Info */}
               <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                <h4 className="font-semibold mb-2">Доступные переменные (подтверждение заказа):</h4>
+                <h4 className="font-semibold mb-2">
+                  {templateId === 'brand-cooperation'
+                    ? 'Переменные (запрос по брендам):'
+                    : 'Доступные переменные (подтверждение заказа):'}
+                </h4>
                 <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div><code className="bg-white px-2 py-1 rounded">{`{{orderNumber}}`}</code></div>
-                  <div><code className="bg-white px-2 py-1 rounded">{`{{orderDate}}`}</code></div>
-                  <div><code className="bg-white px-2 py-1 rounded">{`{{firstName}}`}</code></div>
-                  <div><code className="bg-white px-2 py-1 rounded">{`{{lastName}}`}</code></div>
-                  <div><code className="bg-white px-2 py-1 rounded">{`{{email}}`}</code></div>
-                  <div><code className="bg-white px-2 py-1 rounded">{`{{phone}}`}</code></div>
-                  <div><code className="bg-white px-2 py-1 rounded">{`{{deliveryMethodLabel}}`}</code></div>
-                  <div><code className="bg-white px-2 py-1 rounded">{`{{paymentMethodLabel}}`}</code></div>
-                  <div><code className="bg-white px-2 py-1 rounded">{`{{city}}`}</code></div>
-                  <div><code className="bg-white px-2 py-1 rounded">{`{{deliveryAddress}}`}</code></div>
-                  <div><code className="bg-white px-2 py-1 rounded">{`{{shippingAmount}}`}</code></div>
-                  <div><code className="bg-white px-2 py-1 rounded">{`{{cdekPvzAddress}}`}</code></div>
-                  <div><code className="bg-white px-2 py-1 rounded">{`{{companyName}}`}</code></div>
-                  <div><code className="bg-white px-2 py-1 rounded">{`{{inn}}`}</code></div>
-                  <div><code className="bg-white px-2 py-1 rounded">{`{{kpp}}`}</code></div>
-                  <div><code className="bg-white px-2 py-1 rounded">{`{{companyAddress}}`}</code></div>
-                  <div><code className="bg-white px-2 py-1 rounded">{`{{totalAmount}}`}</code></div>
-                  <div><code className="bg-white px-2 py-1 rounded">{`{{notes}}`}</code></div>
-                  <div><code className="bg-white px-2 py-1 rounded">{`{{logoUrl}}`}</code></div>
-                  <div><code className="bg-white px-2 py-1 rounded">{`{{#each orderItems}}`}</code></div>
+                  {templateId === 'brand-cooperation' ? (
+                    <>
+                      <div><code className="bg-white px-2 py-1 rounded">{`{{email}}`}</code></div>
+                      <div><code className="bg-white px-2 py-1 rounded">{`{{phone}}`}</code></div>
+                      <div><code className="bg-white px-2 py-1 rounded">{`{{message}}`}</code></div>
+                    </>
+                  ) : (
+                    <>
+                      <div><code className="bg-white px-2 py-1 rounded">{`{{orderNumber}}`}</code></div>
+                      <div><code className="bg-white px-2 py-1 rounded">{`{{orderDate}}`}</code></div>
+                      <div><code className="bg-white px-2 py-1 rounded">{`{{firstName}}`}</code></div>
+                      <div><code className="bg-white px-2 py-1 rounded">{`{{lastName}}`}</code></div>
+                      <div><code className="bg-white px-2 py-1 rounded">{`{{email}}`}</code></div>
+                      <div><code className="bg-white px-2 py-1 rounded">{`{{phone}}`}</code></div>
+                      <div><code className="bg-white px-2 py-1 rounded">{`{{deliveryMethodLabel}}`}</code></div>
+                      <div><code className="bg-white px-2 py-1 rounded">{`{{paymentMethodLabel}}`}</code></div>
+                      <div><code className="bg-white px-2 py-1 rounded">{`{{city}}`}</code></div>
+                      <div><code className="bg-white px-2 py-1 rounded">{`{{deliveryAddress}}`}</code></div>
+                      <div><code className="bg-white px-2 py-1 rounded">{`{{shippingAmount}}`}</code></div>
+                      <div><code className="bg-white px-2 py-1 rounded">{`{{cdekPvzAddress}}`}</code></div>
+                      <div><code className="bg-white px-2 py-1 rounded">{`{{companyName}}`}</code></div>
+                      <div><code className="bg-white px-2 py-1 rounded">{`{{inn}}`}</code></div>
+                      <div><code className="bg-white px-2 py-1 rounded">{`{{kpp}}`}</code></div>
+                      <div><code className="bg-white px-2 py-1 rounded">{`{{companyAddress}}`}</code></div>
+                      <div><code className="bg-white px-2 py-1 rounded">{`{{totalAmount}}`}</code></div>
+                      <div><code className="bg-white px-2 py-1 rounded">{`{{notes}}`}</code></div>
+                      <div><code className="bg-white px-2 py-1 rounded">{`{{logoUrl}}`}</code></div>
+                      <div><code className="bg-white px-2 py-1 rounded">{`{{#each orderItems}}`}</code></div>
+                    </>
+                  )}
                 </div>
               </div>
             </CardContent>
