@@ -282,7 +282,7 @@ function GiftsContent() {
         <div 
           className="absolute inset-0 bg-cover bg-center"
           style={{
-            backgroundImage: 'url(https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?q=80&w=2070&auto=format&fit=crop)',
+            backgroundImage: 'url(/images/hero/podarki.jpg)',
           }}
         >
           <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/30"></div>
@@ -321,7 +321,7 @@ function GiftsContent() {
         <div 
           className="absolute inset-0 bg-cover bg-center opacity-5"
           style={{
-            backgroundImage: 'url(https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?q=80&w=2070&auto=format&fit=crop)',
+            backgroundImage: 'url(/images/hero/podarki.jpg)',
           }}
         ></div>
         <div className="absolute inset-0 bg-gradient-to-b from-background via-background/90 to-background"></div>

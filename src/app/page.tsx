@@ -10,11 +10,11 @@ import { headers } from 'next/headers';
 
 // Изображения для секции категорий по slug (подпись и картинка должны совпадать)
 const CATEGORY_IMAGES_BY_SLUG: Record<string, string> = {
-  'aromaty-dlya-doma': 'https://images.unsplash.com/photo-1617351165959-471f874b60a9?w=800&q=80', // диффузор, гостиная
-  'vannaya-komnata': 'https://images.unsplash.com/photo-1600566752355-35792bedcfea?w=800&q=80',   // ванная
-  'podarki': 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=800&q=80',             // подарки
+  'aromaty-dlya-doma': '/images/categories/aromaty-dlya-doma.jpg',
+  'vannaya-komnata': '/images/categories/vannaya-komnata.jpg',
+  'podarki': '/images/categories/podarki.jpg',
 };
-const DEFAULT_CATEGORY_IMAGE = 'https://images.unsplash.com/photo-1600566752355-35792bedcfea?w=800&q=80';
+const DEFAULT_CATEGORY_IMAGE = '/images/categories/vannaya-komnata.jpg';
 
 async function getFeaturedProducts(limit: number) {
   try {

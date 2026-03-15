@@ -314,7 +314,7 @@ function HomeAromasContent() {
         <div 
           className="absolute inset-0 bg-cover bg-center"
           style={{
-            backgroundImage: 'url(https://images.unsplash.com/photo-1600210492493-0946911123ea?q=80&w=2074&auto=format&fit=crop)',
+            backgroundImage: 'url(/images/hero/aromaty-dlya-doma.jpg)',
           }}
         >
           <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/30"></div>
@@ -355,7 +355,7 @@ function HomeAromasContent() {
         <div 
           className="absolute inset-0 bg-cover bg-center opacity-5"
           style={{
-            backgroundImage: 'url(https://images.unsplash.com/photo-1604709177225-055f99402ea3?q=80&w=2070&auto=format&fit=crop)',
+            backgroundImage: 'url(/images/hero/aromaty-dlya-doma-bg.jpg)',
           }}
         ></div>
         <div className="absolute inset-0 bg-gradient-to-b from-background via-background/90 to-background"></div>

@@ -308,7 +308,7 @@ function HomeCozyContent() {
         <div 
           className="absolute inset-0 bg-cover bg-center"
           style={{
-            backgroundImage: 'url(https://images.unsplash.com/photo-1586023492125-27b2c045efd7?q=80&w=2058&auto=format&fit=crop&ixlib=rb-4.0.3)',
+            backgroundImage: 'url(/images/hero/uyut-i-interer.jpg)',
           }}
         >
           <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/30"></div>
@@ -349,7 +349,7 @@ function HomeCozyContent() {
         <div 
           className="absolute inset-0 bg-cover bg-center opacity-5"
           style={{
-            backgroundImage: 'url(https://images.unsplash.com/photo-1586023492125-27b2c045efd7?q=80&w=2058&auto=format&fit=crop)',
+            backgroundImage: 'url(/images/hero/uyut-i-interer.jpg)',
           }}
         ></div>
         <div className="absolute inset-0 bg-gradient-to-b from-background via-background/90 to-background"></div>

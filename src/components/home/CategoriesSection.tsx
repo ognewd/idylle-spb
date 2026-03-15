@@ -47,7 +47,7 @@ export function CategoriesSection({ categories = [] }: CategoriesSectionProps) {
           {displayCategories.map((category, index) => {
             const gradient = GRADIENTS[index % GRADIENTS.length];
             const href = category.slug === 'catalog' ? '/catalog' : category.slug === 'podarki' ? '/podarki' : `/catalog?category=${category.slug}`;
-            const fallbackImage = `https://images.unsplash.com/photo-1617351165959-471f874b60a9?w=800&q=80`;
+            const fallbackImage = `/images/categories/aromaty-dlya-doma.jpg`;
             const imageUrl = category.image || fallbackImage;
 
             return (

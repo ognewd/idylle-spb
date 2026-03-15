@@ -290,7 +290,7 @@ export function HeroSection({ products = [] }: HeroSectionProps) {
                 </div>
                 <div className="relative w-full aspect-square flex items-center justify-center rounded-2xl overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
                   <img
-                    src="https://images.unsplash.com/photo-1617351165959-471f874b60a9?w=800&q=80"
+                    src="/images/categories/aromaty-dlya-doma.jpg"
                     alt="Ароматы"
                     className="w-full h-full object-contain p-4"
                   />
