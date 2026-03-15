@@ -1,11 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, ZoomIn, Image as ImageIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getImageUrl } from '@/lib/image-url';
 import { ImageLightbox } from './ImageLightbox';
+
+const SWIPE_THRESHOLD = 50;
 
 interface ProductImageCarouselProps {
   images: string[];
@@ -16,21 +18,44 @@ interface ProductImageCarouselProps {
 export function ProductImageCarousel({ images, name, className }: ProductImageCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
-  
-  // Логируем изображения для отладки
-  console.log(`[ProductImageCarousel] Product "${name}": Received ${images.length} images:`, images);
+  const touchStartX = useRef<number>(0);
+  const touchCurrentX = useRef<number>(0);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  const nextImage = () => {
+  const nextImage = useCallback(() => {
     setCurrentIndex((prev) => (prev + 1) % images.length);
-  };
+  }, [images.length]);
 
-  const prevImage = () => {
+  const prevImage = useCallback(() => {
     setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
-  };
+  }, [images.length]);
 
   const goToImage = (index: number) => {
     setCurrentIndex(index);
   };
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || images.length <= 1) return;
+    const onMove = (e: TouchEvent) => {
+      touchCurrentX.current = e.touches[0].clientX;
+      const deltaX = Math.abs(touchCurrentX.current - touchStartX.current);
+      if (deltaX > 10) e.preventDefault();
+    };
+    el.addEventListener('touchmove', onMove, { passive: false });
+    return () => el.removeEventListener('touchmove', onMove);
+  }, [images.length]);
+
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchCurrentX.current = e.touches[0].clientX;
+  }, []);
+
+  const onTouchEnd = useCallback(() => {
+    const deltaX = touchCurrentX.current - touchStartX.current;
+    if (deltaX > SWIPE_THRESHOLD) prevImage();
+    else if (deltaX < -SWIPE_THRESHOLD) nextImage();
+  }, [prevImage, nextImage]);
 
   if (images.length === 0) {
     return (
@@ -45,8 +70,14 @@ export function ProductImageCarousel({ images, name, className }: ProductImageCa
 
   return (
     <div className={cn("space-y-3", className)}>
-      {/* Main Image — компактный блок под пропорции фото, без лишнего спейса */}
-      <div className="relative bg-white overflow-visible group flex items-center justify-center min-h-[240px] max-h-[420px] w-full">
+      {/* Main Image — свайп на мобильном листает фото, не скроллит страницу */}
+      <div
+        ref={containerRef}
+        className="relative bg-white overflow-visible group flex items-center justify-center min-h-[240px] max-h-[420px] w-full"
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+        style={{ touchAction: 'pan-y' }}
+      >
         <div className="relative w-full h-full flex items-center justify-center">
           <img
             src={getImageUrl(images[currentIndex])}
@@ -55,13 +86,13 @@ export function ProductImageCarousel({ images, name, className }: ProductImageCa
           />
         </div>
 
-        {/* Navigation Arrows */}
+        {/* Navigation Arrows — на мобильном видны всегда (нет hover), на десктопе по hover */}
         {images.length > 1 && (
           <>
             <Button
               variant="secondary"
               size="icon"
-              className="absolute left-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity"
+              className="absolute left-2 top-1/2 -translate-y-1/2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-10"
               onClick={prevImage}
             >
               <ChevronLeft className="h-4 w-4" />
@@ -69,7 +100,7 @@ export function ProductImageCarousel({ images, name, className }: ProductImageCa
             <Button
               variant="secondary"
               size="icon"
-              className="absolute right-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity"
+              className="absolute right-2 top-1/2 -translate-y-1/2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-10"
               onClick={nextImage}
             >
               <ChevronRight className="h-4 w-4" />

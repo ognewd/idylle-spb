@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -74,6 +74,11 @@ export function ProductCard({
   const { addItem } = useCart();
   const { isInWishlist: wishlistHas, toggle } = useWishlist();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const touchStartX = useRef(0);
+  const touchCurrentX = useRef(0);
+  const didSwipeRef = useRef(false);
+  const imageAreaRef = useRef<HTMLDivElement>(null);
+  const hasMultipleImages = !!(product.images && product.images.length > 1);
   
   // Handle variants
   const hasVariants = product.variants && product.variants.length > 0;
@@ -160,25 +165,76 @@ export function ProductCard({
       : product.images[currentImageIndex]?.url)
     : null;
 
+  const goToPrevImage = useCallback((e?: React.MouseEvent) => {
+    e?.preventDefault();
+    if (!product.images || product.images.length <= 1) return;
+    setCurrentImageIndex((i) => (i - 1 + product.images!.length) % product.images!.length);
+  }, [product.images]);
+
+  const goToNextImage = useCallback((e?: React.MouseEvent) => {
+    e?.preventDefault();
+    if (!product.images || product.images.length <= 1) return;
+    setCurrentImageIndex((i) => (i + 1) % product.images!.length);
+  }, [product.images]);
+
+  const onImageTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchCurrentX.current = e.touches[0].clientX;
+    didSwipeRef.current = false;
+  }, []);
+
+  const onImageTouchEnd = useCallback(() => {
+    const deltaX = touchCurrentX.current - touchStartX.current;
+    if (Math.abs(deltaX) > 50 && hasMultipleImages) {
+      didSwipeRef.current = true;
+      if (deltaX > 0) goToPrevImage();
+      else goToNextImage();
+      setTimeout(() => { didSwipeRef.current = false; }, 300);
+    }
+  }, [hasMultipleImages, goToPrevImage, goToNextImage]);
+
+  useEffect(() => {
+    const el = imageAreaRef.current;
+    if (!el || !hasMultipleImages) return;
+    const onMove = (e: TouchEvent) => {
+      touchCurrentX.current = e.touches[0].clientX;
+      if (Math.abs(touchCurrentX.current - touchStartX.current) > 10) e.preventDefault();
+    };
+    el.addEventListener('touchmove', onMove, { passive: false });
+    return () => el.removeEventListener('touchmove', onMove);
+  }, [hasMultipleImages]);
+
   return (
     <div className={cn(
       "group bg-white border border-neutral-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow duration-300",
       className
     )}>
-      {/* Image */}
+      {/* Image — на мобильном свайп листает фото, тап открывает товар */}
       <div className="relative aspect-square overflow-hidden bg-neutral-100">
         {primaryImage ? (
-          <Link href={`/catalog/${product.slug}`} className="block w-full h-full">
-            <img
-              src={getImageUrl(primaryImage)}
-              alt={product.name}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-              onError={(e) => {
-                const target = e.currentTarget;
-                target.onerror = null;
-                target.src = '/placeholder-product.jpg';
-              }}
-            />
+          <Link
+            href={`/catalog/${product.slug}`}
+            className="block w-full h-full"
+            onClick={(e) => { if (didSwipeRef.current) e.preventDefault(); }}
+          >
+            <div
+              ref={imageAreaRef}
+              className="block w-full h-full"
+              style={{ touchAction: hasMultipleImages ? 'pan-y' : undefined }}
+              onTouchStart={onImageTouchStart}
+              onTouchEnd={onImageTouchEnd}
+            >
+              <img
+                src={getImageUrl(primaryImage)}
+                alt={product.name}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                onError={(e) => {
+                  const target = e.currentTarget;
+                  target.onerror = null;
+                  target.src = '/placeholder-product.jpg';
+                }}
+              />
+            </div>
           </Link>
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground">

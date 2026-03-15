@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -62,6 +62,12 @@ interface ProductCardListProps {
 export function ProductCardList({ product, className }: ProductCardListProps) {
   const { addItem } = useCart();
   const { isInWishlist: wishlistHas, toggle } = useWishlist();
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const touchStartX = useRef(0);
+  const touchCurrentX = useRef(0);
+  const didSwipeRef = useRef(false);
+  const imageAreaRef = useRef<HTMLDivElement>(null);
+  const hasMultipleImages = !!(product.images && product.images.length > 1);
   
   const hasVariants = product.variants && product.variants.length > 0;
   
@@ -132,10 +138,49 @@ export function ProductCardList({ product, className }: ProductCardListProps) {
   };
 
   const primaryImage = product.images && product.images.length > 0
-    ? (typeof product.images[0] === 'string' 
-      ? product.images[0] as string
-      : product.images[0]?.url)
+    ? (typeof product.images[currentImageIndex] === 'string' 
+      ? product.images[currentImageIndex] as string
+      : product.images[currentImageIndex]?.url)
     : null;
+
+  const goToPrevImage = useCallback((e?: React.MouseEvent) => {
+    e?.preventDefault();
+    if (!product.images || product.images.length <= 1) return;
+    setCurrentImageIndex((i) => (i - 1 + product.images!.length) % product.images!.length);
+  }, [product.images]);
+
+  const goToNextImage = useCallback((e?: React.MouseEvent) => {
+    e?.preventDefault();
+    if (!product.images || product.images.length <= 1) return;
+    setCurrentImageIndex((i) => (i + 1) % product.images!.length);
+  }, [product.images]);
+
+  const onImageTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchCurrentX.current = e.touches[0].clientX;
+    didSwipeRef.current = false;
+  }, []);
+
+  const onImageTouchEnd = useCallback(() => {
+    const deltaX = touchCurrentX.current - touchStartX.current;
+    if (Math.abs(deltaX) > 50 && hasMultipleImages) {
+      didSwipeRef.current = true;
+      if (deltaX > 0) goToPrevImage();
+      else goToNextImage();
+      setTimeout(() => { didSwipeRef.current = false; }, 300);
+    }
+  }, [hasMultipleImages, goToPrevImage, goToNextImage]);
+
+  useEffect(() => {
+    const el = imageAreaRef.current;
+    if (!el || !hasMultipleImages) return;
+    const onMove = (e: TouchEvent) => {
+      touchCurrentX.current = e.touches[0].clientX;
+      if (Math.abs(touchCurrentX.current - touchStartX.current) > 10) e.preventDefault();
+    };
+    el.addEventListener('touchmove', onMove, { passive: false });
+    return () => el.removeEventListener('touchmove', onMove);
+  }, [hasMultipleImages]);
 
   return (
     <div className={cn(
@@ -143,24 +188,54 @@ export function ProductCardList({ product, className }: ProductCardListProps) {
       className
     )}>
       <div className="flex flex-col sm:flex-row gap-4 p-4">
-        {/* Image */}
+        {/* Image — свайп листает фото, тап открывает товар */}
         <div className="relative w-full sm:w-48 aspect-square flex-shrink-0 overflow-hidden bg-neutral-100 rounded-lg">
           {primaryImage ? (
-            <Link href={`/catalog/${product.slug}`} className="block w-full h-full">
-              <img
-                src={getImageUrl(primaryImage)}
-                alt={product.name}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                onError={(e) => {
-                  const target = e.currentTarget;
-                  target.onerror = null;
-                  target.src = '/placeholder-product.jpg';
-                }}
-              />
+            <Link
+              href={`/catalog/${product.slug}`}
+              className="block w-full h-full"
+              onClick={(e) => { if (didSwipeRef.current) e.preventDefault(); }}
+            >
+              <div
+                ref={imageAreaRef}
+                className="block w-full h-full"
+                style={{ touchAction: hasMultipleImages ? 'pan-y' : undefined }}
+                onTouchStart={onImageTouchStart}
+                onTouchEnd={onImageTouchEnd}
+              >
+                <img
+                  src={getImageUrl(primaryImage)}
+                  alt={product.name}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    target.onerror = null;
+                    target.src = '/placeholder-product.jpg';
+                  }}
+                />
+              </div>
             </Link>
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
               <ImageIcon className="h-12 w-12 opacity-50" />
+            </div>
+          )}
+
+          {/* Dots для листания фото */}
+          {product.images && product.images.length > 1 && (
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+              {product.images.map((_, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  className={cn(
+                    "w-1.5 h-1.5 rounded-full transition-colors",
+                    index === currentImageIndex ? "bg-white" : "bg-white/50"
+                  )}
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); setCurrentImageIndex(index); }}
+                  aria-label={`Фото ${index + 1}`}
+                />
+              ))}
             </div>
           )}
           
