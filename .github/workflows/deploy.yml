@@ -7,10 +7,61 @@ on:
   workflow_dispatch: # Позволяет запускать вручную из GitHub UI
 
 jobs:
-  deploy:
-    name: Deploy to VPS
+  # Определяем, что изменилось: только статика (public/) или нужна полная сборка
+  changes:
+    name: Detect changes
     runs-on: ubuntu-latest
-    timeout-minutes: 20 # Увеличен таймаут до 20 минут
+    outputs:
+      need_full: ${{ steps.filter.outputs.source == 'true' || github.event.before == '0000000000000000000000000000000000000000' || github.event_name == 'workflow_dispatch' }}
+      static_only: ${{ steps.filter.outputs.public == 'true' && steps.filter.outputs.source != 'true' && github.event_name != 'workflow_dispatch' }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 2
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          base: ${{ github.event.before }}
+          filters: |
+            source:
+              - 'src/**'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'prisma/**'
+              - 'next.config.*'
+              - '.github/**'
+            public:
+              - 'public/**'
+
+  # Быстрый деплой: только git pull (картинки/статика в public/) — без сборки, ~1 мин
+  deploy-static:
+    name: Deploy static only (public/)
+    needs: changes
+    if: needs.changes.outputs.static_only == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync static files to server
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT || 22 }}
+          script: |
+            set -e
+            cd /root/idylle-spb
+            echo "📥 Обновление только статики (public/)..."
+            git fetch origin --prune
+            git reset --hard origin/main
+            echo "✅ Готово. Next.js отдаёт public/ без перезапуска."
+
+  # Полный деплой: сборка + перезапуск (при изменении кода, зависимостей, prisma)
+  deploy:
+    name: Deploy to VPS (full build)
+    needs: changes
+    if: needs.changes.outputs.need_full == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
     
     steps:
       - name: Checkout code
@@ -24,8 +75,9 @@ jobs:
       
       - name: Deploy to server
         uses: appleboy/ssh-action@v0.1.7
-        timeout-minutes: 18 # Увеличен таймаут SSH до 18 минут
+        timeout-minutes: 22
         with:
+          command_timeout: 20m
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
