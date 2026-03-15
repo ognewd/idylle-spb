@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Heart, ShoppingCart, Star, Image as ImageIcon } from 'lucide-react';
+import { Heart, ShoppingCart, Star, Image as ImageIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCart } from '@/contexts/CartContext';
 import { useWishlist } from '@/contexts/WishlistContext';
@@ -219,6 +219,32 @@ export function ProductCardList({ product, className }: ProductCardListProps) {
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
               <ImageIcon className="h-12 w-12 opacity-50" />
             </div>
+          )}
+
+          {/* Стрелки листания фото — на мобильном видны всегда, на десктопе по hover */}
+          {hasMultipleImages && (
+            <>
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon"
+                className="absolute left-1 top-1/2 -translate-y-1/2 size-7 rounded-full opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-10 shadow-md"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); goToPrevImage(e); }}
+                aria-label="Предыдущее фото"
+              >
+                <ChevronLeft className="size-3.5" />
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon"
+                className="absolute right-1 top-1/2 -translate-y-1/2 size-7 rounded-full opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-10 shadow-md"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); goToNextImage(e); }}
+                aria-label="Следующее фото"
+              >
+                <ChevronRight className="size-3.5" />
+              </Button>
+            </>
           )}
 
           {/* Dots для листания фото */}
