@@ -70,14 +70,21 @@ export async function GET(request: NextRequest) {
             select: { messages: true },
           },
         },
-        orderBy: [
-          { status: 'asc' },
-          { createdAt: 'desc' },
-        ],
+        orderBy: [{ createdAt: 'desc' }],
         skip: (page - 1) * limit,
         take: limit,
       }),
     ]);
+
+    // Задачи со статусом "Готово" — в конец списка
+    const sortedTasks =
+      tasks.length > 0
+        ? [...tasks].sort((a, b) => {
+            if (a.status === 'done' && b.status !== 'done') return 1;
+            if (a.status !== 'done' && b.status === 'done') return -1;
+            return 0;
+          })
+        : tasks;
 
     const totalPages = Math.max(1, Math.ceil(total / limit));
 
@@ -103,7 +110,7 @@ export async function GET(request: NextRequest) {
 
     const response = NextResponse.json(
       {
-        tasks,
+        tasks: sortedTasks,
         pagination: { page, limit, total, totalPages },
         assignees: page === 1 ? assignees : undefined,
       },
