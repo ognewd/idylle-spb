@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
   <p style="margin-bottom: 24px;">
     <a href="${escapeHtml(productUrl)}" style="display: inline-block; background: #1a1a1a; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 600;">Посмотреть товар</a>
   </p>
-  <p style="font-size: 13px; color: #666;">С уважением,<br/>Idylle</p>
+  <p style="font-size: 13px; color: #666;">С уважением,<br/>Aroma Russia</p>
 </body>
 </html>`;
 
