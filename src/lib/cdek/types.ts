@@ -95,6 +95,7 @@ export interface CdekPvzRequest {
 export interface CdekCreateOrderRequest {
   number?: string; // Номер заказа в вашей системе
   tariff_code: number;
+  shipment_point?: string; // Код ПВЗ отправки (например SPB169)
   from_location: CdekLocation;
   to_location: CdekLocation;
   sender: {

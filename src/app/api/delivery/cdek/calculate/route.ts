@@ -31,6 +31,19 @@ export async function POST(request: NextRequest) {
       deliveryType: deliveryType || 'door',
     });
 
+    // Наценка на стоимость доставки
+    const markup = DELIVERY_CONFIG.DELIVERY_MARKUP;
+    const applyMarkup = (tariffs: any[]) =>
+      tariffs.map((t: any) => ({
+        ...t,
+        delivery_sum: t.delivery_sum != null
+          ? Math.ceil(t.delivery_sum * markup)
+          : t.delivery_sum,
+      }));
+
+    if (result.tariff_codes) result.tariff_codes = applyMarkup(result.tariff_codes);
+    if (result.tariffs) result.tariffs = applyMarkup(result.tariffs);
+
     return NextResponse.json(result);
   } catch (error: any) {
     console.error('❌ Ошибка расчета стоимости СДЕК:', error);

@@ -19,10 +19,14 @@ export const DELIVERY_CONFIG = {
   // Цена самовывоза из бутика (обычно 0)
   BOUTIQUE_PICKUP_PRICE: 0,
   
-  // Город отправления (склад)
+  // Город и ПВЗ отправления
   SHIP_FROM_CITY: 'Санкт-Петербург',
   SHIP_FROM_CITY_CODE: 137,
+  SHIP_FROM_PVZ: 'SPB169',
   
+  // Множитель наценки на стоимость доставки СДЭК (1.2 = +20%)
+  DELIVERY_MARKUP: 1.2,
+
   // Дефолтные параметры посылки, если не указаны в товаре
   DEFAULT_PACKAGE: {
     weight: 1000, // грамм

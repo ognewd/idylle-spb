@@ -5,6 +5,7 @@
 import { createCdekOrder } from './orders';
 import { getCityCode } from './cities';
 import { CdekCreateOrderRequest } from './types';
+import { DELIVERY_CONFIG } from '@/lib/delivery-config';
 
 export interface CreateOrderParams {
   // Данные отправителя (магазина)
@@ -53,10 +54,11 @@ export async function createCdekOrderFromCart(params: CreateOrderParams) {
   // Рассчитываем общий вес
   const totalWeight = params.items.reduce((sum, item) => sum + (item.weight * item.quantity), 0);
 
-  // Формируем запрос
+  // Формируем запрос (отправка всегда из ПВЗ SPB169)
   const request: CdekCreateOrderRequest = {
     number: params.orderNumber,
     tariff_code: params.tariffCode,
+    shipment_point: DELIVERY_CONFIG.SHIP_FROM_PVZ,
     from_location: {
       code: fromCityCode,
       city: 'Санкт-Петербург',
