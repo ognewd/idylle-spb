@@ -2,9 +2,11 @@
 node_modules
 .next
 .DS_Store
+# Env-файлы с секретами (НЕ коммитить)
 .env
 .env.local
 .env*.local
+.env.production
 *.log
 
 # Загруженные файлы (не должны быть в Git)
@@ -37,3 +39,6 @@ prod_dump.sql
 
 # PM2 ecosystem config (содержит секреты)
 ecosystem.config.cjs
+
+# TLS-сертификаты платёжного шлюза БСПБ
+certs/
