@@ -163,6 +163,9 @@ jobs:
             if [ -f .env ]; then
                 export $(grep -v '^#' .env | xargs)
             fi
+            if [ -f .env.local ]; then
+                export $(grep -v '^#' .env.local | xargs)
+            fi
             echo "📊 Применяю миграции Prisma с DATABASE_URL: ${DATABASE_URL%%@*}@***"
             
             # Применяем миграции (без --accept-data-loss, если возможно)
