@@ -96,10 +96,18 @@ jobs:
             
             echo "🔄 Начало деплоя..."
             
-            # Сохранить ecosystem.config.cjs перед git reset (если существует)
+            # Сохранить серверные файлы перед git reset
             if [ -f ecosystem.config.cjs ]; then
                 echo "💾 Сохраняю ecosystem.config.cjs перед git reset..."
                 cp ecosystem.config.cjs /tmp/ecosystem.config.cjs.backup
+            fi
+            if [ -f .env.local ]; then
+                echo "💾 Сохраняю .env.local перед git reset..."
+                cp .env.local /tmp/.env.local.backup
+            fi
+            if [ -f .env ]; then
+                echo "💾 Сохраняю .env перед git reset..."
+                cp .env /tmp/.env.backup
             fi
             
             # Удалить конфликтующие файлы (если есть)
@@ -110,7 +118,17 @@ jobs:
             git fetch origin --prune
             git reset --hard origin/main || git pull origin main
             
-            # Восстановить ecosystem.config.cjs после git reset (если был сохранен)
+            # Восстановить серверные файлы после git reset
+            if [ -f /tmp/.env.local.backup ]; then
+                echo "💾 Восстанавливаю .env.local после git reset..."
+                cp /tmp/.env.local.backup .env.local
+                rm /tmp/.env.local.backup
+            fi
+            if [ -f /tmp/.env.backup ]; then
+                echo "💾 Восстанавливаю .env после git reset..."
+                cp /tmp/.env.backup .env
+                rm /tmp/.env.backup
+            fi
             if [ -f /tmp/ecosystem.config.cjs.backup ]; then
                 echo "💾 Восстанавливаю ecosystem.config.cjs после git reset..."
                 cp /tmp/ecosystem.config.cjs.backup ecosystem.config.cjs
