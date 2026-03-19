@@ -43,6 +43,8 @@ export async function POST(request: NextRequest) {
       cdekDeliveryCost,
       cdekDeliveryDateMin,
       cdekDeliveryDateMax,
+      // БСПБ: передаётся, если платёж уже создан до создания заказа
+      bspbOrderId,
     } = body;
 
     // Calculate totals
@@ -158,18 +160,18 @@ export async function POST(request: NextRequest) {
     }
 
     // Если доставка через СДЕК, создаем заказ в СДЕК
+    console.log(`📦 [CDEK] deliveryMethod=${deliveryMethod}, cdekTariffCode=${cdekTariffCode}, cdekDeliveryType=${cdekDeliveryType}, cdekPvzCode=${cdekPvzCode}`);
     if (deliveryMethod === 'cdek' && cdekTariffCode) {
       try {
-        // Получаем данные товаров для создания заказа в СДЕК
         const cdekItems = items.map((item: any) => ({
           name: item.name,
           quantity: item.quantity,
           cost: Number(item.price),
-          weight: 500, // TODO: получать реальный вес товара из БД (по умолчанию 500г)
+          weight: 500,
           ware_key: item.productId,
         }));
 
-        const cdekOrderResult = await createCdekOrderFromCart({
+        const cdekPayload = {
           sender: {
             name: 'AROMA BOUTIQUE IDYLLE',
             phone: '8-800-500-87-29',
@@ -189,9 +191,14 @@ export async function POST(request: NextRequest) {
           deliveryType: (cdekDeliveryType as 'door' | 'pvz') || 'door',
           comment: [orderComment, courierComment].filter(Boolean).join('\n') || undefined,
           orderNumber: orderNumber,
-        });
+        };
 
-        // Обновляем заказ с данными из СДЕК
+        console.log('📦 [CDEK] Отправляем в СДЕК:', JSON.stringify(cdekPayload, null, 2));
+
+        const cdekOrderResult = await createCdekOrderFromCart(cdekPayload);
+
+        console.log('📦 [CDEK] Ответ СДЕК:', JSON.stringify(cdekOrderResult, null, 2));
+
         if (cdekOrderResult) {
           const cdekUuid = cdekOrderResult.entity?.uuid || cdekOrderResult.request_uuid;
           const cdekNumber = cdekOrderResult.entity?.cdek_number || cdekOrderResult.cdek_number || cdekOrderResult.number;
@@ -205,14 +212,31 @@ export async function POST(request: NextRequest) {
               cdekStatusUpdatedAt: new Date(),
             },
           });
+          console.log(`✅ [CDEK] Заказ ${orderNumber} создан в СДЕК: uuid=${cdekUuid}, number=${cdekNumber}`);
+        } else {
+          console.warn('⚠️ [CDEK] createCdekOrderFromCart вернул пустой результат');
         }
-
-        console.log('✅ Заказ создан в СДЕК:', cdekOrderResult);
       } catch (cdekError: any) {
-        console.error('❌ Ошибка создания заказа в СДЕК:', cdekError);
-        // Не прерываем создание заказа, но логируем ошибку
-        // Заказ создан в нашей БД, но не в СДЕК - нужно будет создать вручную
+        console.error('❌ [CDEK] Ошибка создания заказа в СДЕК:', cdekError?.message || cdekError);
+        if (cdekError?.response) {
+          console.error('❌ [CDEK] Ответ API:', JSON.stringify(cdekError.response, null, 2));
+        }
       }
+    } else {
+      console.log(`📦 [CDEK] Пропуск: deliveryMethod=${deliveryMethod}, cdekTariffCode=${cdekTariffCode || 'не задан'}`);
+    }
+
+    // Если при создании заказа передан bspbOrderId — привязываем платёж
+    if (bspbOrderId) {
+      await prisma.order.update({
+        where: { id: order.id },
+        data: {
+          bspbOrderId: String(bspbOrderId),
+          bspbStatus: 'Paid',
+          paymentStatus: 'paid',
+          status: 'confirmed',
+        },
+      });
     }
 
     // Send order confirmation email
@@ -229,7 +253,7 @@ export async function POST(request: NextRequest) {
           : 'СДЭК, доставка курьером',
       };
       const paymentMethodLabels: Record<string, string> = {
-        card: 'Карта онлайн',
+        card: 'Банковская карта онлайн',
         cash: 'Наличные при получении',
         invoice: 'Безналичный расчёт для юрлиц',
         pickup: 'Оплата при самовывозе',
@@ -293,7 +317,7 @@ export async function POST(request: NextRequest) {
       order: {
         id: order.id,
         orderNumber: order.orderNumber,
-      }
+      },
     });
   } catch (error: unknown) {
     console.error('Error creating order:', error);
