@@ -366,8 +366,18 @@ export default function CheckoutPage() {
     return formatted;
   };
 
-  if (items.length === 0) {
-    router.push('/cart');
+  const [cartReady, setCartReady] = useState(false);
+  useEffect(() => {
+    setCartReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (cartReady && items.length === 0) {
+      router.push('/cart');
+    }
+  }, [cartReady, items.length, router]);
+
+  if (!cartReady || items.length === 0) {
     return null;
   }
 
@@ -397,42 +407,84 @@ export default function CheckoutPage() {
       if (deliveryMethod === 'spb_boutique') apiDeliveryMethod = 'pickup';
       if (deliveryMethod?.includes('cdek') || deliveryMethod === 'spb_cdek') apiDeliveryMethod = 'cdek';
 
+      const orderPayload = {
+        items: items.map(item => ({
+          productId: item.productId,
+          name: item.name,
+          price: Number(item.price),
+          quantity: item.quantity,
+          variant: item.variant,
+        })),
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email,
+        phone,
+        deliveryMethod: apiDeliveryMethod,
+        paymentMethod,
+        city: selectedCity?.city || null,
+        address: deliveryMethod === 'spb_courier' || deliveryMethod === 'cdek_courier'
+          ? `${address.street}, д. ${address.house}${address.apartment ? ', кв. ' + address.apartment : ''}`
+          : null,
+        orderComment: formData.comment?.trim() || null,
+        courierComment: address.comment?.trim() || null,
+        companyName: paymentMethod === 'invoice' ? formData.companyName : null,
+        inn: paymentMethod === 'invoice' ? formData.inn : null,
+        kpp: paymentMethod === 'invoice' ? formData.kpp : null,
+        companyAddress: paymentMethod === 'invoice' ? formData.companyAddress : null,
+        ...(apiDeliveryMethod === 'cdek' && cdekData && {
+          cdekTariffCode: cdekData.tariff?.tariff_code,
+          cdekTariffName: cdekData.tariff?.tariff_name,
+          cdekDeliveryType: cdekData.deliveryType,
+          cdekPvzCode: cdekData.pvzCode,
+          cdekPvzAddress: cdekData.pvzAddress,
+          cdekDeliveryCost: deliveryPrice,
+        }),
+      };
+
+      // --- Оплата картой: сначала платёж, заказ создастся после оплаты ---
+      if (paymentMethod === 'card') {
+        console.log('[BSPB] Начинаем оплату картой, сумма:', finalPrice);
+        const bspbRes = await fetch('/api/payments/bspb/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            amount: finalPrice,
+            title: `Оплата на сайте idylle.spb.ru`,
+            description: `${items.length} товар(ов) на сумму ${finalPrice} ₽`,
+          }),
+        });
+
+        if (!bspbRes.ok) {
+          const errBody = await bspbRes.text();
+          console.error('[BSPB] Ошибка ответа:', bspbRes.status, errBody);
+          throw new Error('Ошибка создания платежа');
+        }
+
+        const bspbData = await bspbRes.json();
+        console.log('[BSPB] Платёж создан, редирект на:', bspbData.paymentUrl);
+
+        // Сохраняем данные заказа — они понадобятся после возврата из банка
+        const pendingData = JSON.stringify({
+          ...orderPayload,
+          bspbOrderId: String(bspbData.orderId),
+          deliveryPrice,
+        });
+        localStorage.setItem('pendingBspbOrder', pendingData);
+        // Cookie как надёжный дублёр (localStorage может не пережить cross-site навигацию)
+        document.cookie = `bspbOrderId=${bspbData.orderId}; path=/; max-age=7200; SameSite=Lax`;
+        // sessionStorage для ещё одного fallback
+        sessionStorage.setItem('pendingBspbOrder', pendingData);
+
+        // Корзину НЕ очищаем, заказ НЕ создаём — редирект на банк
+        window.location.href = bspbData.paymentUrl;
+        return;
+      }
+
+      // --- Остальные способы оплаты: создаём заказ сразу ---
       const response = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          items: items.map(item => ({
-            productId: item.productId,
-            name: item.name,
-            price: Number(item.price),
-            quantity: item.quantity,
-            variant: item.variant,
-          })),
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          email,
-          phone,
-          deliveryMethod: apiDeliveryMethod,
-          paymentMethod,
-          city: selectedCity?.city || null,
-          address: deliveryMethod === 'spb_courier' || deliveryMethod === 'cdek_courier'
-            ? `${address.street}, д. ${address.house}${address.apartment ? ', кв. ' + address.apartment : ''}`
-            : null,
-          orderComment: formData.comment?.trim() || null,
-          courierComment: address.comment?.trim() || null,
-          companyName: paymentMethod === 'invoice' ? formData.companyName : null,
-          inn: paymentMethod === 'invoice' ? formData.inn : null,
-          kpp: paymentMethod === 'invoice' ? formData.kpp : null,
-          companyAddress: paymentMethod === 'invoice' ? formData.companyAddress : null,
-          ...(apiDeliveryMethod === 'cdek' && cdekData && {
-            cdekTariffCode: cdekData.tariff?.tariff_code,
-            cdekTariffName: cdekData.tariff?.tariff_name,
-            cdekDeliveryType: cdekData.deliveryType,
-            cdekPvzCode: cdekData.pvzCode,
-            cdekPvzAddress: cdekData.pvzAddress,
-            cdekDeliveryCost: deliveryPrice,
-          }),
-        }),
+        body: JSON.stringify(orderPayload),
       });
 
       if (!response.ok) throw new Error('Failed to create order');
@@ -915,7 +967,7 @@ Email: info@idylle.spb.ru
                       </Label>
                     )}
 
-                    {(deliveryMethod === 'spb_courier' || deliveryMethod === 'cdek_courier') && (
+                    {deliveryMethod !== 'spb_boutique' && (
                       <>
                         <Label
                           htmlFor="pay-card"
@@ -933,21 +985,23 @@ Email: info@idylle.spb.ru
                           </div>
                         </Label>
 
-                        <Label
-                          htmlFor="pay-cash"
-                          className="flex items-start space-x-3 p-4 rounded-lg border hover:border-primary cursor-pointer w-full"
-                        >
-                          <RadioGroupItem value="cash" id="pay-cash" className="mt-1" />
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 font-medium mb-1">
-                              <Banknote className="h-5 w-5" />
-                              Наличные при получении
+                        {(deliveryMethod === 'spb_courier' || deliveryMethod === 'cdek_courier') && (
+                          <Label
+                            htmlFor="pay-cash"
+                            className="flex items-start space-x-3 p-4 rounded-lg border hover:border-primary cursor-pointer w-full"
+                          >
+                            <RadioGroupItem value="cash" id="pay-cash" className="mt-1" />
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 font-medium mb-1">
+                                <Banknote className="h-5 w-5" />
+                                Наличные при получении
+                              </div>
+                              <div className="text-sm text-muted-foreground">
+                                Оплатите курьеру при доставке
+                              </div>
                             </div>
-                            <div className="text-sm text-muted-foreground">
-                              Оплатите курьеру при доставке
-                            </div>
-                          </div>
-                        </Label>
+                          </Label>
+                        )}
                       </>
                     )}
 
