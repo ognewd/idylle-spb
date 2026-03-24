@@ -125,7 +125,7 @@ function PaymentResultContent() {
   }, [searchParams, clearCart]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 flex items-center justify-center p-4">
+    <div className="flex items-start justify-center px-4 py-12 md:py-20">
       <Card className="max-w-lg w-full shadow-xl border-0">
         <CardHeader className="text-center pb-2">
           {status === 'loading' && (
