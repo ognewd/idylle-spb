@@ -60,6 +60,12 @@ function PaymentResultContent() {
           return;
         }
 
+        if (data.cancelled) {
+          setStatus('error');
+          setBankStatus('Оплата отменена. Вы можете вернуться к оформлению и попробовать снова.');
+          return;
+        }
+
         if (!data.paid) {
           setStatus('pending');
           return;

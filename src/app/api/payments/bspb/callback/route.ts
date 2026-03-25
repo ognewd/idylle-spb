@@ -3,6 +3,7 @@ import { BspbPaymentService } from '@/lib/bspb';
 import { prisma } from '@/lib/prisma';
 
 const PAID_STATUSES = ['Paid', 'Approved', 'Completed', 'Deposited'];
+const CANCELLED_STATUSES = ['Cancelled', 'Declined', 'Rejected', 'Voided', 'Expired'];
 
 /**
  * GET /api/payments/bspb/callback?id=<bspbOrderId>
@@ -20,6 +21,7 @@ export async function GET(request: NextRequest) {
   try {
     const bankStatus = await BspbPaymentService.getOrderStatus(bspbOrderId);
     const isPaid = PAID_STATUSES.some((s) => bankStatus.status?.includes(s));
+    const isCancelled = CANCELLED_STATUSES.some((s) => bankStatus.status?.includes(s));
 
     // Check if order already exists in our DB
     const order = await prisma.order.findFirst({
@@ -56,6 +58,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       paid: isPaid,
+      cancelled: isCancelled,
       bankStatus: bankStatus.status,
       orderNumber: order?.orderNumber || null,
       firstName: order?.firstName || null,
