@@ -132,18 +132,23 @@ export default function CheckoutSuccessPage() {
                 </h3>
                 <div className="space-y-2 text-sm text-gray-600">
                   <p>
-                    Наша служба поддержки работает ежедневно с 9:00 до 21:00
+                    Наша служба доставки работает ежедневно с 10:00 до 19:00
                   </p>
                   <p>
                     Телефон:{' '}
-                    <a href="tel:+78121234567" className="font-medium text-purple-600 hover:text-purple-700">
-                      +7 (812) 123-45-67
+                    <a href="tel:88005008829" className="font-medium text-purple-600 hover:text-purple-700">
+                      8-800-500-88-29
+                    </a>
+                  </p>
+                  <p>
+                    <a href="tel:+79217892777" className="font-medium text-purple-600 hover:text-purple-700">
+                      8-921-789-27-77
                     </a>
                   </p>
                   <p>
                     Email:{' '}
-                    <a href="mailto:info@idylle.spb.ru" className="font-medium text-purple-600 hover:text-purple-700">
-                      info@idylle.spb.ru
+                    <a href="mailto:zakaz@aromarussia.ru" className="font-medium text-purple-600 hover:text-purple-700">
+                      zakaz@aromarussia.ru
                     </a>
                   </p>
                 </div>

@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
-import { CreditCard, FileText, Banknote, Store, Download, CheckCircle, User, ShoppingBag, AlertCircle, Loader2 } from 'lucide-react';
+import { CreditCard, FileText, Banknote, Store, CheckCircle, User, ShoppingBag, AlertCircle, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -504,36 +504,6 @@ export default function CheckoutPage() {
       alert('Произошла ошибка при оформлении заказа. Попробуйте еще раз.');
       setIsSubmitting(false);
     }
-  };
-
-  const handleDownloadRequisites = () => {
-    const requisites = `РЕКВИЗИТЫ ДЛЯ ОПЛАТЫ
-
-ООО "ИДИЛЛЬ СПБ"
-ИНН: 1234567890
-КПП: 123456789
-ОГРН: 1234567890123
-
-Расчетный счет: 40702810100000000000
-Банк: ПАО "Сбербанк России"
-БИК: 044030653
-Корр. счет: 30101810500000000653
-
-Адрес: г. Санкт-Петербург, ул. Примерная, д. 1
-Телефон: +7 (812) 123-45-67
-Email: info@idylle.spb.ru
-
-Сумма к оплате: ${totalPrice.toLocaleString('ru-RU')} ₽`.trim();
-
-    const blob = new Blob([requisites], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'requisites.txt';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
   };
 
   return (
@@ -1056,15 +1026,6 @@ Email: info@idylle.spb.ru
                           />
                         </div>
 
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="w-full"
-                          onClick={handleDownloadRequisites}
-                        >
-                          <Download className="mr-2 h-4 w-4" />
-                          Скачать наши реквизиты
-                        </Button>
                       </CardContent>
                     </Card>
                   )}
