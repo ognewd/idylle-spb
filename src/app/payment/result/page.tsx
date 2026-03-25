@@ -78,11 +78,16 @@ function PaymentResultContent() {
           return;
         }
 
-        // Создаём заказ из сохранённых данных
+        // Создаём заказ: приоритет серверным данным, localStorage как fallback
         if (orderCreated.current) return;
         orderCreated.current = true;
 
-        if (!pendingOrder) {
+        const serverOrder = data.pendingOrderData
+          ? (() => { try { return JSON.parse(data.pendingOrderData); } catch { return null; } })()
+          : null;
+        const orderSource = serverOrder || pendingOrder;
+
+        if (!orderSource) {
           setStatus('error');
           setBankStatus('Оплата прошла, но данные заказа не найдены. Свяжитесь с нами.');
           return;
@@ -93,7 +98,7 @@ function PaymentResultContent() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              ...pendingOrder,
+              ...orderSource,
               bspbOrderId: String(bspbOrderId),
             }),
           });

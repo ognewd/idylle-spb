@@ -8,7 +8,7 @@ const PAID_STATUSES = ['Paid', 'Approved', 'Completed', 'Deposited'];
  * GET /api/payments/bspb/callback?id=<bspbOrderId>
  *
  * Called from /payment/result page after bank redirect.
- * Checks payment status in BSPB, optionally updates our order, returns result.
+ * Checks payment status in BSPB, optionally creates order from server-side data.
  */
 export async function GET(request: NextRequest) {
   const bspbOrderId = request.nextUrl.searchParams.get('id');
@@ -39,11 +39,27 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    // Retrieve server-side pending order data (if available)
+    let pendingOrderData: string | null = null;
+    if (isPaid && !order) {
+      try {
+        const pending = await prisma.pendingPayment.findUnique({
+          where: { bspbOrderId: String(bspbOrderId) },
+        });
+        if (pending) {
+          pendingOrderData = pending.orderData;
+        }
+      } catch {
+        // Таблица может ещё не существовать — fallback на localStorage на клиенте
+      }
+    }
+
     return NextResponse.json({
       paid: isPaid,
       bankStatus: bankStatus.status,
       orderNumber: order?.orderNumber || null,
       firstName: order?.firstName || null,
+      pendingOrderData,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';

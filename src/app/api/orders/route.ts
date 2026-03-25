@@ -6,6 +6,7 @@ import { sendMail, renderEmailTemplate, OrderEmailData } from '@/lib/mail';
 import { ORDER_CONFIRMATION_TEMPLATE } from '@/lib/email-templates';
 import { createCdekOrderFromCart } from '@/lib/cdek/create-order-from-cart';
 import { checkRateLimit, getRateLimitOptionsForEndpoint } from '@/lib/rate-limit';
+import { BspbPaymentService } from '@/lib/bspb';
 
 export async function POST(request: NextRequest) {
   const opts = await getRateLimitOptionsForEndpoint('orders');
@@ -226,15 +227,27 @@ export async function POST(request: NextRequest) {
       console.log(`📦 [CDEK] Пропуск: deliveryMethod=${deliveryMethod}, cdekTariffCode=${cdekTariffCode || 'не задан'}`);
     }
 
-    // Если при создании заказа передан bspbOrderId — привязываем платёж
+    // Если при создании заказа передан bspbOrderId — проверяем оплату в банке
     if (bspbOrderId) {
+      const PAID_STATUSES = ['Paid', 'Approved', 'Completed', 'Deposited'];
+      let verified = false;
+      let bankStatusStr = 'Unknown';
+      try {
+        const bankStatus = await BspbPaymentService.getOrderStatus(bspbOrderId);
+        bankStatusStr = bankStatus.status || 'Unknown';
+        verified = PAID_STATUSES.some((s) => bankStatusStr.includes(s));
+        console.log(`💳 [BSPB] Проверка оплаты ${bspbOrderId}: status=${bankStatusStr}, verified=${verified}`);
+      } catch (err: any) {
+        console.error(`❌ [BSPB] Не удалось проверить оплату ${bspbOrderId}:`, err?.message);
+      }
+
       await prisma.order.update({
         where: { id: order.id },
         data: {
           bspbOrderId: String(bspbOrderId),
-          bspbStatus: 'Paid',
-          paymentStatus: 'paid',
-          status: 'confirmed',
+          bspbStatus: bankStatusStr,
+          paymentStatus: verified ? 'paid' : 'pending',
+          status: verified ? 'confirmed' : undefined,
         },
       });
     }

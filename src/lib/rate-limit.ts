@@ -9,7 +9,7 @@ import { prisma } from '@/lib/prisma';
 
 const SETTINGS_KEY = 'RATE_LIMIT_CONFIG';
 
-export type RateLimitEndpointKey = 'adminLogin' | 'register' | 'orders' | 'newsletter';
+export type RateLimitEndpointKey = 'adminLogin' | 'register' | 'orders' | 'newsletter' | 'payments';
 
 export interface RateLimitEndpointConfig {
   windowMs: number;
@@ -22,6 +22,7 @@ const DEFAULT_CONFIG: Record<RateLimitEndpointKey, RateLimitEndpointConfig> = {
   register: { windowMs: 15 * 60 * 1000, max: 5 },
   orders: { windowMs: 60 * 1000, max: 15 },
   newsletter: { windowMs: 60 * 1000, max: 5 },
+  payments: { windowMs: 60 * 1000, max: 5 },
 };
 
 const ENDPOINT_KEYS: Record<RateLimitEndpointKey, string> = {
@@ -29,6 +30,7 @@ const ENDPOINT_KEYS: Record<RateLimitEndpointKey, string> = {
   register: 'auth-register',
   orders: 'orders',
   newsletter: 'newsletter-subscribe',
+  payments: 'payments-bspb',
 };
 
 /** Читает конфиг из БД и мержит с дефолтами */

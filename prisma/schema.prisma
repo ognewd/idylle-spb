@@ -236,6 +236,10 @@ model Order {
   cdekStatus           String?   // Статус в системе СДЕК
   cdekStatusUpdatedAt  DateTime? // Когда последний раз обновлялся статус
 
+  // Поля БСПБ (Банк Санкт-Петербург)
+  bspbOrderId          String?   // ID заказа в платёжном шлюзе БСПБ
+  bspbStatus           String?   // Статус оплаты в БСПБ ("Preparing", "Paid", ...)
+
   @@map("orders")
 }
 
@@ -548,4 +552,15 @@ model EmailUnsubscribe {
 
   @@index([email])
   @@map("email_unsubscribes")
+}
+
+model PendingPayment {
+  id          String   @id @default(cuid())
+  bspbOrderId String   @unique
+  orderData   String   @db.Text
+  amount      Float
+  createdAt   DateTime @default(now())
+
+  @@index([bspbOrderId])
+  @@map("pending_payments")
 }

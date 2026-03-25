@@ -451,6 +451,7 @@ export default function CheckoutPage() {
             amount: finalPrice,
             title: `Оплата на сайте idylle.spb.ru`,
             description: `${items.length} товар(ов) на сумму ${finalPrice} ₽`,
+            orderPayload: { ...orderPayload, deliveryPrice },
           }),
         });
 
@@ -544,15 +545,34 @@ Email: info@idylle.spb.ru
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Main Form */}
             <div className="lg:col-span-2 space-y-6">
-              {/* Шаг 1: ОФОРМЛЕНИЕ ЗАКАЗА */}
+              {/* Шаг 1: ВАШИ ДАННЫЕ */}
               <Card>
                 <CardHeader>
-                  <CardTitle>ОФОРМЛЕНИЕ ЗАКАЗА</CardTitle>
+                  <CardTitle>ВАШИ ДАННЫЕ</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="phone">Ваш телефон *</Label>
+                      <Label htmlFor="firstName">Имя *</Label>
+                      <Input
+                        id="firstName"
+                        required
+                        value={formData.firstName}
+                        onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="lastName">Фамилия</Label>
+                      <Input
+                        id="lastName"
+                        value={formData.lastName}
+                        onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Телефон *</Label>
                       <Input
                         id="phone"
                         type="tel"
@@ -561,10 +581,9 @@ Email: info@idylle.spb.ru
                         value={phone}
                         onChange={(e) => setPhone(formatPhone(e.target.value))}
                       />
-                      <p className="text-xs text-muted-foreground">Ваш телефон</p>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="email">Ваш email *</Label>
+                      <Label htmlFor="email">E-mail *</Label>
                       <Input
                         id="email"
                         type="email"
@@ -574,6 +593,15 @@ Email: info@idylle.spb.ru
                       />
                       <p className="text-xs text-muted-foreground">для получения деталей заказа</p>
                     </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="comment">Комментарий к заказу</Label>
+                    <Textarea
+                      id="comment"
+                      placeholder="Оставьте свои пожелания..."
+                      value={formData.comment}
+                      onChange={(e) => setFormData({ ...formData, comment: e.target.value })}
+                    />
                   </div>
                 </CardContent>
               </Card>
@@ -902,43 +930,6 @@ Email: info@idylle.spb.ru
                 </Card>
               )}
 
-              {/* ВАШИ ДАННЫЕ */}
-              <Card id="checkout-your-data">
-                <CardHeader>
-                  <CardTitle>ВАШИ ДАННЫЕ</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="lastName">Фамилия</Label>
-                      <Input
-                        id="lastName"
-                        value={formData.lastName}
-                        onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="firstName">Имя *</Label>
-                      <Input
-                        id="firstName"
-                        required
-                        value={formData.firstName}
-                        onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="comment">Комментарий к заказу</Label>
-                    <Textarea
-                      id="comment"
-                      placeholder="Пожелания к заказу"
-                      value={formData.comment}
-                      onChange={(e) => setFormData({ ...formData, comment: e.target.value })}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-
               {/* СПОСОБ ОПЛАТЫ */}
               <Card>
                 <CardHeader>
@@ -967,42 +958,38 @@ Email: info@idylle.spb.ru
                       </Label>
                     )}
 
-                    {deliveryMethod !== 'spb_boutique' && (
-                      <>
-                        <Label
-                          htmlFor="pay-card"
-                          className="flex items-start space-x-3 p-4 rounded-lg border hover:border-primary cursor-pointer w-full"
-                        >
-                          <RadioGroupItem value="card" id="pay-card" className="mt-1" />
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 font-medium mb-1">
-                              <CreditCard className="h-5 w-5" />
-                              Банковская карта онлайн
-                            </div>
-                            <div className="text-sm text-muted-foreground">
-                              Безопасная оплата на сайте
-                            </div>
-                          </div>
-                        </Label>
+                    <Label
+                      htmlFor="pay-card"
+                      className="flex items-start space-x-3 p-4 rounded-lg border hover:border-primary cursor-pointer w-full"
+                    >
+                      <RadioGroupItem value="card" id="pay-card" className="mt-1" />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 font-medium mb-1">
+                          <CreditCard className="h-5 w-5" />
+                          Банковская карта онлайн
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          Безопасная оплата на сайте
+                        </div>
+                      </div>
+                    </Label>
 
-                        {(deliveryMethod === 'spb_courier' || deliveryMethod === 'cdek_courier') && (
-                          <Label
-                            htmlFor="pay-cash"
-                            className="flex items-start space-x-3 p-4 rounded-lg border hover:border-primary cursor-pointer w-full"
-                          >
-                            <RadioGroupItem value="cash" id="pay-cash" className="mt-1" />
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 font-medium mb-1">
-                                <Banknote className="h-5 w-5" />
-                                Наличные при получении
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                Оплатите курьеру при доставке
-                              </div>
-                            </div>
-                          </Label>
-                        )}
-                      </>
+                    {(deliveryMethod === 'spb_courier' || deliveryMethod === 'cdek_courier') && (
+                      <Label
+                        htmlFor="pay-cash"
+                        className="flex items-start space-x-3 p-4 rounded-lg border hover:border-primary cursor-pointer w-full"
+                      >
+                        <RadioGroupItem value="cash" id="pay-cash" className="mt-1" />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 font-medium mb-1">
+                            <Banknote className="h-5 w-5" />
+                            Наличные при получении
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            Оплатите курьеру при доставке
+                          </div>
+                        </div>
+                      </Label>
                     )}
 
                     <Label
