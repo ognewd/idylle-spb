@@ -23,6 +23,8 @@ model User {
   termsAcceptedAt      DateTime?
   privacyAcceptedAt    DateTime?
   allowedAdminSections String[]       @default([])
+  partnerId            String?
+  partner              Partner?       @relation("PartnerUsers", fields: [partnerId], references: [id], onDelete: SetNull)
   addresses            Address[]
   orders               Order[]
   reviews              Review[]
@@ -72,18 +74,50 @@ model Category {
 }
 
 model Brand {
-  id          String    @id @default(cuid())
-  name        String    @unique
-  slug        String    @unique
-  description String?
-  logo        String?
-  website     String?
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  products    Product[]
+  id            String         @id @default(cuid())
+  name          String         @unique
+  slug          String         @unique
+  description   String?
+  logo          String?
+  website       String?
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  products      Product[]
+  partnerBrands PartnerBrand[]
 
   @@map("brands")
+}
+
+model Partner {
+  id               String         @id @default(cuid())
+  name             String
+  contactPerson    String
+  contactEmail     String
+  contactPhone     String?
+  requisites       String?        @db.Text
+  officeAddress    String?
+  warehouseAddress String?
+  warehouseSameAsOffice Boolean   @default(false)
+  isActive         Boolean        @default(true)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  brands           PartnerBrand[]
+  users            User[]         @relation("PartnerUsers")
+
+  @@map("partners")
+}
+
+model PartnerBrand {
+  id        String   @id @default(cuid())
+  partnerId String
+  brandId   String
+  createdAt DateTime @default(now())
+  partner   Partner  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  brand     Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@unique([partnerId, brandId])
+  @@map("partner_brands")
 }
 
 model Product {

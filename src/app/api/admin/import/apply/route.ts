@@ -116,13 +116,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const allowedRoles = ['admin', 'super_admin', 'partner'];
     const user = await prisma.user.findUnique({
       where: { id: admin.userId },
+      include: {
+        partner: {
+          include: { brands: { select: { brandId: true } } },
+        },
+      },
     });
 
-    if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
+    if (!user || !allowedRoles.includes(user.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const partnerBrandIds = user.role === 'partner' && user.partner
+      ? user.partner.brands.map((b) => b.brandId)
+      : null;
 
     const body = await request.json();
     const { products, importMode = 'update' } = body;
@@ -194,6 +204,13 @@ export async function POST(request: NextRequest) {
           additionalImageUrlsLength: Array.isArray(additionalImageUrls) ? additionalImageUrls.length : 'N/A',
         });
 
+        if (partnerBrandIds && brandId === 'NEW') {
+          results.errors.push(
+            `Товар «${name}»: партнёрам запрещено создавать новые бренды через импорт. Укажите в Excel колонку «Бренд» с названием **точно** как в списке доступных брендов в кабинете.`
+          );
+          continue;
+        }
+
         // Получаем или создаем бренд
         let brand;
         if (brandId === 'NEW') {
@@ -218,6 +235,24 @@ export async function POST(request: NextRequest) {
           });
           if (!brand) {
             results.errors.push(`Товар "${name}": бренд не найден`);
+            continue;
+          }
+        }
+
+        if (partnerBrandIds && !partnerBrandIds.includes(brand.id)) {
+          results.errors.push(`Товар "${name}": бренд "${brand.name}" недоступен для вашего аккаунта`);
+          continue;
+        }
+
+        if (isUpdate && existingProductId && partnerBrandIds) {
+          const existing = await prisma.product.findUnique({
+            where: { id: existingProductId },
+            select: { brandId: true },
+          });
+          if (!existing || !partnerBrandIds.includes(existing.brandId)) {
+            results.errors.push(
+              `Товар "${name}": нет прав на изменение этой позиции (артикул привязан к другому бренду).`
+            );
             continue;
           }
         }

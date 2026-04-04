@@ -30,10 +30,12 @@ export async function POST(request: NextRequest) {
         role: true,
         isActive: true,
         allowedAdminSections: true,
+        partnerId: true,
       },
     });
 
-    if (!user || user.role !== 'admin' && user.role !== 'super_admin') {
+    const allowedRoles = ['admin', 'super_admin', 'partner'];
+    if (!user || !allowedRoles.includes(user.role)) {
       return NextResponse.json(
         { error: 'Неверные учетные данные' },
         { status: 401 }
@@ -70,6 +72,7 @@ export async function POST(request: NextRequest) {
         email: user.email,
         role: user.role,
         allowedAdminSections: user.allowedAdminSections || [],
+        partnerId: user.partnerId || null,
       },
       secret,
       { expiresIn: '24h' }
@@ -83,6 +86,7 @@ export async function POST(request: NextRequest) {
         name: user.name,
         role: user.role,
         allowedAdminSections: user.allowedAdminSections || [],
+        partnerId: user.partnerId || null,
       },
     });
   } catch (error) {

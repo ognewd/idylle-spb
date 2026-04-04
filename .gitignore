@@ -18,6 +18,9 @@ public/uploads/
 *.xlsx
 !data/*.csv
 
+# TypeScript incremental build (локально)
+tsconfig.tsbuildinfo
+
 # Build artifacts
 *.pack.gz
 .next/cache/

@@ -84,10 +84,28 @@ export async function POST(request: NextRequest) {
 
     const user = await prisma.user.findUnique({
       where: { id: admin.userId },
+      include: {
+        partner: {
+          include: {
+            brands: { include: { brand: true } },
+          },
+        },
+      },
     });
 
-    if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
+    const allowedRoles = ['admin', 'super_admin', 'partner'];
+    if (!user || !allowedRoles.includes(user.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (user.role === 'partner' && !user.partner?.brands?.length) {
+      return NextResponse.json(
+        {
+          error:
+            'У вашего аккаунта не назначены бренды. Импорт недоступен. Обратитесь к администратору.',
+        },
+        { status: 403 }
+      );
     }
 
     const formData = await request.formData();
@@ -123,6 +141,7 @@ export async function POST(request: NextRequest) {
     // Нормализация для маппинга: нижний регистр, единый вид запятой/пробела (Excel может дать unicode)
     const normalizeHeader = (s: string) =>
       s.toLowerCase()
+        .replace(/ё/g, 'е') // Excel часто даёт «Объём» — иначе не совпадает с «объем»
         .replace(/\s+/g, ' ') // Заменяем все пробелы (включая неразрывные) на обычные
         .replace(/[\u00a0\u2007\u202f\u2009\u200a]/g, ' ') // Неразрывные пробелы
         .replace(/[,，\u060c\u3001]/g, ',')
@@ -214,7 +233,12 @@ export async function POST(request: NextRequest) {
           columnMap.myWarehouseCode = index;
         } else if (normalized.includes('артикул производителя')) {
           columnMap.manufacturerSku = index;
-        } else if (normalized.includes('полное название') || (normalized.includes('наименование') && !normalized.includes('краткое'))) {
+        } else if (
+          normalized.includes('полное название') ||
+          (normalized.includes('наименование') && !normalized.includes('краткое')) ||
+          normalized === 'название' ||
+          (normalized.includes('название') && !normalized.includes('кратк'))
+        ) {
           columnMap.name = index;
         } else if (normalized.includes('краткое название')) {
           columnMap.shortName = index;
@@ -224,9 +248,17 @@ export async function POST(request: NextRequest) {
           columnMap.category = index;
         } else if (normalized.includes('мест товара') || normalized.includes('место товара') || normalized.includes('место на складе')) {
           columnMap.warehouseLocation = index;
-        } else if (normalized.includes('доступно')) {
+        } else if (normalized.includes('доступно') || normalized.includes('остаток')) {
           columnMap.stock = index;
+        } else if (
+          normalized.includes('цена до скидки') ||
+          normalized.includes('старая цена') ||
+          normalized.includes('compare')
+        ) {
+          columnMap.comparePrice = index;
         } else if (normalized.includes('цена продажи')) {
+          columnMap.price = index;
+        } else if (normalized === 'цена' || /^цена\s*[.,]\s*руб/.test(normalized) || normalized === 'цена руб') {
           columnMap.price = index;
         } else if (normalized.includes('описание аромата')) {
           columnMap.aromaDescription = index;
@@ -256,8 +288,6 @@ export async function POST(request: NextRequest) {
           columnMap.description = index;
         } else if (normalized.includes('краткое описание')) {
           columnMap.shortDescription = index;
-        } else if (normalized.includes('цена до скидки') || normalized.includes('старая цена') || normalized.includes('compare')) {
-          columnMap.comparePrice = index;
         } else if ((normalized.includes('артикул') && !normalized.includes('производителя')) || normalized === 'sku') {
           columnMap.sku = index;
         } else if (normalized.includes('вес') && !normalized.includes('объем') && (normalized.includes('гр') || normalized.includes('г ') || normalized.includes('грамм') || normalized.includes('(г)') || normalized.includes('кг'))) {
@@ -288,14 +318,14 @@ export async function POST(request: NextRequest) {
       // Резерв: колонка "Вес, гр" / "Вес, кг" / "Вес (г)" по заголовку, если ещё не найдена
       if (columnMap.weight === undefined) {
         const weightIdx = headersLower.findIndex((h: string) => {
-          const n = h.toLowerCase();
+          const n = h; // уже normalizeHeader
           return n.includes('вес') && !n.includes('объем') && (n.includes('гр') || n.includes('(г)') || n.includes('грамм') || n.includes('кг'));
         });
         if (weightIdx >= 0) columnMap.weight = weightIdx;
       }
     }
 
-    // Без маппинга: если найдена колонка "Полное название" — сразу парсим (стандартный шаблон)
+    // Без маппинга: если найдена колонка наименования (в т.ч. «Название» из образца) — сразу парсим
     const isStandardTemplate = !columnMappingJson && columnMap.name !== undefined;
     if (!columnMappingJson && !isStandardTemplate) {
       const rowsPreview = rows.slice(1, Math.min(rows.length, 6));
@@ -325,6 +355,8 @@ export async function POST(request: NextRequest) {
           id: true,
           myWarehouseCode: true,
           slug: true,
+          sku: true,
+          brandId: true,
         },
       }),
     ]);
@@ -332,6 +364,11 @@ export async function POST(request: NextRequest) {
     const brandMap = new Map(existingBrands.map(b => [b.name.toLowerCase(), b]));
     const categoryMap = new Map(existingCategories.map(c => [c.name.toLowerCase(), c]));
     const productMap = new Map(existingProducts.filter(p => p.myWarehouseCode).map(p => [p.myWarehouseCode!, p]));
+    const productBySku = new Map<string, (typeof existingProducts)[number]>();
+    for (const p of existingProducts) {
+      const s = p.sku ? String(p.sku).trim() : '';
+      if (s) productBySku.set(s, p);
+    }
 
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i];
@@ -348,19 +385,57 @@ export async function POST(request: NextRequest) {
           ? String(row[columnMap.myWarehouseCode] || '').trim() || null 
           : null;
 
-        const existingProduct = myWarehouseCode ? productMap.get(myWarehouseCode) : null;
+        const skuCell =
+          columnMap.sku !== undefined ? String(row[columnMap.sku] || '').trim() || null : null;
 
-        // Получаем или создаем бренд (если не указан — используем «Без бренда», не считаем ошибкой)
-        const brandNameRaw = columnMap.brand !== undefined
-          ? String(row[columnMap.brand] || '').trim()
-          : 'Без бренда';
-        const brandName = brandNameRaw || 'Без бренда';
+        // Сначала МойСклад, иначе совпадение по артикулу (SKU) — иначе повторный импорт демо ломается на unique(sku)
+        let existingProduct =
+          myWarehouseCode && productMap.has(myWarehouseCode) ? productMap.get(myWarehouseCode)! : null;
+        if (!existingProduct && skuCell) {
+          existingProduct = productBySku.get(skuCell) ?? null;
+        }
 
-        let brand = brandMap.get(brandName.toLowerCase());
-        if (!brand) {
-          const newBrand = { id: 'NEW', name: brandName, slug: generateSlug(brandName) } as any;
-          brand = newBrand;
-          brandMap.set(brandName.toLowerCase(), newBrand);
+        // Бренд: для партнёра — только точное совпадение с разрешённым названием; для админа — как раньше
+        const brandCellRaw =
+          columnMap.brand !== undefined ? String(row[columnMap.brand] || '').trim() : '';
+        const brandName = brandCellRaw || 'Без бренда';
+
+        let brand: { id: string; name: string; slug?: string };
+
+        if (user.role === 'partner' && user.partner) {
+          if (!brandCellRaw) {
+            errors.push(
+              `Строка ${rowNum}: заполните колонку «Бренд» точным названием из списка в кабинете партнёра (регистр и пробелы должны совпадать).`
+            );
+            continue;
+          }
+          const allowedList = user.partner.brands.map((pb) => pb.brand.name);
+          const foundBrand = user.partner.brands.find((pb) => pb.brand.name === brandCellRaw)?.brand;
+          if (!foundBrand) {
+            errors.push(
+              `Строка ${rowNum}: бренд «${brandCellRaw}» недоступен для импорта или указан не так, как в каталоге. Допустимые названия (скопируйте в Excel без изменений): ${allowedList.map((n) => `«${n}»`).join(', ')}`
+            );
+            continue;
+          }
+          brand = foundBrand;
+        } else {
+          let b = brandMap.get(brandName.toLowerCase());
+          if (!b) {
+            const newBrand = { id: 'NEW', name: brandName, slug: generateSlug(brandName) } as any;
+            b = newBrand;
+            brandMap.set(brandName.toLowerCase(), newBrand);
+          }
+          brand = b;
+        }
+
+        if (user.role === 'partner' && user.partner && existingProduct) {
+          const allowedBrandIds = new Set(user.partner.brands.map((pb) => pb.brand.id));
+          if (!allowedBrandIds.has(existingProduct.brandId)) {
+            errors.push(
+              `Строка ${rowNum}: товар с таким артикулом (SKU) уже есть в каталоге под другим брендом. Измените SKU или обратитесь к администратору.`
+            );
+            continue;
+          }
         }
 
         // Получаем категорию
@@ -425,7 +500,7 @@ export async function POST(request: NextRequest) {
           shortDescription: str(columnMap.shortDescription),
           myWarehouseCode,
           manufacturerSku: str(columnMap.manufacturerSku),
-          sku: str(columnMap.sku),
+          sku: skuCell,
           productType: str(columnMap.productType),
           categoryName: category?.name || categoryName || null,
           categoryId: category?.id || null,

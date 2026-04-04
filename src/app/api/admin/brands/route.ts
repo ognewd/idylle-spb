@@ -1,30 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import jwt from 'jsonwebtoken';
 import { prisma } from '@/lib/prisma';
-import { getJwtSecret } from '@/lib/admin-auth';
+import { verifyPanelToken } from '@/lib/admin-auth';
 
 export async function GET(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const token = authHeader.substring(7);
-    const secret = getJwtSecret();
-    if (!secret) return NextResponse.json({ error: 'Unauthorized' }, { status: 500 });
-    try {
-      const decoded = jwt.verify(token, secret) as any;
-      
-      const user = await prisma.user.findUnique({
-        where: { id: decoded.userId },
-      });
-
-      if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-      }
-    } catch (jwtError) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    const authResult = await verifyPanelToken(request);
+    if (authResult.error) {
+      return NextResponse.json({ error: authResult.error }, { status: authResult.status });
     }
 
     const brands = await prisma.brand.findMany({
@@ -32,7 +14,7 @@ export async function GET(request: NextRequest) {
       orderBy: { name: 'asc' },
     });
 
-    return NextResponse.json(brands);
+    return NextResponse.json({ brands });
   } catch (error) {
     console.error('Admin brands error:', error);
     return NextResponse.json(

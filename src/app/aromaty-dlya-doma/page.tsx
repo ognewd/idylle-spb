@@ -136,10 +136,11 @@ function HomeAromasContent() {
           }
         });
         
-        // Fetch products and filters
-        const [productsResponse, filtersResponse] = await Promise.all([
+        // Fetch products, filters и максимальную цену по всей категории
+        const [productsResponse, filtersResponse, priceResponse] = await Promise.all([
           fetch(`/api/products?${queryParams.toString()}`),
           fetch('/api/filters?category=aromaty-dlya-doma'),
+          fetch('/api/products/simple?category=aromaty-dlya-doma&limit=1&sort=price_desc'),
         ]);
         
         if (!productsResponse.ok) {
@@ -148,6 +149,7 @@ function HomeAromasContent() {
         
         const productsData: ApiResponse = await productsResponse.json();
         const filtersData = await filtersResponse.json();
+        const priceData: any = await priceResponse.json().catch(() => ({}));
         
         // Ensure products is an array
         const products = Array.isArray(productsData?.products) ? productsData.products : [];
@@ -157,10 +159,14 @@ function HomeAromasContent() {
         setPagination(productsData.pagination);
         setCurrentPage(1);
 
-        // Calculate price range from products
-        const prices = products.map((p) => p.price);
-        const minPrice = prices.length > 0 ? Math.floor(Math.min(...prices) / 1000) * 1000 : 0;
-        const maxPrice = prices.length > 0 ? Math.ceil(Math.max(...prices) / 1000) * 1000 : 50000;
+        // Диапазон цен: от 0 до максимальной цены в категории
+        const maxCategoryPrice = Array.isArray(priceData?.products) && priceData.products.length > 0
+          ? priceData.products[0].price
+          : (products.length > 0 ? Math.max(...products.map((p) => p.price)) : 0);
+        const minPrice = 0;
+        const maxPrice = maxCategoryPrice > 0
+          ? Math.ceil(maxCategoryPrice / 1000) * 1000
+          : 50000;
 
         // Build filters array (используем все опции из API, не фильтруем по загруженным товарам)
         const newFilters: Filter[] = [];

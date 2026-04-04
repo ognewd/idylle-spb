@@ -128,9 +128,10 @@ function VannayaContent() {
           }
         });
 
-        const [productsResponse, filtersResponse] = await Promise.all([
+        const [productsResponse, filtersResponse, priceResponse] = await Promise.all([
           fetch(`/api/products?${queryParams.toString()}`),
           fetch(`/api/filters?category=${SLUG}`),
+          fetch(`/api/products/simple?category=${SLUG}&limit=1&sort=price_desc`),
         ]);
 
         if (!productsResponse.ok) {
@@ -139,6 +140,7 @@ function VannayaContent() {
 
         const productsData: ApiResponse = await productsResponse.json();
         const filtersData = await filtersResponse.json();
+        const priceData: any = await priceResponse.json().catch(() => ({}));
 
         const products = Array.isArray(productsData?.products) ? productsData.products : [];
 
@@ -147,9 +149,13 @@ function VannayaContent() {
         setPagination(productsData.pagination);
         setCurrentPage(1);
 
-        const prices = products.map((p) => p.price);
-        const minPrice = prices.length > 0 ? Math.floor(Math.min(...prices) / 1000) * 1000 : 0;
-        const maxPrice = prices.length > 0 ? Math.ceil(Math.max(...prices) / 1000) * 1000 : 50000;
+        const maxCategoryPrice = Array.isArray(priceData?.products) && priceData.products.length > 0
+          ? priceData.products[0].price
+          : (products.length > 0 ? Math.max(...products.map((p) => p.price)) : 0);
+        const minPrice = 0;
+        const maxPrice = maxCategoryPrice > 0
+          ? Math.ceil(maxCategoryPrice / 1000) * 1000
+          : 50000;
 
         const newFilters: Filter[] = [];
 

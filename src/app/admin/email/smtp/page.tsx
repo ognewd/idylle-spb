@@ -1,35 +1,35 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type Dispatch, type SetStateAction } from 'react';
+import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Mail, Send, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { Mail, Send, CheckCircle, XCircle, Loader2, ShoppingCart, Users } from 'lucide-react';
+
+type SmtpFields = { host: string; port: string; user: string; pass: string; from: string };
+
+const emptySmtp: SmtpFields = { host: '', port: '', user: '', pass: '', from: '' };
 
 export default function SMTPPage() {
-  const [settings, setSettings] = useState({
-    host: '',
-    port: '',
-    user: '',
-    pass: '',
-    from: '',
-  });
-  const [editableSettings, setEditableSettings] = useState({
-    host: '',
-    port: '',
-    user: '',
-    pass: '',
-    from: '',
-  });
+  const [orderSettings, setOrderSettings] = useState<SmtpFields>(emptySmtp);
+  const [partnerSettings, setPartnerSettings] = useState<SmtpFields>(emptySmtp);
+  const [editableOrder, setEditableOrder] = useState<SmtpFields>(emptySmtp);
+  const [editablePartner, setEditablePartner] = useState<SmtpFields>(emptySmtp);
   const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [testLoading, setTestLoading] = useState(false);
-  const [sendTestLoading, setSendTestLoading] = useState(false);
+  const [savingOrder, setSavingOrder] = useState(false);
+  const [savingPartner, setSavingPartner] = useState(false);
+  const [testOrderLoading, setTestOrderLoading] = useState(false);
+  const [testPartnerLoading, setTestPartnerLoading] = useState(false);
+  const [sendOrderLoading, setSendOrderLoading] = useState(false);
+  const [sendPartnerLoading, setSendPartnerLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [testEmail, setTestEmail] = useState('');
-  const [isEditing, setIsEditing] = useState(false);
+  const [testEmailOrder, setTestEmailOrder] = useState('');
+  const [testEmailPartner, setTestEmailPartner] = useState('');
+  const [isEditingOrder, setIsEditingOrder] = useState(false);
+  const [isEditingPartner, setIsEditingPartner] = useState(false);
 
   useEffect(() => {
     fetchSettings();
@@ -40,15 +40,17 @@ export default function SMTPPage() {
       setLoading(true);
       const token = localStorage.getItem('admin_token');
       const response = await fetch('/api/admin/smtp', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
       const data = await response.json();
 
       if (data.success) {
-        setSettings(data.settings);
-        setEditableSettings(data.settings);
+        const o = data.order || data.settings || emptySmtp;
+        const p = data.partner || emptySmtp;
+        setOrderSettings(o);
+        setPartnerSettings(p);
+        setEditableOrder(o);
+        setEditablePartner(p);
       }
     } catch (error) {
       console.error('Error fetching SMTP settings:', error);
@@ -57,333 +59,468 @@ export default function SMTPPage() {
     }
   };
 
-  const handleSaveSettings = async () => {
+  const saveChannel = async (channel: 'order' | 'partner') => {
+    const setSaving = channel === 'order' ? setSavingOrder : setSavingPartner;
+    const settings = channel === 'order' ? editableOrder : editablePartner;
     try {
       setSaving(true);
       setMessage(null);
-
       const token = localStorage.getItem('admin_token');
       const response = await fetch('/api/admin/smtp', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           action: 'save-settings',
-          settings: editableSettings 
+          channel,
+          settings,
         }),
       });
-
       const data = await response.json();
-
       if (data.success) {
-        setMessage({ type: 'success', text: 'Настройки успешно сохранены!' });
-        setIsEditing(false);
+        setMessage({
+          type: 'success',
+          text:
+            channel === 'order'
+              ? 'Настройки «Уведомления о заказе» сохранены'
+              : 'Настройки «Коммуникация с партнёрами» сохранены',
+        });
+        if (channel === 'order') setIsEditingOrder(false);
+        else setIsEditingPartner(false);
         fetchSettings();
       } else {
-        setMessage({ type: 'error', text: data.error || 'Ошибка сохранения настроек' });
+        setMessage({ type: 'error', text: data.error || 'Ошибка сохранения' });
       }
-    } catch (error) {
+    } catch {
       setMessage({ type: 'error', text: 'Ошибка сохранения настроек' });
     } finally {
       setSaving(false);
     }
   };
 
-  const handleTestConnection = async () => {
+  const testChannel = async (channel: 'order' | 'partner') => {
+    const setL = channel === 'order' ? setTestOrderLoading : setTestPartnerLoading;
     try {
-      setTestLoading(true);
+      setL(true);
       setMessage(null);
-
       const token = localStorage.getItem('admin_token');
       const response = await fetch('/api/admin/smtp', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ action: 'test' }),
+        body: JSON.stringify({ action: 'test', channel }),
       });
-
       const data = await response.json();
-
       if (data.success) {
-        setMessage({ type: 'success', text: 'SMTP connection successful!' });
+        setMessage({ type: 'success', text: data.message || 'Подключение к SMTP успешно' });
       } else {
-        setMessage({ type: 'error', text: data.error || 'Connection failed' });
+        setMessage({ type: 'error', text: data.error || 'Ошибка подключения' });
       }
-    } catch (error) {
-      setMessage({ type: 'error', text: 'Error testing connection' });
+    } catch {
+      setMessage({ type: 'error', text: 'Ошибка проверки' });
     } finally {
-      setTestLoading(false);
+      setL(false);
     }
   };
 
-  const handleSendTestEmail = async () => {
-    if (!testEmail) {
-      setMessage({ type: 'error', text: 'Please enter an email address' });
+  const sendTestChannel = async (channel: 'order' | 'partner') => {
+    const to = channel === 'order' ? testEmailOrder : testEmailPartner;
+    if (!to) {
+      setMessage({ type: 'error', text: 'Укажите email для тестового письма' });
       return;
     }
-
+    const setL = channel === 'order' ? setSendOrderLoading : setSendPartnerLoading;
     try {
-      setSendTestLoading(true);
+      setL(true);
       setMessage(null);
-
       const token = localStorage.getItem('admin_token');
       const response = await fetch('/api/admin/smtp', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ 
-          action: 'send-test',
-          to: testEmail 
-        }),
+        body: JSON.stringify({ action: 'send-test', channel, to }),
       });
-
       const data = await response.json();
-
       if (data.success) {
-        setMessage({ type: 'success', text: 'Test email sent successfully!' });
+        setMessage({ type: 'success', text: 'Тестовое письмо отправлено' });
       } else {
-        setMessage({ type: 'error', text: data.error || 'Failed to send email' });
+        setMessage({ type: 'error', text: data.error || 'Не удалось отправить' });
       }
-    } catch (error) {
-      setMessage({ type: 'error', text: 'Error sending test email' });
+    } catch {
+      setMessage({ type: 'error', text: 'Ошибка отправки' });
     } finally {
-      setSendTestLoading(false);
+      setL(false);
     }
   };
+
+  function SmtpFormFields(props: {
+    channel: 'order' | 'partner';
+    isEditing: boolean;
+    display: SmtpFields;
+    editable: SmtpFields;
+    setEditable: Dispatch<SetStateAction<SmtpFields>>;
+  }) {
+    const { isEditing, display, editable, setEditable } = props;
+    const v = isEditing ? editable : display;
+    return (
+      <div className="space-y-4">
+        <div>
+          <Label>Host</Label>
+          <Input
+            value={v.host}
+            disabled={!isEditing}
+            onChange={(e) => setEditable((prev) => ({ ...prev, host: e.target.value }))}
+          />
+        </div>
+        <div>
+          <Label>Port</Label>
+          <Input
+            value={v.port}
+            disabled={!isEditing}
+            onChange={(e) => setEditable((prev) => ({ ...prev, port: e.target.value }))}
+          />
+        </div>
+        <div>
+          <Label>Username</Label>
+          <Input
+            value={v.user}
+            disabled={!isEditing}
+            onChange={(e) => setEditable((prev) => ({ ...prev, user: e.target.value }))}
+          />
+        </div>
+        <div>
+          <Label>Password</Label>
+          <Input
+            value={v.pass}
+            disabled={!isEditing}
+            type="password"
+            autoComplete="new-password"
+            placeholder={!isEditing ? '' : 'Оставьте ****** чтобы не менять'}
+            onChange={(e) => setEditable((prev) => ({ ...prev, pass: e.target.value }))}
+          />
+        </div>
+        <div>
+          <Label>From (адрес отправителя)</Label>
+          <Input
+            value={v.from}
+            disabled={!isEditing}
+            onChange={(e) => setEditable((prev) => ({ ...prev, from: e.target.value }))}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">
+      <div className="mb-6 flex flex-wrap items-center gap-4">
+        <Button variant="ghost" size="sm" asChild>
+          <Link href="/admin/email">← Управление email</Link>
+        </Button>
+      </div>
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">SMTP настройки</h1>
-        <p className="text-muted-foreground">
-          Настройка почтового сервера для отправки уведомлений
+        <h1 className="text-3xl font-bold mb-2">SMTP: заказы и партнёры</h1>
+        <p className="text-muted-foreground max-w-3xl">
+          <strong>Уведомления о заказе</strong> — письма клиентам при оформлении заказа и системные письма
+          магазина (как раньше).{' '}
+          <strong>Коммуникация с партнёрами</strong> — отдельный почтовый ящик/сервер для писем с логином и
+          паролем в кабинет партнёра (можно тем же SMTP, но лучше разделить для учёта).
         </p>
       </div>
 
       {message && (
-        <Alert className={`mb-6 ${message.type === 'success' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+        <Alert
+          className={`mb-6 ${message.type === 'success' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}
+        >
           <div className="flex items-center gap-2">
             {message.type === 'success' ? (
               <CheckCircle className="h-4 w-4 text-green-600" />
             ) : (
               <XCircle className="h-4 w-4 text-red-600" />
             )}
-            <AlertDescription className={message.type === 'success' ? 'text-green-800' : 'text-red-800'}>
+            <AlertDescription
+              className={message.type === 'success' ? 'text-green-800' : 'text-red-800'}
+            >
               {message.text}
             </AlertDescription>
           </div>
         </Alert>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Current Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Mail className="h-5 w-5" />
-              Текущие настройки
-            </CardTitle>
-            <CardDescription className="flex items-center justify-between">
-              <span>Текущая SMTP конфигурация</span>
-              <Button
-                variant={isEditing ? "ghost" : "outline"}
-                size="sm"
-                onClick={() => {
-                  if (isEditing) {
-                    setIsEditing(false);
-                    setEditableSettings(settings);
-                  } else {
-                    setIsEditing(true);
-                  }
-                }}
-              >
-                {isEditing ? 'Отмена' : 'Изменить'}
-              </Button>
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {loading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin" />
-              </div>
-            ) : (
-              <>
-                <div>
-                  <Label>Host</Label>
-                  <Input 
-                    value={isEditing ? editableSettings.host : settings.host} 
-                    disabled={!isEditing}
-                    onChange={(e) => setEditableSettings({ ...editableSettings, host: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label>Port</Label>
-                  <Input 
-                    value={isEditing ? editableSettings.port : settings.port} 
-                    disabled={!isEditing}
-                    onChange={(e) => setEditableSettings({ ...editableSettings, port: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label>Username</Label>
-                  <Input 
-                    value={isEditing ? editableSettings.user : settings.user} 
-                    disabled={!isEditing}
-                    onChange={(e) => setEditableSettings({ ...editableSettings, user: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label>Password</Label>
-                  <Input 
-                    value={isEditing ? editableSettings.pass : settings.pass} 
-                    disabled={!isEditing}
-                    type="password"
-                    onChange={(e) => setEditableSettings({ ...editableSettings, pass: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label>From Address</Label>
-                  <Input 
-                    value={isEditing ? editableSettings.from : settings.from} 
-                    disabled={!isEditing}
-                    onChange={(e) => setEditableSettings({ ...editableSettings, from: e.target.value })}
-                  />
-                </div>
-                {isEditing ? (
-                  <div className="pt-4 space-y-2">
-                    <Button 
-                      onClick={handleSaveSettings} 
-                      disabled={saving}
-                      className="w-full"
+      {loading ? (
+        <div className="flex justify-center py-16">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      ) : (
+        <div className="space-y-10">
+          {/* ORDER */}
+          <section>
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <ShoppingCart className="h-6 w-6 text-blue-600" />
+              Уведомления о заказе
+            </h2>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Mail className="h-5 w-5" />
+                    Настройки SMTP
+                  </CardTitle>
+                  <CardDescription className="flex items-center justify-between gap-2">
+                    <span>Подтверждение заказа и другие уведомления покупателям</span>
+                    <Button
+                      variant={isEditingOrder ? 'ghost' : 'outline'}
+                      size="sm"
+                      type="button"
+                      onClick={() => {
+                        if (isEditingOrder) {
+                          setIsEditingOrder(false);
+                          setEditableOrder(orderSettings);
+                        } else {
+                          setEditableOrder(orderSettings);
+                          setIsEditingOrder(true);
+                        }
+                      }}
                     >
-                      {saving ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Сохранение...
-                        </>
-                      ) : (
-                        'Сохранить'
-                      )}
+                      {isEditingOrder ? 'Отмена' : 'Изменить'}
                     </Button>
-                    <Button 
-                      onClick={handleTestConnection} 
-                      disabled={testLoading}
-                      className="w-full"
-                      variant="outline"
-                    >
-                      {testLoading ? (
-                        <>
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <SmtpFormFields
+                    channel="order"
+                    isEditing={isEditingOrder}
+                    display={orderSettings}
+                    editable={editableOrder}
+                    setEditable={setEditableOrder}
+                  />
+                  {isEditingOrder ? (
+                    <div className="flex flex-col gap-2 pt-2">
+                      <Button
+                        type="button"
+                        onClick={() => saveChannel('order')}
+                        disabled={savingOrder}
+                      >
+                        {savingOrder ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Сохранить
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => testChannel('order')}
+                        disabled={testOrderLoading}
+                      >
+                        {testOrderLoading ? (
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Проверка...
-                        </>
-                      ) : (
-                        <>
+                        ) : (
                           <Mail className="mr-2 h-4 w-4" />
-                          Тест подключения
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="pt-4">
-                    <Button 
-                      onClick={handleTestConnection} 
-                      disabled={testLoading}
-                      className="w-full"
+                        )}
+                        Тест подключения
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
                       variant="outline"
+                      className="w-full"
+                      onClick={() => testChannel('order')}
+                      disabled={testOrderLoading}
                     >
-                      {testLoading ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Проверка...
-                        </>
+                      {testOrderLoading ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       ) : (
-                        <>
-                          <Mail className="mr-2 h-4 w-4" />
-                          Тест подключения
-                        </>
+                        <Mail className="mr-2 h-4 w-4" />
                       )}
+                      Тест подключения
                     </Button>
+                  )}
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Send className="h-5 w-5" />
+                    Тестовое письмо
+                  </CardTitle>
+                  <CardDescription>Проверка через SMTP заказов</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label htmlFor="test-order">Email</Label>
+                    <Input
+                      id="test-order"
+                      type="email"
+                      value={testEmailOrder}
+                      onChange={(e) => setTestEmailOrder(e.target.value)}
+                    />
                   </div>
-                )}
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Send Test Email */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Send className="h-5 w-5" />
-              Отправка тестового письма
-            </CardTitle>
-            <CardDescription>
-              Отправьте тестовое письмо для проверки работы SMTP
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="test-email">Email адрес</Label>
-              <Input
-                id="test-email"
-                type="email"
-                placeholder="example@mail.com"
-                value={testEmail}
-                onChange={(e) => setTestEmail(e.target.value)}
-              />
-              <p className="text-sm text-muted-foreground mt-1">
-                Введите email адрес для отправки тестового письма
-              </p>
+                  <Button
+                    type="button"
+                    className="w-full"
+                    disabled={sendOrderLoading || !testEmailOrder}
+                    onClick={() => sendTestChannel('order')}
+                  >
+                    {sendOrderLoading ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="mr-2 h-4 w-4" />
+                    )}
+                    Отправить тест
+                  </Button>
+                </CardContent>
+              </Card>
             </div>
-            <Button 
-              onClick={handleSendTestEmail} 
-              disabled={sendTestLoading || !testEmail}
-              className="w-full"
-            >
-              {sendTestLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Sending...
-                </>
-              ) : (
-                <>
-                  <Send className="mr-2 h-4 w-4" />
-                  Send Test Email
-                </>
-              )}
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+          </section>
 
-      {/* Info Card */}
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle>Информация</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2 text-sm text-muted-foreground">
-            <p>
-              <strong>Настройка SMTP:</strong> Текущие настройки SMTP находятся в файле .env (для продакшена) 
-              или настроены через переменные окружения Vercel.
+          {/* PARTNER */}
+          <section>
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <Users className="h-6 w-6 text-violet-600" />
+              Коммуникация с партнёрами
+            </h2>
+            <p className="text-sm text-muted-foreground mb-4 max-w-3xl">
+              Используется при создании пользователя партнёра: на указанный email автоматически уходит письмо с
+              ссылкой на вход, логином и паролем. Пароль в письме — в открытом виде; храните почтовый доступ в
+              безопасности.
             </p>
-            <p>
-              <strong>Mailtrap:</strong> Используется для тестирования email в разработке.
-              Письма попадают в Mailtrap Inbox, а не на реальные адреса.
-            </p>
-            <p>
-              <strong>Безопасность:</strong> Пароль отображается как ****** для безопасности.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Mail className="h-5 w-5" />
+                    Настройки SMTP для партнёров
+                  </CardTitle>
+                  <CardDescription className="flex items-center justify-between gap-2">
+                    <span>Отдельно от заказов (рекомендуется)</span>
+                    <Button
+                      variant={isEditingPartner ? 'ghost' : 'outline'}
+                      size="sm"
+                      type="button"
+                      onClick={() => {
+                        if (isEditingPartner) {
+                          setIsEditingPartner(false);
+                          setEditablePartner(partnerSettings);
+                        } else {
+                          setEditablePartner(partnerSettings);
+                          setIsEditingPartner(true);
+                        }
+                      }}
+                    >
+                      {isEditingPartner ? 'Отмена' : 'Изменить'}
+                    </Button>
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <SmtpFormFields
+                    channel="partner"
+                    isEditing={isEditingPartner}
+                    display={partnerSettings}
+                    editable={editablePartner}
+                    setEditable={setEditablePartner}
+                  />
+                  {isEditingPartner ? (
+                    <div className="flex flex-col gap-2 pt-2">
+                      <Button
+                        type="button"
+                        onClick={() => saveChannel('partner')}
+                        disabled={savingPartner}
+                      >
+                        {savingPartner ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Сохранить
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => testChannel('partner')}
+                        disabled={testPartnerLoading}
+                      >
+                        {testPartnerLoading ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Mail className="mr-2 h-4 w-4" />
+                        )}
+                        Тест подключения
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => testChannel('partner')}
+                      disabled={testPartnerLoading}
+                    >
+                      {testPartnerLoading ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Mail className="mr-2 h-4 w-4" />
+                      )}
+                      Тест подключения
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Send className="h-5 w-5" />
+                    Тестовое письмо (партнёры)
+                  </CardTitle>
+                  <CardDescription>Проверка через партнёрский SMTP</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label htmlFor="test-partner">Email</Label>
+                    <Input
+                      id="test-partner"
+                      type="email"
+                      value={testEmailPartner}
+                      onChange={(e) => setTestEmailPartner(e.target.value)}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    className="w-full"
+                    disabled={sendPartnerLoading || !testEmailPartner}
+                    onClick={() => sendTestChannel('partner')}
+                  >
+                    {sendPartnerLoading ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="mr-2 h-4 w-4" />
+                    )}
+                    Отправить тест
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </section>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Справка</CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm text-muted-foreground space-y-2">
+              <p>
+                Переменные окружения для заказов: <code>SMTP_HOST</code>, <code>SMTP_PORT</code> и т.д. Для
+                партнёров при отсутствии записей в БД: <code>PARTNER_SMTP_HOST</code>,{' '}
+                <code>PARTNER_SMTP_PORT</code>, <code>PARTNER_SMTP_USER</code>, <code>PARTNER_SMTP_PASS</code>,{' '}
+                <code>PARTNER_SMTP_FROM</code>.
+              </p>
+              <p>
+                Если поле пароля показывает звёздочки, при сохранении существующий пароль в БД не меняется,
+                пока вы не введите новый.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

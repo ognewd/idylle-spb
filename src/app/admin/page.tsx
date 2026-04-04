@@ -11,9 +11,6 @@ import {
   ShoppingCart, 
   Settings, 
   BarChart3,
-  Plus,
-  Edit,
-  Trash2,
   LogOut,
   Tag,
   Mail,
@@ -23,7 +20,9 @@ import {
   CheckSquare,
   Wrench,
   Star,
-  Truck
+  Truck,
+  Briefcase,
+  Upload,
 } from 'lucide-react';
 import { hasAccessToSection } from '@/lib/admin-permissions';
 
@@ -43,6 +42,7 @@ export default function AdminDashboard() {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [adminUser, setAdminUser] = useState<any>(null);
+  const [partnerBrands, setPartnerBrands] = useState<{ id: string; name: string }[]>([]);
   const router = useRouter();
 
   useEffect(() => {
@@ -64,6 +64,22 @@ export default function AdminDashboard() {
 
     // Load dashboard stats
     loadStats();
+
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      if (payload.role === 'partner') {
+        fetch('/api/admin/partner/context', {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+          .then((r) => (r.ok ? r.json() : null))
+          .then((data) => {
+            if (data?.brands) setPartnerBrands(data.brands);
+          })
+          .catch(() => {});
+      }
+    } catch {
+      /* ignore */
+    }
   }, [router]);
 
   const loadStats = async () => {
@@ -97,8 +113,46 @@ export default function AdminDashboard() {
     router.push('/admin/login');
   };
 
-  // Конфигурация карточек с разделением на секции
-  // Порядок: строго 1-12 как указано в требованиях
+  const isPartner = adminUser?.role === 'partner';
+
+  const partnerMenuItems = [
+    {
+      title: 'Товары',
+      description: 'Просмотр товаров ваших брендов',
+      icon: Package,
+      href: '/admin/products',
+      color: 'bg-blue-500',
+      section: 'products' as const,
+      sectionName: 'Каталог' as const,
+    },
+    {
+      title: 'Импорт товаров',
+      description: 'Загрузка каталога из Excel (только ваши бренды)',
+      icon: Upload,
+      href: '/admin/products/import',
+      color: 'bg-violet-500',
+      section: 'products' as const,
+      sectionName: 'Каталог' as const,
+    },
+    {
+      title: 'Статистика продаж',
+      description: 'Аналитика по вашим брендам за период',
+      icon: BarChart3,
+      href: '/admin/partner/statistics',
+      color: 'bg-emerald-500',
+      section: 'partner-statistics' as const,
+      sectionName: 'Аналитика' as const,
+    },
+  ];
+
+  const SECTION_ORDER = [
+    'Каталог',
+    'Аналитика',
+    'Продажи',
+    'Коммуникации и контент',
+    'Администрирование и задачи',
+  ];
+
   const allMenuItems = [
     // Секция A: Каталог
     {
@@ -195,6 +249,15 @@ export default function AdminDashboard() {
     },
     // Секция D: Администрирование и задачи
     {
+      title: 'Партнёры',
+      description: 'Управление партнёрами и их доступом к брендам',
+      icon: Briefcase,
+      href: '/admin/partners',
+      color: 'bg-rose-500',
+      section: 'partners' as const,
+      sectionName: 'Администрирование и задачи' as const,
+    },
+    {
       title: 'Администраторы',
       description: 'Управление администраторами',
       icon: Users,
@@ -250,9 +313,10 @@ export default function AdminDashboard() {
     },
   ];
 
-  // Фильтруем элементы меню по правам доступа
-  const menuItems = adminUser 
-    ? allMenuItems.filter(item => hasAccessToSection(adminUser, item.section))
+  const menuItems = adminUser
+    ? isPartner
+      ? partnerMenuItems
+      : allMenuItems.filter(item => hasAccessToSection(adminUser, item.section))
     : [];
 
   if (isLoading) {
@@ -271,22 +335,32 @@ export default function AdminDashboard() {
       {/* Header */}
       <header className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center py-6">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Админ панель</h1>
+              <h1 className="text-3xl font-bold text-gray-900">
+                {isPartner ? 'Кабинет партнёра' : 'Админ панель'}
+              </h1>
               <p className="text-gray-600">Добро пожаловать, {adminUser?.email}</p>
             </div>
-            <Button variant="outline" onClick={handleLogout}>
-              <LogOut className="h-4 w-4 mr-2" />
-              Выйти
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              {isPartner && (
+                <Button onClick={() => router.push('/admin/products/import')}>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Импорт из Excel
+                </Button>
+              )}
+              <Button variant="outline" onClick={handleLogout}>
+                <LogOut className="h-4 w-4 mr-2" />
+                Выйти
+              </Button>
+            </div>
           </div>
         </div>
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {/* Stats Cards (hidden for partners) */}
+        {!isPartner && <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Товары</CardTitle>
@@ -338,22 +412,45 @@ export default function AdminDashboard() {
               </p>
             </CardContent>
           </Card>
-        </div>
+        </div>}
+
+        {isPartner && partnerBrands.length > 0 && (
+          <Card className="mb-8 border-amber-200 bg-amber-50/80">
+            <CardHeader>
+              <CardTitle className="text-lg">Ваши бренды и колонка «Бренд» в Excel</CardTitle>
+              <CardDescription>
+                В файле импорта в колонке «Бренд» указывайте название{' '}
+                <strong className="text-foreground">точно как ниже</strong> — те же буквы, пробелы и регистр.
+                Другие бренды и новые названия импортировать нельзя: строки с ошибкой будут отклонены.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ul className="list-disc pl-5 space-y-1 font-medium text-gray-900">
+                {partnerBrands.map((b) => (
+                  <li key={b.id}>{b.name}</li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Menu Grid with Sections */}
         <div className="space-y-6">
-          {/* Группируем карточки по секциям */}
-          {['Каталог', 'Продажи', 'Коммуникации и контент', 'Администрирование и задачи'].map((sectionName) => {
-            const sectionItems = menuItems.filter(item => item.sectionName === sectionName);
-            
+          {SECTION_ORDER.map((sectionName) => {
+            const sectionItems = menuItems.filter((item) => item.sectionName === sectionName);
+
             if (sectionItems.length === 0) return null;
 
-            // Легкие фоновые цвета для разных секций (очень ненавязчивые)
-            const sectionBgClass = 
-              sectionName === 'Каталог' ? 'bg-blue-50/30' :
-              sectionName === 'Продажи' ? 'bg-green-50/30' :
-              sectionName === 'Коммуникации и контент' ? 'bg-purple-50/30' :
-              'bg-slate-50/30';
+            const sectionBgClass =
+              sectionName === 'Каталог'
+                ? 'bg-blue-50/30'
+                : sectionName === 'Аналитика'
+                  ? 'bg-emerald-50/30'
+                  : sectionName === 'Продажи'
+                    ? 'bg-green-50/30'
+                    : sectionName === 'Коммуникации и контент'
+                      ? 'bg-purple-50/30'
+                      : 'bg-slate-50/30';
 
             return (
               <div 

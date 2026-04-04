@@ -26,13 +26,13 @@ export default function EmailManagementPage() {
                 </div>
                 <div>
                   <CardTitle>SMTP настройки</CardTitle>
-                  <CardDescription>Настройка почтового сервера</CardDescription>
+                  <CardDescription>Заказы и партнёры (два канала)</CardDescription>
                 </div>
               </div>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                Настройте параметры SMTP сервера для отправки email уведомлений
+                Отдельно: уведомления о заказе и письма партнёрам (логин в кабинет)
               </p>
             </CardContent>
           </Card>

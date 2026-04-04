@@ -51,6 +51,15 @@ export async function POST(request: NextRequest) {
         }
         break;
 
+      case 'bspb':
+        // BSPB (Bank Saint-Petersburg) card payment
+        paymentResult = await PaymentService.createBspbPayment(
+          Number(order.total),
+          order.id,
+          `Заказ №${order.orderNumber}`,
+        );
+        break;
+
       case 'bank_transfer':
         // For bank transfer, return company details
         paymentResult = {

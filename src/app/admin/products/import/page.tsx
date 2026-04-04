@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,7 +16,7 @@ import {
   SelectValue 
 } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { ArrowLeft, Upload, CheckCircle2, XCircle, AlertCircle, Loader2, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
+import { ArrowLeft, Upload, Download, CheckCircle2, XCircle, AlertCircle, Loader2, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
 
 interface FileColumn {
   index: number;
@@ -141,6 +142,28 @@ export default function ImportProductsPage() {
   } | null>(null);
   const [progressMessage, setProgressMessage] = useState<string>('');
   const [importMode, setImportMode] = useState<'update' | 'replace'>('update');
+  const [isPartnerUser, setIsPartnerUser] = useState(false);
+  const [partnerBrandList, setPartnerBrandList] = useState<{ id: string; name: string }[]>([]);
+
+  useEffect(() => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('admin_token') : null;
+    if (!token) return;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      if (payload.role !== 'partner') return;
+      setIsPartnerUser(true);
+      fetch('/api/admin/partner/context', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (data?.brands?.length) setPartnerBrandList(data.brands);
+        })
+        .catch(() => {});
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -153,6 +176,33 @@ export default function ImportProductsPage() {
       setParsedData(null);
       setApplyResults(null);
       setStep('upload');
+    }
+  };
+
+  const handleDownloadSample = async () => {
+    const token = localStorage.getItem('admin_token');
+    if (!token) {
+      router.push('/admin/login');
+      return;
+    }
+    try {
+      const res = await fetch('/api/admin/partner/sample-import', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert((data as { error?: string }).error || 'Не удалось сформировать файл');
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'import_sample.xlsx';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert('Ошибка загрузки образца');
     }
   };
 
@@ -372,8 +422,8 @@ export default function ImportProductsPage() {
       {/* Header */}
       <header className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div className="flex items-center gap-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center py-6">
+            <div className="flex flex-wrap items-center gap-4">
               <Button
                 variant="ghost"
                 size="sm"
@@ -390,11 +440,44 @@ export default function ImportProductsPage() {
                 <Link href="/admin/products/update-stocks">Обновление остатков</Link>
               </Button>
             </div>
+            <Button variant="outline" onClick={handleDownloadSample} type="button">
+              <Download className="h-4 w-4 mr-2" />
+              Скачать образец Excel
+            </Button>
           </div>
         </div>
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {isPartnerUser && partnerBrandList.length > 0 && (
+          <Alert className="mb-6 border-amber-200 bg-amber-50">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Колонка «Бренд» — только эти названия</AlertTitle>
+            <AlertDescription className="space-y-2">
+              <p>
+                В каждой строке Excel в колонке с брендом укажите значение{' '}
+                <strong>точно</strong> как в списке ниже (пробелы и регистр важны). Импорт чужих брендов
+                и новых названий запрещён — такие строки будут отклонены с ошибкой.
+              </p>
+              <ul className="list-disc pl-5 font-medium text-foreground">
+                {partnerBrandList.map((b) => (
+                  <li key={b.id}>{b.name}</li>
+                ))}
+              </ul>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {isPartnerUser && partnerBrandList.length === 0 && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Бренды не назначены</AlertTitle>
+            <AlertDescription>
+              Обратитесь к администратору: без списка брендов импорт для партнёра недоступен.
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Индикатор прогресса при загрузке/импорте */}
         {(isParsing || isApplying) && progressMessage && (
           <div className="mb-6 rounded-lg border bg-white p-4 shadow-sm">
@@ -421,6 +504,15 @@ export default function ImportProductsPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
+                <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-muted/30 px-4 py-3">
+                  <p className="text-sm text-muted-foreground flex-1 min-w-[12rem]">
+                    Нет готового файла? Скачайте шаблон с примером колонок и строки-примера.
+                  </p>
+                  <Button variant="secondary" type="button" onClick={handleDownloadSample}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Скачать образец
+                  </Button>
+                </div>
                 {/* Превью колонок и первых 5 строк */}
                 {fileColumns.length > 0 && (
                   <div className="space-y-2">
@@ -498,29 +590,31 @@ export default function ImportProductsPage() {
                     Выбран файл: <strong>{file.name}</strong> ({(file.size / 1024).toFixed(2)} КБ)
                   </p>
                 )}
-                <div className="pt-4 border-t">
-                  <Button
-                    variant="destructive"
-                    onClick={handleDeleteAll}
-                    disabled={isDeleting}
-                    className="w-full"
-                  >
-                    {isDeleting ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Удаление...
-                      </>
-                    ) : (
-                      <>
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Удалить все товары
-                      </>
-                    )}
-                  </Button>
-                  <p className="text-xs text-muted-foreground mt-2 text-center">
-                    Внимание: это действие удалит все товары из базы данных
-                  </p>
-                </div>
+                {!isPartnerUser && (
+                  <div className="pt-4 border-t">
+                    <Button
+                      variant="destructive"
+                      onClick={handleDeleteAll}
+                      disabled={isDeleting}
+                      className="w-full"
+                    >
+                      {isDeleting ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Удаление...
+                        </>
+                      ) : (
+                        <>
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Удалить все товары
+                        </>
+                      )}
+                    </Button>
+                    <p className="text-xs text-muted-foreground mt-2 text-center">
+                      Внимание: это действие удалит все товары из базы данных
+                    </p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

@@ -1,4 +1,5 @@
 import Stripe from 'stripe';
+import { BspbPaymentService } from '@/lib/bspb';
 
 export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2023-10-16',
@@ -7,7 +8,7 @@ export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 export interface PaymentMethod {
   id: string;
   name: string;
-  type: 'card' | 'bank_transfer' | 'cash_delivery' | 'cash_pickup';
+  type: 'card' | 'bank_transfer' | 'cash_delivery' | 'cash_pickup' | 'bspb';
   isActive: boolean;
   commission: number;
   instructions?: string;
@@ -20,6 +21,8 @@ export interface PaymentIntent {
   currency: string;
   status: string;
   client_secret?: string;
+  /** BSPB: URL to redirect customer to payment page */
+  paymentUrl?: string;
 }
 
 export class PaymentService {
@@ -125,6 +128,28 @@ export class PaymentService {
       account: process.env.COMPANY_ACCOUNT,
       correspondent: process.env.COMPANY_CORRESPONDENT,
     };
+  }
+
+  // BSPB (Bank Saint-Petersburg) payment
+  static async createBspbPayment(amount: number, orderId: string, title?: string) {
+    try {
+      const result = await BspbPaymentService.createOrder({
+        amount,
+        title: title || `Заказ №${orderId}`,
+        description: `Оплата заказа №${orderId} на сайте idylle.spb.ru`,
+      });
+
+      return {
+        id: String(result.orderId),
+        amount,
+        currency: 'RUB',
+        status: result.raw.status,
+        paymentUrl: result.paymentUrl,
+      };
+    } catch (error) {
+      console.error('BSPB payment creation failed:', error);
+      throw new Error('Payment processing failed');
+    }
   }
 
   // Calculate commission

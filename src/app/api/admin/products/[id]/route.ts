@@ -310,15 +310,33 @@ export async function DELETE(
     const secret = getJwtSecret();
     if (!secret) return NextResponse.json({ error: 'Unauthorized' }, { status: 500 });
     
+    let actorRole: string;
+    let partnerBrandIds: string[] | null = null;
+
     try {
       const decoded = jwt.verify(token, secret) as any;
 
       const user = await prisma.user.findUnique({
         where: { id: decoded.userId },
+        include: {
+          partner: {
+            include: { brands: { select: { brandId: true } } },
+          },
+        },
       });
 
-      if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
+      if (!user) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+
+      const allowedRoles = ['admin', 'super_admin', 'partner'];
+      if (!allowedRoles.includes(user.role)) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+
+      actorRole = user.role;
+      if (user.role === 'partner') {
+        partnerBrandIds = user.partner?.brands.map((b) => b.brandId) ?? [];
       }
     } catch (jwtError) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
@@ -334,6 +352,21 @@ export async function DELETE(
         { error: 'Product not found' },
         { status: 404 }
       );
+    }
+
+    if (actorRole === 'partner') {
+      if (!partnerBrandIds?.length) {
+        return NextResponse.json(
+          { error: 'У аккаунта не назначены бренды, удаление недоступно' },
+          { status: 403 }
+        );
+      }
+      if (!partnerBrandIds.includes(existingProduct.brandId)) {
+        return NextResponse.json(
+          { error: 'Можно удалять только товары своих брендов' },
+          { status: 403 }
+        );
+      }
     }
 
     // Удаляем связанные записи перед удалением товара

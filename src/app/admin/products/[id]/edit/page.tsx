@@ -485,7 +485,7 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
 
       if (brandsRes.ok) {
         const brandsData = await brandsRes.json();
-        setBrands(brandsData);
+        setBrands(brandsData.brands || brandsData);
       }
     } catch (error) {
       console.error('Error loading data:', error);

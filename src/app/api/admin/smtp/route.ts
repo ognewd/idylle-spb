@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { testSMTPConnection, sendMail } from '@/lib/mail';
+import {
+  testSMTPConnection,
+  testPartnerSMTPConnection,
+  sendMail,
+  sendPartnerMail,
+} from '@/lib/mail';
 import { prisma } from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
 import { getJwtSecret } from '@/lib/admin-auth';
+
+const ORDER_KEYS = ['HOST', 'PORT', 'USER', 'PASS', 'FROM'] as const;
+const ORDER_PREFIX = 'SMTP_';
+const PARTNER_PREFIX = 'PARTNER_SMTP_';
 
 function verifyAdminToken(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
@@ -19,9 +28,59 @@ function verifyAdminToken(request: NextRequest) {
       return null;
     }
     return decoded;
-  } catch (error) {
+  } catch {
     return null;
   }
+}
+
+async function loadSmtpSection(prefix: string) {
+  const rows = await prisma.settings.findMany({
+    where: { key: { startsWith: prefix } },
+  });
+  const settings: Record<string, string> = {};
+  for (const row of rows) {
+    const k = row.key.slice(prefix.length).toLowerCase();
+    settings[k] = row.value;
+  }
+  return { settings, rowCount: rows.length };
+}
+
+function applyEnvFallbackOrder(s: Record<string, string>) {
+  if (Object.keys(s).length === 0) {
+    return {
+      host: process.env.SMTP_HOST || '',
+      port: process.env.SMTP_PORT || '',
+      user: process.env.SMTP_USER || '',
+      pass: process.env.SMTP_PASS ? '******' : '',
+      from: process.env.SMTP_FROM || '',
+    };
+  }
+  return {
+    host: s.host || '',
+    port: s.port || '',
+    user: s.user || '',
+    pass: s.pass ? '******' : '',
+    from: s.from || '',
+  };
+}
+
+function applyEnvFallbackPartner(s: Record<string, string>) {
+  if (Object.keys(s).length === 0) {
+    return {
+      host: process.env.PARTNER_SMTP_HOST || '',
+      port: process.env.PARTNER_SMTP_PORT || '',
+      user: process.env.PARTNER_SMTP_USER || '',
+      pass: process.env.PARTNER_SMTP_PASS ? '******' : '',
+      from: process.env.PARTNER_SMTP_FROM || '',
+    };
+  }
+  return {
+    host: s.host || '',
+    port: s.port || '',
+    user: s.user || '',
+    pass: s.pass ? '******' : '',
+    from: s.from || '',
+  };
 }
 
 export async function GET(request: NextRequest) {
@@ -29,43 +88,24 @@ export async function GET(request: NextRequest) {
     const admin = verifyAdminToken(request);
 
     if (!admin) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Try to get settings from database
-    const smtpSettings = await prisma.settings.findMany({
-      where: {
-        key: {
-          startsWith: 'SMTP_',
-        },
-      },
+    const orderData = await loadSmtpSection(ORDER_PREFIX);
+    const partnerData = await loadSmtpSection(PARTNER_PREFIX);
+
+    const order = applyEnvFallbackOrder(orderData.settings);
+    const partner = applyEnvFallbackPartner(partnerData.settings);
+
+    return NextResponse.json({
+      success: true,
+      order,
+      partner,
+      // обратная совместимость со старой страницей
+      settings: order,
+      isFromEnv: orderData.rowCount === 0,
+      partnerIsFromEnv: partnerData.rowCount === 0,
     });
-
-    // Convert to object
-    const settings: any = {};
-    smtpSettings.forEach(setting => {
-      const key = setting.key.replace('SMTP_', '').toLowerCase();
-      settings[key] = setting.value;
-    });
-
-    // If no database settings, fall back to env
-    if (Object.keys(settings).length === 0) {
-      settings.host = process.env.SMTP_HOST || '';
-      settings.port = process.env.SMTP_PORT || '';
-      settings.user = process.env.SMTP_USER || '';
-      settings.pass = process.env.SMTP_PASS ? '******' : '';
-      settings.from = process.env.SMTP_FROM || '';
-    } else {
-      // Mask password if it exists
-      if (settings.pass) {
-        settings.pass = '******';
-      }
-    }
-
-    return NextResponse.json({ success: true, settings, isFromEnv: Object.keys(smtpSettings).length === 0 });
   } catch (error) {
     console.error('Error getting SMTP settings:', error);
     return NextResponse.json(
@@ -80,38 +120,48 @@ export async function POST(request: NextRequest) {
     const admin = verifyAdminToken(request);
 
     if (!admin) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await request.json();
-    const { action, to, settings } = body;
+    const { action, to, settings, channel } = body as {
+      action: string;
+      to?: string;
+      settings?: Record<string, string>;
+      channel?: 'order' | 'partner';
+    };
+
+    const smtpChannel = channel === 'partner' ? 'partner' : 'order';
+    const prefix = smtpChannel === 'partner' ? PARTNER_PREFIX : ORDER_PREFIX;
 
     if (action === 'save-settings') {
-      // Save SMTP settings to database
       if (!settings) {
-        return NextResponse.json(
-          { success: false, error: 'Settings are required' },
-          { status: 400 }
-        );
+        return NextResponse.json({ success: false, error: 'Settings are required' }, { status: 400 });
       }
 
-      // Save each setting
-      const settingsToSave = [
-        { key: 'SMTP_HOST', value: settings.host || '' },
-        { key: 'SMTP_PORT', value: settings.port || '' },
-        { key: 'SMTP_USER', value: settings.user || '' },
-        { key: 'SMTP_PASS', value: settings.pass || '' },
-        { key: 'SMTP_FROM', value: settings.from || '' },
-      ];
+      const passVal = settings.pass ?? '';
+      const skipPassUpdate = passVal === '******' || passVal === '';
 
-      for (const setting of settingsToSave) {
+      for (const field of ORDER_KEYS) {
+        const key = `${prefix}${field}`;
+        if (field === 'PASS' && skipPassUpdate) {
+          continue;
+        }
+        const value =
+          field === 'HOST'
+            ? settings.host || ''
+            : field === 'PORT'
+              ? settings.port || ''
+              : field === 'USER'
+                ? settings.user || ''
+                : field === 'PASS'
+                  ? settings.pass || ''
+                  : settings.from || '';
+
         await prisma.settings.upsert({
-          where: { key: setting.key },
-          update: { value: setting.value },
-          create: setting,
+          where: { key },
+          update: { value },
+          create: { key, value },
         });
       }
 
@@ -119,29 +169,33 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === 'test') {
-      // Test SMTP connection
-      const result = await testSMTPConnection();
+      const result =
+        smtpChannel === 'partner' ? await testPartnerSMTPConnection() : await testSMTPConnection();
       return NextResponse.json(result);
     }
 
     if (action === 'send-test') {
-      // Send test email
-      const result = await sendMail({
-        to: to || process.env.SMTP_USER || '',
-        subject: 'Test Email from Idylle',
-        html: `
-          <h1>Test Email</h1>
-          <p>This is a test email from Idylle SMTP configuration.</p>
-          <p>If you received this email, SMTP is working correctly!</p>
-        `,
-      });
+      const html =
+        smtpChannel === 'partner'
+          ? `<h1>Тест: партнёрский SMTP</h1><p>Если письмо пришло, настройки «Коммуникация с партнёрами» работают.</p>`
+          : `<h1>Test Email</h1><p>This is a test email from Idylle SMTP configuration.</p><p>If you received this email, SMTP is working correctly!</p>`;
+
+      const result =
+        smtpChannel === 'partner'
+          ? await sendPartnerMail({
+              to: to || '',
+              subject: 'Тест: SMTP для партнёров',
+              html,
+            })
+          : await sendMail({
+              to: to || process.env.SMTP_USER || '',
+              subject: 'Test Email from Idylle',
+              html,
+            });
       return NextResponse.json(result);
     }
 
-    return NextResponse.json(
-      { success: false, error: 'Invalid action' },
-      { status: 400 }
-    );
+    return NextResponse.json({ success: false, error: 'Invalid action' }, { status: 400 });
   } catch (error) {
     console.error('Error with SMTP action:', error);
     return NextResponse.json(

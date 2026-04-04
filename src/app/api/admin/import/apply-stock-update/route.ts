@@ -37,7 +37,8 @@ export async function POST(request: NextRequest) {
     if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const user = await prisma.user.findUnique({ where: { id: admin.userId } });
-    if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
+    const allowedRoles = ['admin', 'super_admin', 'partner'];
+    if (!user || !allowedRoles.includes(user.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

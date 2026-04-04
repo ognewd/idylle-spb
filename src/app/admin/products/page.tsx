@@ -58,6 +58,7 @@ export default function AdminProductsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [totalProducts, setTotalProducts] = useState<number>(0);
+  const [isPartner, setIsPartner] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -131,6 +132,11 @@ export default function AdminProductsPage() {
       router.push('/admin/login');
       return;
     }
+
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      if (payload.role === 'partner') setIsPartner(true);
+    } catch {}
 
     // Get category from URL if exists
     const categoryParam = searchParams.get('category');
@@ -268,14 +274,35 @@ export default function AdminProductsPage() {
               <p className="text-gray-600 text-sm">Всего товаров: {totalProducts || products.length}</p>
             </div>
             <div className="flex gap-2">
+              {isPartner && (
+                <Button variant="outline" onClick={async () => {
+                  const token = localStorage.getItem('admin_token');
+                  const res = await fetch('/api/admin/partner/sample-import', {
+                    headers: token ? { Authorization: `Bearer ${token}` } : {},
+                  });
+                  if (res.ok) {
+                    const blob = await res.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'import_sample.xlsx';
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }
+                }}>
+                  Скачать образец
+                </Button>
+              )}
               <Button variant="outline" onClick={() => router.push('/admin/products/import')}>
                 <Upload className="h-4 w-4 mr-2" />
                 Импорт
               </Button>
-              <Button onClick={() => router.push('/admin/products/new')}>
-                <Plus className="h-4 w-4 mr-2" />
-                Добавить товар
-              </Button>
+              {!isPartner && (
+                <Button onClick={() => router.push('/admin/products/new')}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Добавить товар
+                </Button>
+              )}
             </div>
           </div>
         </div>
