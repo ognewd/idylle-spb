@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/table';
 import { CheckCircle, XCircle, UserX, UserCheck, Trash2, Settings } from 'lucide-react';
 import { EditAdminPermissionsModal } from './EditAdminPermissionsModal';
+import { ADMIN_SECTIONS } from '@/lib/admin-permissions';
 
 interface Admin {
   id: string;
@@ -38,7 +39,14 @@ const adminSectionLabels: { [key: string]: string } = {
   users: 'Покупатели',
   orders: 'Заказы',
   administrators: 'Администраторы',
+  partners: 'Партнёры',
 };
+
+function hasFullAdminSections(sections: string[] | undefined): boolean {
+  if (!sections?.length) return false;
+  const required = Object.values(ADMIN_SECTIONS);
+  return required.every((s) => sections.includes(s));
+}
 
 export function AdminsTable({ admins, onUpdateAdmin }: AdminsTableProps) {
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -179,7 +187,7 @@ export function AdminsTable({ admins, onUpdateAdmin }: AdminsTableProps) {
                   <TableCell>{admin.email}</TableCell>
                   <TableCell>
                     {admin.allowedAdminSections && admin.allowedAdminSections.length > 0 ? (
-                      admin.allowedAdminSections.length === 7 ? (
+                      hasFullAdminSections(admin.allowedAdminSections) ? (
                         <Badge variant="default" className="bg-green-600">
                           Полный доступ
                         </Badge>

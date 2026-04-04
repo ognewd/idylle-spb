@@ -28,6 +28,7 @@ const adminSections = [
   { value: 'users', label: 'Покупатели' },
   { value: 'orders', label: 'Заказы' },
   { value: 'administrators', label: 'Администраторы' },
+  { value: 'partners', label: 'Партнёры' },
 ];
 
 export function EditAdminPermissionsModal({ 
