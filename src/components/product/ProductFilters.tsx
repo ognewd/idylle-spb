@@ -37,6 +37,66 @@ interface ProductFiltersProps {
   embedded?: boolean;
 }
 
+/** Диапазон цен: два ползунка + пояснение (нельзя вызывать хуки внутри renderPriceFilter). */
+function PriceRangeFilter({
+  filter,
+  storedRange,
+  onCommit,
+}: {
+  filter: FilterGroup;
+  storedRange: [number, number] | undefined;
+  onCommit: (range: number[]) => void;
+}) {
+  const boundsMin = filter.min ?? 0;
+  const boundsMax = filter.max ?? 100000;
+  const step = filter.step ?? 100;
+
+  const resolved: [number, number] =
+    storedRange && storedRange.length >= 2
+      ? [Number(storedRange[0]), Number(storedRange[1])]
+      : [boundsMin, boundsMax];
+
+  const [localRange, setLocalRange] = useState<[number, number]>(resolved);
+
+  useEffect(() => {
+    setLocalRange(resolved);
+  }, [resolved[0], resolved[1], boundsMin, boundsMax]);
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-muted-foreground leading-snug">
+        <span className="sr-only">Фильтр по цене. </span>
+        Левый ползунок — <strong>от</strong> какой цены показывать товары, правый — <strong>до</strong> какой.
+        Перетащите и отпустите, чтобы применить.
+      </p>
+      <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
+        <span className="text-muted-foreground">От</span>
+        <span className="text-muted-foreground text-right">До</span>
+        <span className="font-medium tabular-nums">
+          {localRange[0].toLocaleString('ru-RU')} ₽
+        </span>
+        <span className="font-medium tabular-nums text-right">
+          {localRange[1].toLocaleString('ru-RU')} ₽
+        </span>
+      </div>
+      <Slider
+        min={boundsMin}
+        max={boundsMax}
+        step={step}
+        value={localRange}
+        onValueChange={(value) => setLocalRange(value as [number, number])}
+        onValueCommit={(value) => onCommit(value)}
+        className="mb-1"
+        aria-label="Диапазон цены: минимум и максимум"
+      />
+      <div className="flex justify-between text-xs text-neutral-500">
+        <span>{boundsMin.toLocaleString('ru-RU')} ₽</span>
+        <span>{boundsMax.toLocaleString('ru-RU')} ₽</span>
+      </div>
+    </div>
+  );
+}
+
 export function ProductFilters({ filters, className, basePath = '/catalog', embedded }: ProductFiltersProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeFilters, setActiveFilters] = useState<Record<string, any>>({});
@@ -235,35 +295,13 @@ export function ProductFilters({ filters, className, basePath = '/catalog', embe
     );
   };
 
-  const renderPriceFilter = (filter: FilterGroup) => {
-    const rangeValue = activeFilters[filter.id] || [filter.min || 0, filter.max || 100000];
-    const [localRange, setLocalRange] = useState(rangeValue);
-    
-    useEffect(() => {
-      setLocalRange(rangeValue);
-    }, [rangeValue[0], rangeValue[1]]);
-
-    return (
-      <div className="space-y-4">
-        <Label className="text-sm font-medium block">
-          {localRange[0].toLocaleString('ru-RU')} ₽ — {localRange[1].toLocaleString('ru-RU')} ₽
-        </Label>
-        <Slider
-          min={filter.min || 0}
-          max={filter.max || 100000}
-          step={filter.step || 100}
-          value={localRange}
-          onValueChange={(value) => setLocalRange(value)}
-          onValueCommit={(value) => updateFilter(filter.id, value)}
-          className="mb-2"
-        />
-        <div className="flex justify-between text-xs text-neutral-500">
-          <span>{(filter.min || 0).toLocaleString('ru-RU')} ₽</span>
-          <span>{(filter.max || 100000).toLocaleString('ru-RU')} ₽</span>
-        </div>
-      </div>
-    );
-  };
+  const renderPriceFilter = (filter: FilterGroup) => (
+    <PriceRangeFilter
+      filter={filter}
+      storedRange={activeFilters[filter.id] as [number, number] | undefined}
+      onCommit={(value) => updateFilter(filter.id, value)}
+    />
+  );
 
   const renderFilter = (filter: FilterGroup) => {
     if (!isMounted) return null;

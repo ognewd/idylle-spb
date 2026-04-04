@@ -31,8 +31,11 @@ export async function GET(request: NextRequest) {
     const gender = searchParams.get('gender');
     const aromaFamily = searchParams.get('aromaFamily');
     
-    const minPrice = searchParams.get('minPrice');
-    const maxPrice = searchParams.get('maxPrice');
+    // Слайдер в ProductFilters задаёт filter_price_*; minPrice/maxPrice — совместимость
+    const minPrice =
+      searchParams.get('minPrice') ?? searchParams.get('filter_price_min');
+    const maxPrice =
+      searchParams.get('maxPrice') ?? searchParams.get('filter_price_max');
     const sort = searchParams.get('sort') || 'newest';
     const search = searchParams.get('search');
 
