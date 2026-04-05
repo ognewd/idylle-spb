@@ -737,6 +737,10 @@ export default function AdminTasksPage() {
                 setDetailTaskId(null);
                 refreshAfterTaskDetail();
               }}
+              onTaskDeleted={() => {
+                setDetailTaskId(null);
+                refreshAfterTaskDetail();
+              }}
             />
           ) : null}
         </DialogContent>
@@ -785,7 +789,7 @@ export default function AdminTasksPage() {
                 <SelectTrigger id="priority">
                   <SelectValue placeholder="Выберите приоритет" />
                 </SelectTrigger>
-                <SelectContent className="z-[200]" position="popper">
+                <SelectContent position="popper">
                   <SelectItem value="urgent">Срочно</SelectItem>
                   <SelectItem value="normal">Нормально</SelectItem>
                   <SelectItem value="someday">Когда-нибудь</SelectItem>

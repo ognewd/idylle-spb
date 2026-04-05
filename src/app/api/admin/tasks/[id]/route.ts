@@ -1,6 +1,18 @@
+import { existsSync } from 'fs';
+import { unlink } from 'fs/promises';
+import { join } from 'path';
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyAdminToken } from '@/lib/admin-auth';
+
+const TASK_UPLOAD_PREFIX = '/uploads/tasks/';
+
+function safeTaskUploadPath(url: string | null | undefined, baseUploadsDir: string): string | null {
+  if (!url || !url.startsWith(TASK_UPLOAD_PREFIX)) return null;
+  const name = url.slice(TASK_UPLOAD_PREFIX.length);
+  if (!name || name.includes('..') || name.includes('/') || name.includes('\\')) return null;
+  return join(baseUploadsDir, 'tasks', name);
+}
 
 export async function GET(
   request: NextRequest,
@@ -181,6 +193,34 @@ export async function DELETE(
         { status: authResult.status }
       );
     }
+
+    const task = await prisma.task.findUnique({
+      where: { id: params.id },
+      include: {
+        files: { select: { url: true } },
+        messages: { select: { fileUrl: true } },
+      },
+    });
+
+    if (!task) {
+      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+    }
+
+    const baseUploadsDir = process.env.UPLOADS_DIR || join(process.cwd(), 'public', 'uploads');
+    const paths = new Set<string>();
+    for (const f of task.files) {
+      const p = safeTaskUploadPath(f.url, baseUploadsDir);
+      if (p) paths.add(p);
+    }
+    for (const m of task.messages) {
+      const p = safeTaskUploadPath(m.fileUrl, baseUploadsDir);
+      if (p) paths.add(p);
+    }
+    await Promise.all(
+      Array.from(paths, (p) =>
+        existsSync(p) ? unlink(p).catch(() => undefined) : Promise.resolve()
+      )
+    );
 
     await prisma.task.delete({
       where: { id: params.id },

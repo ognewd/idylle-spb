@@ -499,9 +499,11 @@ export type TaskDetailPanelProps = {
   taskId: string;
   mode?: 'page' | 'modal';
   onClose?: () => void;
+  /** Вызывается после успешного удаления (например, обновить список на доске) */
+  onTaskDeleted?: () => void;
 };
 
-export function TaskDetailPanel({ taskId, mode = 'page', onClose }: TaskDetailPanelProps) {
+export function TaskDetailPanel({ taskId, mode = 'page', onClose, onTaskDeleted }: TaskDetailPanelProps) {
   const [task, setTask] = useState<Task | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState('');
@@ -520,6 +522,7 @@ export function TaskDetailPanel({ taskId, mode = 'page', onClose }: TaskDetailPa
   const isInitialLoadRef = useRef(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [isDeletingTask, setIsDeletingTask] = useState(false);
   const router = useRouter();
   const goBack = useCallback(() => {
     if (onClose) onClose();
@@ -941,6 +944,41 @@ export function TaskDetailPanel({ taskId, mode = 'page', onClose }: TaskDetailPa
     });
   };
 
+  const handleDeleteTask = async () => {
+    if (!task || isDeletingTask) return;
+    if (
+      !confirm(
+        `Удалить задачу «${task.title}»? Сообщения и вложения будут удалены без возможности восстановления.`
+      )
+    ) {
+      return;
+    }
+    setIsDeletingTask(true);
+    try {
+      const token = localStorage.getItem('admin_token');
+      if (!token) {
+        alert('Вы не авторизованы.');
+        return;
+      }
+      const response = await fetch(`/api/admin/tasks/${taskId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        alert(typeof err.error === 'string' ? err.error : 'Не удалось удалить задачу');
+        return;
+      }
+      onTaskDeleted?.();
+      goBack();
+    } catch (error) {
+      console.error('Delete task error:', error);
+      alert('Ошибка при удалении задачи.');
+    } finally {
+      setIsDeletingTask(false);
+    }
+  };
+
   const loadingShell =
     mode === 'modal' ? 'py-16 min-h-[200px]' : 'min-h-screen bg-gray-50';
 
@@ -999,25 +1037,48 @@ export function TaskDetailPanel({ taskId, mode = 'page', onClose }: TaskDetailPa
               <h2 className="text-lg font-semibold text-gray-900 leading-tight break-words">{task.title}</h2>
               <div className="mt-1">{headerBadges}</div>
             </div>
-            <Button variant="ghost" size="icon" onClick={goBack} className="shrink-0" aria-label="Закрыть">
-              <X className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-1 shrink-0">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="text-destructive border-destructive/40 hover:bg-destructive/10"
+                onClick={() => void handleDeleteTask()}
+                disabled={isDeletingTask}
+              >
+                <Trash2 className="h-4 w-4 sm:mr-1" />
+                <span className="hidden sm:inline">Удалить</span>
+              </Button>
+              <Button variant="ghost" size="icon" onClick={goBack} aria-label="Закрыть">
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </header>
       ) : (
         <header className="bg-white shadow">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center py-6">
-              <div className="flex items-center space-x-4">
+            <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center py-6">
+              <div className="flex items-center space-x-4 min-w-0">
                 <Button variant="ghost" onClick={goBack}>
                   <ArrowLeft className="h-4 w-4 mr-2" />
                   Назад
                 </Button>
-                <div>
-                  <h1 className="text-3xl font-bold text-gray-900">{task.title}</h1>
+                <div className="min-w-0">
+                  <h1 className="text-3xl font-bold text-gray-900 break-words">{task.title}</h1>
                   {headerBadges}
                 </div>
               </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="text-destructive border-destructive/40 hover:bg-destructive/10 shrink-0 self-start sm:self-center"
+                onClick={() => void handleDeleteTask()}
+                disabled={isDeletingTask}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Удалить задачу
+              </Button>
             </div>
           </div>
         </header>
