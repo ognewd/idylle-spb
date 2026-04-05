@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sendMail } from '@/lib/mail';
 import { prisma } from '@/lib/prisma';
 
-const TO_EMAIL = 'Office@aromarussia.ru';
+const TO_EMAIL = 'info@aromarussia.ru';
 
 const DEFAULT_SUBJECT = 'Заявка на сотрудничество: {{email}}';
 const DEFAULT_HTML = `<!DOCTYPE html>
