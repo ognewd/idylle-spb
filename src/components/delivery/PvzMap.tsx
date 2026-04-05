@@ -25,11 +25,21 @@ const defaultIcon = L.icon({
   shadowSize: [41, 41],
 });
 
+/** Выбранный ПВЗ — круглая метка, без тени от стандартного pin (чтобы отличаться от остальных) */
+const selectedPvzIcon = L.divIcon({
+  className: 'pvz-map-marker-selected',
+  html: '<div style="width:26px;height:26px;border-radius:50%;background:#16a34a;border:3px solid #fff;box-shadow:0 2px 10px rgba(0,0,0,.35);box-sizing:border-box;" aria-hidden="true"></div>',
+  iconSize: [26, 26],
+  iconAnchor: [13, 13],
+  popupAnchor: [0, -12],
+});
+
 interface PvzMapProps {
   points: PvzMapPoint[];
   selectedCode?: string | null;
   onSelect?: (code: string) => void;
   className?: string;
+  /** Фиксированная высота в px. Если не задано — заполняет родителя (задайте родителю `h-*` или `flex-1 min-h-0`). */
   height?: number;
 }
 
@@ -58,53 +68,64 @@ function AttributionText() {
   );
 }
 
-export function PvzMap({ points, selectedCode, onSelect, className = '', height = 320 }: PvzMapProps) {
+export function PvzMap({ points, selectedCode, onSelect, className = '', height }: PvzMapProps) {
   const [openedPopupCode, setOpenedPopupCode] = useState<string | null>(null);
   const pointsWithCoords = useMemo(
     () => points.filter((p) => typeof p.latitude === 'number' && typeof p.longitude === 'number'),
     [points]
   );
   const openedPoint = openedPopupCode ? pointsWithCoords.find((p) => p.code === openedPopupCode) : null;
+  const fillParent = height === undefined;
+  const boxStyle = typeof height === 'number' ? { height } : undefined;
+  const boxClass =
+    `relative flex flex-col rounded-lg border overflow-hidden ${fillParent ? 'h-full min-h-[240px]' : ''} ${className}`.trim();
 
   if (pointsWithCoords.length === 0) {
     return (
-      <div className={`rounded-lg border bg-muted/30 flex items-center justify-center text-sm text-muted-foreground ${className}`} style={{ height }}>
+      <div
+        className={`rounded-lg border bg-muted/30 flex items-center justify-center text-sm text-muted-foreground ${fillParent ? 'h-full min-h-[240px]' : ''} ${className}`}
+        style={boxStyle}
+      >
         У пунктов выдачи нет координат для отображения на карте
       </div>
     );
   }
 
   return (
-    <div className={`relative rounded-lg border overflow-hidden ${className}`} style={{ height }}>
+    <div className={boxClass} style={boxStyle}>
       {openedPoint && onSelect && (
-        <div className="flex items-center justify-between gap-2 px-3 py-2 bg-muted/50 border-b text-sm">
-          <span className="truncate text-muted-foreground">
+        <div className="flex flex-col gap-2 px-3 py-2 bg-muted/50 border-b text-sm sm:flex-row sm:items-center sm:justify-between">
+          <span className="min-w-0 truncate text-muted-foreground">
             {openedPoint.name}
             {openedPoint.address && ` · ${openedPoint.address}`}
           </span>
           <button
             type="button"
             onClick={() => onSelect(openedPoint.code)}
-            className="shrink-0 rounded-md bg-primary px-3 py-1.5 text-primary-foreground text-xs font-medium hover:bg-primary/90"
+            className="shrink-0 rounded-md bg-primary px-3 py-2 text-primary-foreground text-xs font-semibold hover:bg-primary/90 sm:py-1.5"
           >
-            Вы выбрали этот пункт
+            Выбрать
           </button>
         </div>
       )}
-      <MapContainer
+      <div className={`relative flex-1 min-h-[200px] ${fillParent ? 'min-h-0' : ''}`}>
+        <MapContainer
         center={[pointsWithCoords[0].latitude, pointsWithCoords[0].longitude]}
         zoom={12}
-        className="h-full w-full"
+        className="absolute inset-0 z-0 h-full w-full"
         scrollWheelZoom={true}
         attributionControl={false}
       >
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
         <FitBounds points={pointsWithCoords} />
-        {pointsWithCoords.map((p) => (
+        {pointsWithCoords.map((p) => {
+          const isSelected = selectedCode != null && p.code === selectedCode;
+          return (
           <Marker
             key={p.code}
             position={[p.latitude, p.longitude]}
-            icon={defaultIcon}
+            icon={isSelected ? selectedPvzIcon : defaultIcon}
+            zIndexOffset={isSelected ? 1000 : 0}
             eventHandlers={
               onSelect
                 ? {
@@ -132,15 +153,17 @@ export function PvzMap({ points, selectedCode, onSelect, className = '', height 
                 {p.address && <div className="text-muted-foreground mt-0.5">{p.address}</div>}
                 {p.work_time && <div className="text-xs mt-1">{p.work_time}</div>}
                 {onSelect && (
-                  <span className="mt-2 inline-block text-primary text-xs font-medium underline">
-                    Вы выбрали этот пункт
+                  <span className="mt-2 inline-block text-primary text-xs font-semibold">
+                    Выбрать этот пункт
                   </span>
                 )}
               </div>
             </Popup>
           </Marker>
-        ))}
+        );
+        })}
       </MapContainer>
+      </div>
       <AttributionText />
     </div>
   );

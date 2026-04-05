@@ -686,3 +686,9 @@
   0% { left: -100%; }
   100% { left: 100%; }
 }
+
+/* PvzMap: выбранный ПВЗ (divIcon) — убираем белую подложку Leaflet */
+.leaflet-div-icon.pvz-map-marker-selected {
+  background: transparent !important;
+  border: none !important;
+}

@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
-import { CreditCard, FileText, Banknote, Store, CheckCircle, User, ShoppingBag, AlertCircle, Loader2 } from 'lucide-react';
+import { CreditCard, FileText, Banknote, Store, CheckCircle, User, ShoppingBag, AlertCircle, Loader2, Search, MapPin } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -53,8 +53,41 @@ interface CdekTariffInfo {
 interface CdekPvzItem {
   code: string;
   name: string;
-  location: { address?: string; city?: string; latitude?: number; longitude?: number };
+  location: {
+    address?: string;
+    city?: string;
+    latitude?: number;
+    longitude?: number;
+    postal_code?: string;
+  };
   work_time?: string;
+  nearest_station?: string;
+  metro_station?: string;
+}
+
+function pvzSearchHaystack(p: CdekPvzItem): string {
+  const parts = [
+    p.code,
+    p.name,
+    p.location?.address,
+    p.location?.city,
+    p.location?.postal_code != null ? String(p.location.postal_code) : '',
+    p.nearest_station,
+    p.metro_station,
+  ];
+  return parts
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+}
+
+function pvzMatchesSearchQuery(p: CdekPvzItem, rawQuery: string): boolean {
+  const q = rawQuery.trim().toLowerCase().replace(/\s+/g, ' ');
+  if (!q) return true;
+  const hay = ` ${pvzSearchHaystack(p)} `;
+  const words = q.split(' ').filter(Boolean);
+  return words.every((w) => hay.includes(w));
 }
 
 export default function CheckoutPage() {
@@ -89,11 +122,29 @@ export default function CheckoutPage() {
   // Список ПВЗ для выбора
   const [pvzList, setPvzList] = useState<CdekPvzItem[]>([]);
   const [pvzLoading, setPvzLoading] = useState(false);
+  const [pvzSearchQuery, setPvzSearchQuery] = useState('');
   /** Пересчёт цены «до двери» по введённому адресу (курьер СДЭК) */
   const [doorPriceUpdating, setDoorPriceUpdating] = useState(false);
 
+  const filteredPvzList = useMemo(
+    () => pvzList.filter((p) => pvzMatchesSearchQuery(p, pvzSearchQuery)),
+    [pvzList, pvzSearchQuery]
+  );
+
+  const pvzListForDisplay = useMemo(() => {
+    const q = pvzSearchQuery.trim();
+    if (!q) return pvzList;
+    const selectedCode = cdekData?.pvzCode;
+    if (!selectedCode) return filteredPvzList;
+    const selected = pvzList.find((p) => p.code === selectedCode);
+    if (!selected) return filteredPvzList;
+    const inFiltered = filteredPvzList.some((p) => p.code === selectedCode);
+    if (inFiltered) return filteredPvzList;
+    return [selected, ...filteredPvzList];
+  }, [pvzList, filteredPvzList, pvzSearchQuery, cdekData?.pvzCode]);
+
   const pvzMapPoints = useMemo((): PvzMapPoint[] => {
-    return pvzList
+    return pvzListForDisplay
       .filter((p) => typeof p.location?.latitude === 'number' && typeof p.location?.longitude === 'number')
       .map((p) => ({
         code: p.code,
@@ -103,6 +154,10 @@ export default function CheckoutPage() {
         longitude: p.location!.longitude!,
         work_time: p.work_time,
       }));
+  }, [pvzListForDisplay]);
+
+  useEffect(() => {
+    setPvzSearchQuery('');
   }, [pvzList]);
 
   const pvzListRef = useRef(pvzList);
@@ -117,6 +172,20 @@ export default function CheckoutPage() {
       prev
         ? { ...prev, pvzCode: pvz.code, pvzAddress: addr }
         : { deliveryType: 'pvz', tariff: deliveryTariffsRef.current.pickup ?? undefined, pvzCode: pvz.code, pvzAddress: addr }
+    );
+  }, []);
+
+  const selectPvzItem = useCallback((pvz: CdekPvzItem) => {
+    const addr = pvz.location?.address || pvz.name || '';
+    setCdekData((prev) =>
+      prev
+        ? { ...prev, pvzCode: pvz.code, pvzAddress: addr }
+        : {
+            deliveryType: 'pvz',
+            tariff: deliveryTariffsRef.current.pickup ?? undefined,
+            pvzCode: pvz.code,
+            pvzAddress: addr,
+          }
     );
   }, []);
 
@@ -826,12 +895,17 @@ export default function CheckoutPage() {
               {(deliveryMethod === 'cdek_pickup' || deliveryMethod === 'spb_cdek') && (
                 <Card>
                   <CardHeader>
-                    <CardTitle>ПУНКТ ВЫДАЧИ СДЭК</CardTitle>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Выберите пункт выдачи в городе {selectedCity?.city}
-                    </p>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                      <CardTitle className="text-base sm:text-lg">Пункт выдачи СДЭК</CardTitle>
+                      {selectedCity?.city && (
+                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground shrink-0">
+                          <MapPin className="h-4 w-4 shrink-0" aria-hidden />
+                          <span>{selectedCity.city}</span>
+                        </div>
+                      )}
+                    </div>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="px-3 sm:px-6">
                     {pvzLoading ? (
                       <div className="flex items-center gap-2 text-muted-foreground py-4">
                         <Loader2 className="h-5 w-5 animate-spin" />
@@ -842,59 +916,114 @@ export default function CheckoutPage() {
                         Не удалось загрузить пункты выдачи. Проверьте город или попробуйте позже.
                       </p>
                     ) : (
-                      <>
-                        {pvzMapPoints.length > 0 && (
-                          <div className="mb-4">
+                      <div className="flex flex-col gap-4 rounded-xl border bg-card lg:min-h-[400px] lg:flex-row lg:gap-0 overflow-hidden -mx-1 sm:mx-0">
+                        {/* Список: слева на lg+, на мобильном под картой */}
+                        <div className="order-2 flex w-full min-h-0 flex-col border-t border-border p-3 sm:p-4 lg:order-1 lg:w-[min(100%,22rem)] xl:w-96 lg:max-w-[40%] lg:shrink-0 lg:border-t-0 lg:border-r">
+                          <div className="relative mb-3 shrink-0">
+                            <Search
+                              className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none"
+                              aria-hidden
+                            />
+                            <Input
+                              id="pvz-search"
+                              className="pl-9"
+                              placeholder="Поиск по ПВЗ/постамату, адресу…"
+                              value={pvzSearchQuery}
+                              onChange={(e) => setPvzSearchQuery(e.target.value)}
+                              autoComplete="off"
+                              aria-label="Поиск пункта выдачи"
+                            />
+                          </div>
+                          {pvzSearchQuery.trim() ? (
+                            <p className="text-xs text-muted-foreground mb-3">
+                              Найдено: {filteredPvzList.length} из {pvzList.length}
+                              {cdekData?.pvzCode &&
+                                !filteredPvzList.some((p) => p.code === cdekData.pvzCode) &&
+                                pvzList.some((p) => p.code === cdekData.pvzCode) && (
+                                  <span className="block mt-1 text-amber-700 dark:text-amber-500">
+                                    Выбранный пункт закреплён сверху — не попадает в фильтр.
+                                  </span>
+                                )}
+                            </p>
+                          ) : null}
+                          {pvzListForDisplay.length === 0 ? (
+                            <p className="text-sm text-muted-foreground py-4">
+                              Ничего не найдено. Измените запрос или очистите поиск.
+                            </p>
+                          ) : (
+                            <div
+                              id="pvz-list"
+                              className="flex flex-col gap-2 overflow-y-auto overscroll-y-contain max-h-[min(52vh,28rem)] lg:max-h-[min(70vh,38rem)] min-h-[12rem] pr-0.5"
+                            >
+                              {pvzListForDisplay.map((pvz) => {
+                                const addr = pvz.location?.address || pvz.name || '';
+                                const isSelected = cdekData?.pvzCode === pvz.code;
+                                return (
+                                  <div
+                                    key={pvz.code}
+                                    id={isSelected ? 'pvz-selected' : undefined}
+                                    className={`rounded-xl border p-3 sm:p-4 transition-colors ${
+                                      isSelected
+                                        ? 'border-primary bg-primary/5 ring-2 ring-primary/25 shadow-sm'
+                                        : 'border-border bg-background hover:border-primary/35'
+                                    }`}
+                                  >
+                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-3">
+                                      <div className="min-w-0 flex-1 space-y-1.5">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-800 dark:text-emerald-300">
+                                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
+                                            Пункт выдачи
+                                          </span>
+                                          <span className="font-mono text-xs text-muted-foreground">{pvz.code}</span>
+                                        </div>
+                                        <p className="text-sm font-medium leading-snug text-foreground">{addr}</p>
+                                        {pvz.location?.city ? (
+                                          <p className="text-xs text-muted-foreground">{pvz.location.city}</p>
+                                        ) : null}
+                                        {pvz.work_time ? (
+                                          <p className="text-xs text-muted-foreground">{pvz.work_time}</p>
+                                        ) : null}
+                                      </div>
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant={isSelected ? 'default' : 'outline'}
+                                        className="w-full shrink-0 sm:w-auto sm:min-w-[7rem]"
+                                        onClick={() => selectPvzItem(pvz)}
+                                      >
+                                        {isSelected ? (
+                                          <span className="inline-flex items-center gap-1.5">
+                                            <CheckCircle className="h-4 w-4" aria-hidden />
+                                            Выбрано
+                                          </span>
+                                        ) : (
+                                          'Выбрать'
+                                        )}
+                                      </Button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                        {/* Карта: справа на lg+, на мобильном сверху */}
+                        <div className="order-1 flex h-64 w-full shrink-0 flex-col border-border sm:h-72 lg:order-2 lg:h-auto lg:min-h-[400px] lg:flex-1 lg:min-w-0">
+                          {pvzMapPoints.length > 0 ? (
                             <PvzMap
+                              className="h-full w-full min-h-0 rounded-none border-0 sm:rounded-none sm:border-0 lg:rounded-none lg:border-l"
                               points={pvzMapPoints}
                               selectedCode={cdekData?.pvzCode ?? null}
                               onSelect={handleSelectPvz}
-                              height={280}
                             />
-                          </div>
-                        )}
-                        <div className="space-y-2 max-h-72 overflow-y-auto" id="pvz-list">
-                        {pvzList.map((pvz) => {
-                          const addr = pvz.location?.address || pvz.name || '';
-                          const isSelected = cdekData?.pvzCode === pvz.code;
-                          return (
-                            <button
-                              key={pvz.code}
-                              id={isSelected ? 'pvz-selected' : undefined}
-                              type="button"
-                              onClick={() =>
-                                setCdekData((prev) =>
-                                  prev
-                                    ? { ...prev, pvzCode: pvz.code, pvzAddress: addr }
-                                    : { deliveryType: 'pvz', tariff: deliveryTariffs.pickup ?? undefined, pvzCode: pvz.code, pvzAddress: addr }
-                                )
-                              }
-                              className={`w-full text-left p-4 rounded-lg border-2 transition-colors flex gap-3 items-start ${
-                                isSelected
-                                  ? 'border-primary bg-primary/10 ring-2 ring-primary/30 shadow-sm'
-                                  : 'border-muted hover:border-primary/50'
-                              }`}
-                            >
-                              {isSelected && (
-                                <CheckCircle className="h-5 w-5 shrink-0 text-primary mt-0.5" aria-hidden />
-                              )}
-                              <div className="min-w-0 flex-1">
-                                <div className="font-medium text-sm flex items-center gap-2">
-                                  {pvz.name}
-                                  {isSelected && (
-                                    <span className="text-xs font-normal text-primary">Выбрано</span>
-                                  )}
-                                </div>
-                                <div className="text-sm text-muted-foreground mt-0.5">{addr}</div>
-                                {pvz.work_time && (
-                                  <div className="text-xs text-muted-foreground mt-1">{pvz.work_time}</div>
-                                )}
-                              </div>
-                            </button>
-                          );
-                        })}
+                          ) : (
+                            <div className="flex h-full min-h-[16rem] items-center justify-center border-l-0 bg-muted/30 px-4 text-center text-sm text-muted-foreground lg:border-l lg:border-border">
+                              Нет точек с координатами для карты
+                            </div>
+                          )}
                         </div>
-                      </>
+                      </div>
                     )}
                   </CardContent>
                 </Card>
