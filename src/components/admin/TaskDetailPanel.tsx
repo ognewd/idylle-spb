@@ -1294,7 +1294,7 @@ export function TaskDetailPanel({ taskId, mode = 'page', onClose }: TaskDetailPa
                       <SelectTrigger className="h-8 text-sm">
                         <SelectValue placeholder={task.assignedTo ? "Изменить назначение" : "Назначить на..."} />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="z-[210]" position="popper">
                         {admins.map((admin) => (
                           <SelectItem key={admin.id} value={admin.email}>
                             {admin.name || admin.email}
@@ -1346,7 +1346,7 @@ export function TaskDetailPanel({ taskId, mode = 'page', onClose }: TaskDetailPa
                     <SelectTrigger id="status">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="z-[210]" position="popper">
                       <SelectItem value="new">
                         <div className="flex items-center gap-2">
                           <Circle className="h-4 w-4 text-blue-500" />
