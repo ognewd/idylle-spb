@@ -4,6 +4,33 @@ import { verifyAdminToken } from '@/lib/admin-auth';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
+const BOARD_LIMIT_PER_COLUMN = 10;
+
+const TASK_STATUSES = ['new', 'in_progress', 'review', 'done'] as const;
+
+const taskInclude = {
+  createdBy: { select: { id: true, name: true, email: true } },
+  assignedTo: { select: { id: true, name: true, email: true } },
+  files: { orderBy: { createdAt: 'asc' as const } },
+  _count: { select: { messages: true } },
+};
+
+function buildAssigneeWhere(assigneeIdsRaw: string): Record<string, unknown> {
+  const extra: Record<string, unknown> = {};
+  if (!assigneeIdsRaw.trim()) return extra;
+  const ids = assigneeIdsRaw.split(',').map((s) => s.trim()).filter(Boolean);
+  if (ids.length === 0) return extra;
+  const hasUnassigned = ids.includes('__unassigned__');
+  const userIds = ids.filter((id) => id !== '__unassigned__');
+  if (hasUnassigned && userIds.length === 0) {
+    extra.assignedToId = null;
+  } else if (hasUnassigned && userIds.length > 0) {
+    extra.OR = [{ assignedToId: null }, { assignedToId: { in: userIds } }];
+  } else {
+    extra.assignedToId = { in: userIds };
+  }
+  return extra;
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,31 +44,70 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
+    const assigneeIdsRaw = searchParams.get('assigneeIds') || '';
+
+    // Скрам-доска: до N задач по каждому статусу + total
+    if (searchParams.get('board') === '1') {
+      const perCol = Math.min(
+        50,
+        Math.max(1, parseInt(searchParams.get('limitPerColumn') || String(BOARD_LIMIT_PER_COLUMN), 10))
+      );
+      const baseWhere = buildAssigneeWhere(assigneeIdsRaw);
+
+      const columns: Record<string, { tasks: unknown[]; total: number }> = {};
+      let assignees: { id: string; name: string }[] = [];
+
+      for (const s of TASK_STATUSES) {
+        const where = { ...baseWhere, status: s };
+        const [total, tasks] = await Promise.all([
+          prisma.task.count({ where }),
+          prisma.task.findMany({
+            where,
+            include: taskInclude,
+            orderBy: { createdAt: 'desc' },
+            take: perCol,
+          }),
+        ]);
+        columns[s] = { total, tasks };
+      }
+
+      const grouped = await prisma.task.groupBy({ by: ['assignedToId'] });
+      const uniqueIds = grouped.map((g) => g.assignedToId).filter((id): id is string => id != null);
+      const users =
+        uniqueIds.length > 0
+          ? await prisma.user.findMany({
+              where: { id: { in: uniqueIds } },
+              select: { id: true, name: true, email: true },
+            })
+          : [];
+      assignees = [
+        { id: '__unassigned__', name: 'Не назначено' },
+        ...users.map((u) => ({ id: u.id, name: u.name || u.email || u.id })),
+      ].sort(
+        (a, b) =>
+          (a.id === '__unassigned__' ? 1 : 0) - (b.id === '__unassigned__' ? 1 : 0) ||
+          a.name.localeCompare(b.name)
+      );
+
+      return NextResponse.json(
+        { board: columns, assignees },
+        {
+          headers: {
+            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+            Pragma: 'no-cache',
+            Expires: '0',
+          },
+        }
+      );
+    }
+
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
     const limit = Math.min(MAX_LIMIT, Math.max(1, parseInt(searchParams.get('limit') || String(DEFAULT_LIMIT), 10)));
     const status = searchParams.get('status') || 'all';
-    const assigneeIdsRaw = searchParams.get('assigneeIds') || '';
 
-    const where: Record<string, unknown> = {};
+    const where: Record<string, unknown> = { ...buildAssigneeWhere(assigneeIdsRaw) };
     if (status !== 'all') {
       where.status = status;
-    }
-    if (assigneeIdsRaw.trim()) {
-      const ids = assigneeIdsRaw.split(',').map((s) => s.trim()).filter(Boolean);
-      if (ids.length > 0) {
-        const hasUnassigned = ids.includes('__unassigned__');
-        const userIds = ids.filter((id) => id !== '__unassigned__');
-        if (hasUnassigned && userIds.length === 0) {
-          where.assignedToId = null;
-        } else if (hasUnassigned && userIds.length > 0) {
-          where.OR = [
-            { assignedToId: null },
-            { assignedToId: { in: userIds } },
-          ];
-        } else {
-          where.assignedToId = { in: userIds };
-        }
-      }
     }
 
     const [total, tasks] = await Promise.all([

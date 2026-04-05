@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { TaskDetailPanel } from '@/components/admin/TaskDetailPanel';
 
 interface TaskFile {
   id: string;
@@ -45,6 +46,10 @@ interface Task {
   };
 }
 
+type TaskStatusKey = 'new' | 'in_progress' | 'review' | 'done';
+
+type BoardData = Record<TaskStatusKey, { tasks: Task[]; total: number }>;
+
 const statusLabels = {
   new: 'Новая',
   in_progress: 'В процессе',
@@ -71,8 +76,24 @@ const priorityColors = {
   someday: 'bg-gray-500',
 };
 
-const UNASSIGNED_ID = '__unassigned__';
 const TASKS_PAGE_SIZE = 20;
+const BOARD_LIMIT_PER_COLUMN = 10;
+
+const BOARD_ORDER: TaskStatusKey[] = ['new', 'in_progress', 'review', 'done'];
+
+const EMPTY_BOARD = (): BoardData => ({
+  new: { tasks: [], total: 0 },
+  in_progress: { tasks: [], total: 0 },
+  review: { tasks: [], total: 0 },
+  done: { tasks: [], total: 0 },
+});
+
+const COLUMN_RING: Record<TaskStatusKey, string> = {
+  new: 'border-t-blue-500',
+  in_progress: 'border-t-yellow-500',
+  review: 'border-t-purple-500',
+  done: 'border-t-green-500',
+};
 
 type StatusFilter = 'all' | 'new' | 'in_progress' | 'review' | 'done';
 
@@ -99,9 +120,12 @@ export default function AdminTasksPage() {
   });
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [selectedAssigneeIds, setSelectedAssigneeIds] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [board, setBoard] = useState<BoardData | null>(null);
+  const [boardLoading, setBoardLoading] = useState(false);
+  const [detailTaskId, setDetailTaskId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -158,13 +182,56 @@ export default function AdminTasksPage() {
     [statusFilter, selectedAssigneeIds]
   );
 
+  const loadBoard = useCallback(async () => {
+    const token = localStorage.getItem('admin_token');
+    if (!token) {
+      setBoardLoading(false);
+      return;
+    }
+    setBoardLoading(true);
+    try {
+      const params = new URLSearchParams();
+      params.set('board', '1');
+      params.set('limitPerColumn', String(BOARD_LIMIT_PER_COLUMN));
+      if (selectedAssigneeIds.length > 0) params.set('assigneeIds', selectedAssigneeIds.join(','));
+
+      const response = await fetch(`/api/admin/tasks?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        alert(`Ошибка загрузки доски: ${errorData.error || 'Неизвестная ошибка'}`);
+        setBoard(EMPTY_BOARD());
+        return;
+      }
+      const data = await response.json();
+      if (data.board) setBoard(data.board as BoardData);
+      if (data.assignees) setAssignees(data.assignees);
+    } catch (e) {
+      console.error(e);
+      alert('Ошибка при загрузке доски задач.');
+      setBoard(EMPTY_BOARD());
+    } finally {
+      setBoardLoading(false);
+    }
+  }, [selectedAssigneeIds]);
+
+  const refreshAfterTaskDetail = useCallback(() => {
+    if (statusFilter === 'all') void loadBoard();
+    else void loadTasks(1);
+  }, [statusFilter, loadBoard, loadTasks]);
+
   useEffect(() => {
     if (!localStorage.getItem('admin_token')) {
       router.push('/admin/login');
       return;
     }
-    loadTasks(1);
-  }, [loadTasks]);
+    if (statusFilter === 'all') {
+      void loadBoard();
+    } else {
+      void loadTasks(1);
+    }
+  }, [statusFilter, selectedAssigneeIds, loadBoard, loadTasks, router]);
 
   const handleOpenModal = () => {
     setFormData({
@@ -262,7 +329,8 @@ export default function AdminTasksPage() {
       });
 
       if (response.ok) {
-        await loadTasks(1);
+        if (statusFilter === 'all') await loadBoard();
+        else await loadTasks(1);
         handleCloseModal();
       } else {
         const errorData = await response.json();
@@ -293,6 +361,7 @@ export default function AdminTasksPage() {
   }, [loadingMore, pagination.page, pagination.totalPages, loadTasks]);
 
   useEffect(() => {
+    if (statusFilter === 'all') return;
     if (pagination.totalPages === 0 || isLoading) return;
     const observer = new IntersectionObserver(
       (entries) => {
@@ -310,7 +379,7 @@ export default function AdminTasksPage() {
       clearTimeout(t);
       observer.disconnect();
     };
-  }, [pagination.page, pagination.totalPages, isLoading, loadingMore, loadMore]);
+  }, [statusFilter, pagination.page, pagination.totalPages, isLoading, loadingMore, loadMore]);
 
   const toggleAssignee = (id: string) => {
     setSelectedAssigneeIds((prev) => {
@@ -334,7 +403,14 @@ export default function AdminTasksPage() {
     setSelectedAssigneeIds(checked ? [] : assignees.map((a) => a.id));
   };
 
-  if (isLoading && tasks.length === 0) {
+  const boardTotalAll =
+    board == null ? null : BOARD_ORDER.reduce((sum, key) => sum + board[key].total, 0);
+
+  const showInitialLoader =
+    (statusFilter === 'all' && boardLoading && board === null) ||
+    (statusFilter !== 'all' && isLoading && tasks.length === 0);
+
+  if (showInitialLoader) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -361,9 +437,11 @@ export default function AdminTasksPage() {
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">Задачи по сайту</h1>
                 <p className="text-gray-600">
-                  {pagination.totalPages <= 1 && tasks.length === pagination.total
-                    ? `Всего задач: ${pagination.total}`
-                    : `Показано: ${tasks.length} из ${pagination.total}`}
+                  {statusFilter === 'all' && boardTotalAll != null
+                    ? `Всего задач: ${boardTotalAll}`
+                    : pagination.totalPages <= 1 && tasks.length === pagination.total
+                      ? `Всего задач: ${pagination.total}`
+                      : `Показано: ${tasks.length} из ${pagination.total}`}
                 </p>
               </div>
             </div>
@@ -377,7 +455,7 @@ export default function AdminTasksPage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Фильтры показываем всегда после загрузки — чтобы при пустом результате по фильтру можно было сменить статус/исполнителя */}
-        {!isLoading && (
+        {(statusFilter === 'all' || !isLoading) && (
           <div className="space-y-4 mb-6">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm font-medium text-gray-700">Статус:</span>
@@ -433,34 +511,131 @@ export default function AdminTasksPage() {
           </div>
         )}
 
-        {/* Полное пустое состояние — только когда в системе вообще нет задач (без фильтров) */}
-        {tasks.length === 0 && !isLoading && statusFilter === 'all' && selectedAssigneeIds.length === 0 && pagination.total === 0 ? (
-          <div className="text-center py-12">
-            <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">Задач пока нет</h3>
-            <p className="text-gray-600 mb-6">Создайте первую задачу, чтобы начать работу</p>
-            <Button onClick={handleOpenModal}>
-              <Plus className="h-4 w-4 mr-2" />
-              Создать задачу
-            </Button>
-          </div>
+        {statusFilter === 'all' && board != null ? (
+          boardTotalAll === 0 && !boardLoading ? (
+            selectedAssigneeIds.length === 0 ? (
+              <div className="text-center py-12">
+                <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Задач пока нет</h3>
+                <p className="text-gray-600 mb-6">Создайте первую задачу, чтобы начать работу</p>
+                <Button onClick={handleOpenModal}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Создать задачу
+                </Button>
+              </div>
+            ) : (
+              <div className="text-center py-12 text-gray-600">
+                <p className="text-lg">По выбранным фильтрам задач не найдено.</p>
+                <p className="text-sm mt-2">Смените исполнителя выше или создайте новую задачу.</p>
+                <Button onClick={handleOpenModal} className="mt-4">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Создать задачу
+                </Button>
+              </div>
+            )
+          ) : (
+            <div
+              className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 ${boardLoading ? 'opacity-70 pointer-events-none' : ''}`}
+            >
+              {BOARD_ORDER.map((st) => {
+                const col = board[st];
+                const showSeeAll = col.total > col.tasks.length;
+                return (
+                  <div
+                    key={st}
+                    className={`rounded-lg border bg-white shadow-sm border-t-4 ${COLUMN_RING[st]} flex flex-col max-h-[min(70vh,52rem)]`}
+                  >
+                    <div className="p-3 border-b bg-gray-50/80 shrink-0">
+                      <h2 className="font-semibold text-gray-900">{statusLabels[st]}</h2>
+                      <p className="text-sm text-muted-foreground">Всего в статусе: {col.total}</p>
+                    </div>
+                    <div className="p-2 flex-1 overflow-y-auto space-y-2 min-h-0">
+                      {col.tasks.length === 0 ? (
+                        <p className="text-sm text-muted-foreground px-2 py-4 text-center">Нет задач</p>
+                      ) : (
+                        col.tasks.map((task) => (
+                          <Card
+                            key={task.id}
+                            className="cursor-pointer hover:shadow-md transition-shadow"
+                            onClick={() => setDetailTaskId(task.id)}
+                          >
+                            <CardHeader className="p-3 pb-2">
+                              <CardTitle className="text-sm font-medium leading-snug line-clamp-3 flex items-start gap-2">
+                                {task.status === 'done' ? (
+                                  <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
+                                ) : task.status === 'in_progress' ? (
+                                  <Clock className="h-4 w-4 text-yellow-500 shrink-0 mt-0.5" />
+                                ) : task.status === 'review' ? (
+                                  <AlertCircle className="h-4 w-4 text-purple-500 shrink-0 mt-0.5" />
+                                ) : (
+                                  <Circle className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />
+                                )}
+                                <span>{task.title}</span>
+                              </CardTitle>
+                              {task.description ? (
+                                <CardDescription className="text-xs line-clamp-2 mt-1">
+                                  {task.description}
+                                </CardDescription>
+                              ) : null}
+                            </CardHeader>
+                            <CardContent className="p-3 pt-0">
+                              <div className="flex flex-wrap items-center gap-1">
+                                <Badge variant="outline" className={`text-[10px] px-1.5 ${priorityColors[task.priority]}`}>
+                                  {priorityLabels[task.priority]}
+                                </Badge>
+                                {task.assignedTo ? (
+                                  <span className="text-[10px] text-blue-600 truncate max-w-[10rem]">
+                                    {task.assignedTo.name || task.assignedTo.email}
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] text-muted-foreground">Не назначено</span>
+                                )}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))
+                      )}
+                    </div>
+                    {showSeeAll ? (
+                      <div className="p-2 border-t shrink-0 bg-white">
+                        <Button variant="outline" size="sm" className="w-full" onClick={() => setStatusFilter(st)}>
+                          Все задачи этого статуса ({col.total})
+                        </Button>
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          )
         ) : tasks.length === 0 && !isLoading ? (
-          /* По выбранным фильтрам задач нет — фильтры уже видны выше, показываем подсказку */
-          <div className="text-center py-12 text-gray-600">
-            <p className="text-lg">По выбранным фильтрам задач не найдено.</p>
-            <p className="text-sm mt-2">Смените статус или исполнителя выше или создайте новую задачу.</p>
-            <Button onClick={handleOpenModal} className="mt-4">
-              <Plus className="h-4 w-4 mr-2" />
-              Создать задачу
-            </Button>
-          </div>
+          pagination.total === 0 && selectedAssigneeIds.length === 0 ? (
+            <div className="text-center py-12">
+              <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Задач пока нет</h3>
+              <p className="text-gray-600 mb-6">Создайте первую задачу, чтобы начать работу</p>
+              <Button onClick={handleOpenModal}>
+                <Plus className="h-4 w-4 mr-2" />
+                Создать задачу
+              </Button>
+            </div>
+          ) : (
+            <div className="text-center py-12 text-gray-600">
+              <p className="text-lg">По выбранным фильтрам задач не найдено.</p>
+              <p className="text-sm mt-2">Смените статус или исполнителя выше или создайте новую задачу.</p>
+              <Button onClick={handleOpenModal} className="mt-4">
+                <Plus className="h-4 w-4 mr-2" />
+                Создать задачу
+              </Button>
+            </div>
+          )
         ) : (
           <div className="space-y-4">
             {tasks.map((task) => (
               <Card 
                 key={task.id} 
                 className="hover:shadow-lg transition-shadow cursor-pointer"
-                onClick={() => router.push(`/admin/tasks/${task.id}`)}
+                onClick={() => setDetailTaskId(task.id)}
               >
                 <CardHeader>
                   <div className="flex justify-between items-start">
@@ -542,6 +717,30 @@ export default function AdminTasksPage() {
           </div>
         )}
       </div>
+
+      <Dialog
+        open={detailTaskId != null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDetailTaskId(null);
+            refreshAfterTaskDetail();
+          }
+        }}
+      >
+        <DialogContent className="max-w-4xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-hidden p-0 gap-0 [&>button]:hidden">
+          {detailTaskId ? (
+            <TaskDetailPanel
+              key={detailTaskId}
+              taskId={detailTaskId}
+              mode="modal"
+              onClose={() => {
+                setDetailTaskId(null);
+                refreshAfterTaskDetail();
+              }}
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isModalOpen} onOpenChange={handleCloseModal}>
         <DialogContent className="max-w-2xl">
