@@ -444,6 +444,23 @@ model Page {
   @@map("pages")
 }
 
+/// Сертификаты и документы для раздела на сайте (загрузка из админки)
+model SiteCertificate {
+  id           String   @id @default(cuid())
+  title        String
+  fileUrl      String
+  fileName     String
+  mimeType     String?
+  fileSize     Int?
+  watermarked  Boolean  @default(false)
+  sortOrder    Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("site_certificates")
+}
+
 model ChatSession {
   id          String        @id @default(cuid())
   userId      String?

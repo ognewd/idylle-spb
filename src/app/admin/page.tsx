@@ -23,6 +23,7 @@ import {
   Truck,
   Briefcase,
   Upload,
+  Award,
 } from 'lucide-react';
 import { hasAccessToSection } from '@/lib/admin-permissions';
 
@@ -244,6 +245,15 @@ export default function AdminDashboard() {
       icon: FileText,
       href: '/admin/pages',
       color: 'bg-amber-500',
+      section: 'products' as const,
+      sectionName: 'Коммуникации и контент' as const,
+    },
+    {
+      title: 'Сертификаты',
+      description: 'Документы для раздела на сайте: PDF, Excel, изображения',
+      icon: Award,
+      href: '/admin/certificates',
+      color: 'bg-lime-600',
       section: 'products' as const,
       sectionName: 'Коммуникации и контент' as const,
     },

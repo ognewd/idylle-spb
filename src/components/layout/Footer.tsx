@@ -59,6 +59,9 @@ export function Footer() {
               <Link href="/about" className="block text-sm text-muted-foreground hover:text-primary transition-colors">
                 О нас
               </Link>
+              <Link href="/certificates" className="block text-sm text-muted-foreground hover:text-primary transition-colors">
+                Сертификаты
+              </Link>
             </nav>
           </div>
 
