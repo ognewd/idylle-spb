@@ -10,6 +10,8 @@ import { cn } from '@/lib/utils';
 import { useCart } from '@/contexts/CartContext';
 import { useWishlist } from '@/contexts/WishlistContext';
 import { getImageUrl } from '@/lib/image-url';
+import { galleryIndexFromClientX } from '@/lib/gallery-index-from-pointer';
+import { useFinePointerHover } from '@/hooks/use-fine-pointer-hover';
 
 interface ProductVariant {
   id: string;
@@ -68,6 +70,7 @@ export function ProductCardList({ product, className }: ProductCardListProps) {
   const didSwipeRef = useRef(false);
   const imageAreaRef = useRef<HTMLDivElement>(null);
   const hasMultipleImages = !!(product.images && product.images.length > 1);
+  const finePointerHover = useFinePointerHover();
   
   const hasVariants = product.variants && product.variants.length > 0;
   
@@ -155,6 +158,17 @@ export function ProductCardList({ product, className }: ProductCardListProps) {
     setCurrentImageIndex((i) => (i + 1) % product.images!.length);
   }, [product.images]);
 
+  const onImageMouseMoveScrub = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (!finePointerHover || !hasMultipleImages || !product.images?.length) return;
+      const el = imageAreaRef.current;
+      if (!el) return;
+      const idx = galleryIndexFromClientX(e.clientX, el.getBoundingClientRect(), product.images.length);
+      setCurrentImageIndex((prev) => (prev === idx ? prev : idx));
+    },
+    [finePointerHover, hasMultipleImages, product.images]
+  );
+
   const onImageTouchStart = useCallback((e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
     touchCurrentX.current = e.touches[0].clientX;
@@ -198,8 +212,12 @@ export function ProductCardList({ product, className }: ProductCardListProps) {
             >
               <div
                 ref={imageAreaRef}
-                className="block w-full h-full"
+                className={cn(
+                  'block w-full h-full',
+                  finePointerHover && hasMultipleImages && 'cursor-ew-resize'
+                )}
                 style={{ touchAction: hasMultipleImages ? 'pan-y' : undefined }}
+                onMouseMove={onImageMouseMoveScrub}
                 onTouchStart={onImageTouchStart}
                 onTouchEnd={onImageTouchEnd}
               >
