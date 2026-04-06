@@ -524,13 +524,13 @@ export default function DealersPage() {
             </CardHeader>
             <CardContent>
               <p className="text-white/90 mb-6 leading-relaxed">
-                Для подключения к дилерской программе необходимо направить запрос: <a href="mailto:office@aromarussia.ru" className="text-[#D4830F] font-semibold hover:underline">office@aromarussia.ru</a> и дождаться ответа менеджера. После согласования условий предоставляется доступ к B2B-кабинету.
+                Для подключения к дилерской программе необходимо направить запрос: <a href="mailto:office@aromarussia.ru" className="text-[#D4830F] font-semibold hover:underline">office@aromarussia.ru</a> или отправить заявку с помощью формы ниже. После согласования условий предоставляется доступ к B2B-кабинету.
               </p>
               <Dialog open={isDealersFormOpen} onOpenChange={setIsDealersFormOpen}>
                 <DialogTrigger asChild>
                   <Button className="inline-flex items-center justify-center gap-2 px-8 py-3 bg-[#D4830F] hover:bg-[#b8700d] text-white rounded-md font-medium transition-colors text-base">
                     <Mail className="h-5 w-5" />
-                    Написать нам
+                    Отправить заявку
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[620px]">
