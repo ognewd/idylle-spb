@@ -189,12 +189,9 @@ export function ProductInfo({ product, className }: ProductInfoProps) {
     (product.productType && product.productType.trim() && product.productType.trim() !== '-') ||
     !!showTopNotesInTable ||
     (product.volume && product.volume.trim() && product.volume.trim() !== '-') ||
-    (product.weight && product.weight > 0) ||
-    (product.dimensions && product.dimensions.trim() && product.dimensions.trim() !== '-') ||
     (product.purpose && product.purpose.trim() && product.purpose.trim() !== '-') ||
     (product.brandCountry && product.brandCountry.trim() && product.brandCountry.trim() !== '-') ||
-    (product.manufactureCountry && product.manufactureCountry.trim() && product.manufactureCountry.trim() !== '-') ||
-    (product.barcode && product.barcode.trim() && product.barcode.trim() !== '-');
+    (product.manufactureCountry && product.manufactureCountry.trim() && product.manufactureCountry.trim() !== '-');
 
   const handleAddToWishlist = () => {
     setIsInWishlist(!isInWishlist);
@@ -638,14 +635,6 @@ export function ProductInfo({ product, className }: ProductInfoProps) {
                     <SpecRow label="Объем:">{product.volume}</SpecRow>
                   )}
 
-                  {product.weight && product.weight > 0 && (
-                    <SpecRow label="Вес:">{product.weight} г</SpecRow>
-                  )}
-
-                  {product.dimensions && product.dimensions.trim() && product.dimensions.trim() !== '-' && (
-                    <SpecRow label="Размеры:">{product.dimensions}</SpecRow>
-                  )}
-
                   {product.purpose && product.purpose.trim() && product.purpose.trim() !== '-' && (
                     <SpecRow label="Назначение:">{product.purpose}</SpecRow>
                   )}
@@ -658,11 +647,6 @@ export function ProductInfo({ product, className }: ProductInfoProps) {
                     <SpecRow label="Страна производства:">{product.manufactureCountry}</SpecRow>
                   )}
 
-                  {product.barcode && product.barcode.trim() && product.barcode.trim() !== '-' && (
-                    <SpecRow label="Штрихкод:" valueClassName="font-mono font-normal tracking-wide">
-                      {product.barcode}
-                    </SpecRow>
-                  )}
                 </>
               )}
             </div>
