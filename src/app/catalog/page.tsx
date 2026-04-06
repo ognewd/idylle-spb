@@ -4,11 +4,15 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useCallback, Suspense, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { ProductFilters } from '@/components/product/ProductFilters';
 import { ProductGrid, ViewMode } from '@/components/product/ProductGrid';
 import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
 import { sanitizeHtml } from '@/lib/sanitize';
 import { SortSelector } from '@/components/product/SortSelector';
+import { Button } from '@/components/ui/button';
+import { ShoppingCart } from 'lucide-react';
+import { useCart } from '@/contexts/CartContext';
 
 interface Product {
   id: string;
@@ -62,6 +66,15 @@ interface ApiResponse {
 
 function CatalogContent() {
   const searchParams = useSearchParams();
+  const { totalItems } = useCart();
+  const isDealerShowcase = searchParams?.get('dealer') === '1';
+
+  const getDealerHeaders = () => {
+    if (!isDealerShowcase || typeof window === 'undefined') return undefined;
+    const token = localStorage.getItem('admin_token');
+    if (!token) return undefined;
+    return { Authorization: `Bearer ${token}` };
+  };
   const [products, setProducts] = useState<Product[]>([]);
   const [filters, setFilters] = useState<Filter[]>([]);
   const [loading, setLoading] = useState(true);
@@ -100,7 +113,9 @@ function CatalogContent() {
         }
 
         // Fetch products
-        const productsResponse = await fetch(`/api/products?${queryParams.toString()}`);
+        const productsResponse = await fetch(`/api/products?${queryParams.toString()}`, {
+          headers: getDealerHeaders(),
+        });
         const productsData: ApiResponse = await productsResponse.json();
         
         setProducts(productsData.products);
@@ -108,8 +123,8 @@ function CatalogContent() {
 
         // Fetch filters (categories, brands, and other filters)
         const [categoriesResponse, filtersResponse] = await Promise.all([
-          fetch('/api/categories'),
-          fetch('/api/filters'),
+          fetch('/api/categories', { headers: getDealerHeaders() }),
+          fetch('/api/filters', { headers: getDealerHeaders() }),
         ]);
         
         const categories = await categoriesResponse.json();
@@ -232,7 +247,9 @@ function CatalogContent() {
       }
       queryParams.set('page', nextPage.toString());
 
-      const response = await fetch(`/api/products?${queryParams.toString()}`);
+      const response = await fetch(`/api/products?${queryParams.toString()}`, {
+        headers: getDealerHeaders(),
+      });
       const data: ApiResponse = await response.json();
       
       // Append new products to existing ones
@@ -329,9 +346,15 @@ function CatalogContent() {
   }, [searchParams]);
 
   const breadcrumbItems = [
-    { label: 'Главная', href: '/' },
-    { label: 'Каталог', href: '/catalog' },
-    ...(selectedCategory ? [{ label: selectedCategory.name, href: `/catalog?category=${selectedCategory.slug}` }] : []),
+    ...(isDealerShowcase
+      ? [{ label: 'Кабинет дилера', href: '/admin' }, { label: 'Витрина', href: '/catalog?dealer=1' }]
+      : [{ label: 'Главная', href: '/' }, { label: 'Каталог', href: '/catalog' }]),
+    ...(selectedCategory
+      ? [{
+          label: selectedCategory.name,
+          href: `/catalog?category=${selectedCategory.slug}${isDealerShowcase ? '&dealer=1' : ''}`,
+        }]
+      : []),
   ];
 
   if (loading && isInitialLoad) {
@@ -377,7 +400,19 @@ function CatalogContent() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <Breadcrumbs items={breadcrumbItems} />
+      {!isDealerShowcase && <Breadcrumbs items={breadcrumbItems} />}
+
+      {isDealerShowcase && (
+        <div className="mb-5 flex items-center justify-between">
+          <h1 className="text-2xl font-semibold">Оптовая витрина</h1>
+          <Button asChild>
+            <Link href="/cart?dealer=1">
+              <ShoppingCart className="mr-2 h-4 w-4" />
+              Корзина{totalItems > 0 ? ` (${totalItems})` : ''}
+            </Link>
+          </Button>
+        </div>
+      )}
       
       {/* Category Hero Section */}
       {selectedCategory && (categoryDescription || categoryContent) && (

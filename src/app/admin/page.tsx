@@ -24,6 +24,7 @@ import {
   Briefcase,
   Upload,
   Award,
+  Store,
 } from 'lucide-react';
 import { hasAccessToSection } from '@/lib/admin-permissions';
 
@@ -32,6 +33,18 @@ interface AdminStats {
   totalUsers: number;
   totalOrders: number;
   totalRevenue: number;
+}
+
+function parseJwtPayload(token: string) {
+  const payloadPart = token.split('.')[1];
+  if (!payloadPart) return null;
+
+  const normalized = payloadPart.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
+  const binary = atob(padded);
+  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  const json = new TextDecoder('utf-8').decode(bytes);
+  return JSON.parse(json);
 }
 
 export default function AdminDashboard() {
@@ -55,7 +68,7 @@ export default function AdminDashboard() {
 
     // Verify token and get admin info
     try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
+      const payload = parseJwtPayload(token);
       setAdminUser(payload);
     } catch (error) {
       localStorage.removeItem('admin_token');
@@ -67,8 +80,8 @@ export default function AdminDashboard() {
     loadStats();
 
     try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      if (payload.role === 'partner') {
+      const payload = parseJwtPayload(token);
+      if (payload.activeMode === 'partner' || payload.role === 'partner') {
         fetch('/api/admin/partner/context', {
           headers: { Authorization: `Bearer ${token}` },
         })
@@ -114,7 +127,11 @@ export default function AdminDashboard() {
     router.push('/admin/login');
   };
 
-  const isPartner = adminUser?.role === 'partner';
+  const activeMode: 'admin' | 'partner' | 'dealer' =
+    adminUser?.activeMode || (adminUser?.role === 'partner' ? 'partner' : adminUser?.role === 'dealer' ? 'dealer' : 'admin');
+  const availableModes: string[] = Array.isArray(adminUser?.availableModes) ? adminUser.availableModes : [];
+  const isPartner = activeMode === 'partner';
+  const isDealer = activeMode === 'dealer';
 
   const partnerMenuItems = [
     {
@@ -146,10 +163,23 @@ export default function AdminDashboard() {
     },
   ];
 
+  const dealerMenuItems: typeof partnerMenuItems = [
+    {
+      title: 'Мои заказы',
+      description: 'Список ваших дилерских заказов',
+      icon: ShoppingCart,
+      href: '/admin/dealer/orders',
+      color: 'bg-red-500',
+      section: 'orders' as const,
+      sectionName: 'Продажи' as const,
+    },
+  ];
+
   const SECTION_ORDER = [
     'Каталог',
     'Аналитика',
     'Продажи',
+    'Партнеры и дилеры',
     'Коммуникации и контент',
     'Администрирование и задачи',
   ];
@@ -259,13 +289,22 @@ export default function AdminDashboard() {
     },
     // Секция D: Администрирование и задачи
     {
+      title: 'Опт (дилеры)',
+      description: 'Заявки дилеров, создание аккаунтов, доступы и скидки',
+      icon: Store,
+      href: '/admin/wholesale',
+      color: 'bg-emerald-700',
+      section: 'partners' as const,
+      sectionName: 'Партнеры и дилеры' as const,
+    },
+    {
       title: 'Партнёры',
       description: 'Управление партнёрами и их доступом к брендам',
       icon: Briefcase,
       href: '/admin/partners',
       color: 'bg-rose-500',
       section: 'partners' as const,
-      sectionName: 'Администрирование и задачи' as const,
+      sectionName: 'Партнеры и дилеры' as const,
     },
     {
       title: 'Администраторы',
@@ -326,6 +365,8 @@ export default function AdminDashboard() {
   const menuItems = adminUser
     ? isPartner
       ? partnerMenuItems
+      : isDealer
+        ? dealerMenuItems
       : allMenuItems.filter(item => hasAccessToSection(adminUser, item.section))
     : [];
 
@@ -348,7 +389,11 @@ export default function AdminDashboard() {
           <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center py-6">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">
-                {isPartner ? 'Кабинет партнёра' : 'Админ панель'}
+                {isDealer
+                  ? `Кабинет дилера: "${adminUser?.dealerCompanyName || 'Без названия'}"`
+                  : isPartner
+                    ? 'Кабинет партнёра'
+                    : 'Админ панель'}
               </h1>
               <p className="text-gray-600">Добро пожаловать, {adminUser?.email}</p>
             </div>
@@ -357,6 +402,17 @@ export default function AdminDashboard() {
                 <Button onClick={() => router.push('/admin/products/import')}>
                   <Upload className="h-4 w-4 mr-2" />
                   Импорт из Excel
+                </Button>
+              )}
+              {isDealer && (
+                <Button onClick={() => router.push('/catalog?dealer=1')}>
+                  <ShoppingCart className="h-4 w-4 mr-2" />
+                  Сделать заказ
+                </Button>
+              )}
+              {availableModes.length > 1 && (
+                <Button variant="outline" onClick={() => router.push('/admin/mode-select')}>
+                  Выбрать режим
                 </Button>
               )}
               <Button variant="outline" onClick={handleLogout}>
@@ -369,8 +425,8 @@ export default function AdminDashboard() {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats Cards (hidden for partners) */}
-        {!isPartner && <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {/* Stats Cards (hidden for partners and dealers) */}
+        {!isPartner && !isDealer && <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Товары</CardTitle>

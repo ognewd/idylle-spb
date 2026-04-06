@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getImageUrl } from '@/lib/image-url';
+import { getDealerContextFromRequest, getDealerDiscountPercent } from '@/lib/dealer-context';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
+    const dealerContext = await getDealerContextFromRequest(request);
     
     // Get query parameters
     const page = parseInt(searchParams.get('page') || '1');
@@ -44,9 +46,20 @@ export async function GET(request: NextRequest) {
       isActive: true,
     };
 
+    if (dealerContext) {
+      where.brandId = { in: dealerContext.allowedBrandIds };
+      if (dealerContext.allowedCategoryIds.length > 0) {
+        where.productCategories = {
+          some: {
+            categoryId: { in: dealerContext.allowedCategoryIds },
+          },
+        };
+      }
+    }
+
     // Add filters (support multiple values)
     if (categories.length > 0) {
-      where.productCategories = {
+      const categoryFilter = {
         some: {
           category: {
             slug: {
@@ -55,15 +68,25 @@ export async function GET(request: NextRequest) {
           },
         },
       };
+      if (where.productCategories) {
+        where.AND = [...(Array.isArray(where.AND) ? where.AND : []), { productCategories: categoryFilter }];
+      } else {
+        where.productCategories = categoryFilter;
+      }
     } else if (category) {
       // Legacy support for single category
-      where.productCategories = {
+      const categoryFilter = {
         some: {
           category: {
             slug: category,
           },
         },
       };
+      if (where.productCategories) {
+        where.AND = [...(Array.isArray(where.AND) ? where.AND : []), { productCategories: categoryFilter }];
+      } else {
+        where.productCategories = categoryFilter;
+      }
     }
 
     if (brands.length > 0) {
@@ -274,15 +297,29 @@ export async function GET(request: NextRequest) {
       }
       // Apply discount to numeric price for display
       const basePrice = Number(product.price);
-      const discountedPrice = seasonal ? Math.max(0, Math.round(basePrice * (100 - seasonal.discount) / 100)) : basePrice;
+      const seasonalDiscountPrice = seasonal ? Math.max(0, Math.round(basePrice * (100 - seasonal.discount) / 100)) : basePrice;
+      const dealerDiscountPercent = dealerContext
+        ? getDealerDiscountPercent({
+            productId: product.id,
+            brandId: product.brandId,
+            categoryIds: product.productCategories.map((pc) => pc.categoryId),
+            brandDiscountByBrandId: dealerContext.brandDiscountByBrandId,
+            productDiscountByProductId: dealerContext.productDiscountByProductId,
+            categoryDiscountByCategoryId: dealerContext.categoryDiscountByCategoryId,
+          })
+        : 0;
+      const finalPrice = dealerDiscountPercent > 0
+        ? Math.max(0, Math.round(seasonalDiscountPrice * (100 - dealerDiscountPercent) / 100))
+        : seasonalDiscountPrice;
 
       return {
         ...product,
         averageRating: averageRating,
         reviewCount: reviewCount,
-        price: discountedPrice,
-        comparePrice: seasonal ? basePrice : (product.comparePrice ? Number(product.comparePrice) : null),
+        price: finalPrice,
+        comparePrice: seasonal || dealerDiscountPercent > 0 ? basePrice : (product.comparePrice ? Number(product.comparePrice) : null),
         seasonalDiscount: seasonal || null,
+        dealerDiscountPercent: dealerDiscountPercent > 0 ? dealerDiscountPercent : null,
         images: product.images.map(img => {
           // Используем getImageUrl для всех путей, включая /uploads/
           // На localhost это сформирует полный URL, на проде - относительный (для Nginx)

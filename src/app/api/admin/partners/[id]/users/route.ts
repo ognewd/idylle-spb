@@ -82,6 +82,7 @@ export async function POST(
         phone: phone || null,
         password: hashedPassword,
         role: 'partner',
+        roles: ['partner'],
         isActive: true,
         partnerId: params.id,
         allowedAdminSections: ['products', 'partner-statistics'],

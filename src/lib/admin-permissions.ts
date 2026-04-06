@@ -16,6 +16,7 @@ export const ADMIN_SECTIONS = {
 } as const;
 
 const PARTNER_SECTIONS = ['products', 'partner-statistics'] as const;
+const DEALER_SECTIONS = ['dealer-catalog', 'dealer-orders', 'dealer-profile'] as const;
 
 export function hasAccessToSection(
   admin: AdminUser,
@@ -27,6 +28,10 @@ export function hasAccessToSection(
 
   if (admin.role === 'partner') {
     return (PARTNER_SECTIONS as readonly string[]).includes(section);
+  }
+
+  if (admin.role === 'dealer') {
+    return (DEALER_SECTIONS as readonly string[]).includes(section);
   }
 
   if (admin.role !== 'admin') {
@@ -49,6 +54,10 @@ export function hasAnyAccess(admin: AdminUser): boolean {
     return true;
   }
 
+  if (admin.role === 'dealer') {
+    return true;
+  }
+
   if (admin.role !== 'admin') {
     return false;
   }
@@ -63,6 +72,10 @@ export function getAvailableSections(admin: AdminUser): string[] {
 
   if (admin.role === 'partner') {
     return [...PARTNER_SECTIONS];
+  }
+
+  if (admin.role === 'dealer') {
+    return [...DEALER_SECTIONS];
   }
 
   return admin.allowedAdminSections || [];

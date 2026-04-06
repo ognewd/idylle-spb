@@ -1,11 +1,13 @@
 'use client';
 
+import { useState } from 'react';
 import { useCart } from '@/contexts/CartContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Minus, Plus, Trash2, ShoppingBag, ArrowRight } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { getImageUrl } from '@/lib/image-url';
 
 // Нормализует изображение из корзины (может быть строкой или объектом)
@@ -26,7 +28,88 @@ function normalizeCartImage(image: string | { url?: string } | undefined): strin
 }
 
 export default function CartPage() {
-  const { items, removeItem, updateQuantity, totalPrice, totalItems } = useCart();
+  const { items, removeItem, updateQuantity, totalPrice, totalItems, clearCart } = useCart();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [isSubmittingDealerOrder, setIsSubmittingDealerOrder] = useState(false);
+  const isDealerShowcase = searchParams.get('dealer') === '1';
+
+  const parseJwtPayload = (token: string) => {
+    const payloadPart = token.split('.')[1];
+    if (!payloadPart) return null;
+    const normalized = payloadPart.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
+    const binary = atob(padded);
+    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+    const json = new TextDecoder('utf-8').decode(bytes);
+    return JSON.parse(json);
+  };
+
+  const handleCreateDealerOrder = async () => {
+    setIsSubmittingDealerOrder(true);
+    try {
+      const token = localStorage.getItem('admin_token');
+      if (!token) throw new Error('Не найден токен дилера');
+      const payload = parseJwtPayload(token);
+      if (!payload || payload.activeMode !== 'dealer' || !payload.dealerProfileId) {
+        throw new Error('Доступно только в режиме дилера');
+      }
+
+      const orderPayload = {
+        items: items.map((item) => ({
+          productId: item.productId,
+          name: item.name,
+          price: Number(item.price),
+          quantity: item.quantity,
+          variant: item.variant,
+        })),
+        firstName: payload.dealerCompanyName || payload.name || 'Дилер',
+        lastName: '',
+        email: payload.email || '',
+        phone: '',
+        deliveryMethod: 'pickup',
+        paymentMethod: 'invoice',
+        orderType: 'dealer',
+        dealerProfileId: payload.dealerProfileId,
+        city: null,
+        address: null,
+        orderComment: null,
+        courierComment: null,
+        companyName: payload.dealerCompanyName || null,
+        inn: null,
+        kpp: null,
+        companyAddress: null,
+      };
+
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderPayload),
+      });
+
+      const data = await response.json();
+      if (!response.ok || !data?.success || !data?.order?.orderNumber) {
+        throw new Error(data?.error || 'Не удалось создать заказ');
+      }
+
+      localStorage.setItem(
+        'lastOrderData',
+        JSON.stringify({
+          orderNumber: data.order.orderNumber,
+          firstName: orderPayload.firstName,
+          lastName: '',
+        })
+      );
+
+      // Сбрасываем корзину до перехода, чтобы гарантированно не оставалась в UI.
+      clearCart();
+      router.replace('/checkout/success?dealer=1');
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Ошибка при создании заказа');
+    } finally {
+      setIsSubmittingDealerOrder(false);
+    }
+  };
 
   if (items.length === 0) {
     return (
@@ -161,12 +244,19 @@ export default function CartPage() {
                   </div>
                 </div>
 
-                <Button size="lg" className="w-full" asChild>
-                  <Link href="/checkout">
-                    Оформить заказ
+                {isDealerShowcase ? (
+                  <Button size="lg" className="w-full" onClick={handleCreateDealerOrder} disabled={isSubmittingDealerOrder}>
+                    {isSubmittingDealerOrder ? 'Создаем заказ...' : 'Создать заказ'}
                     <ArrowRight className="ml-2 h-4 w-4" />
-                  </Link>
-                </Button>
+                  </Button>
+                ) : (
+                  <Button size="lg" className="w-full" asChild>
+                    <Link href="/checkout">
+                      Оформить заказ
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
+                  </Button>
+                )}
 
                 <Button
                   variant="ghost"
@@ -174,7 +264,7 @@ export default function CartPage() {
                   className="w-full mt-2"
                   asChild
                 >
-                  <Link href="/catalog">
+                  <Link href={isDealerShowcase ? '/catalog?dealer=1' : '/catalog'}>
                     Продолжить покупки
                   </Link>
                 </Button>

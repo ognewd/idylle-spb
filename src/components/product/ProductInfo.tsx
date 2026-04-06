@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -126,6 +127,8 @@ function SpecRow({
 }
 
 export function ProductInfo({ product, className }: ProductInfoProps) {
+  const searchParams = useSearchParams();
+  const isDealerShowcase = searchParams.get('dealer') === '1';
   const { addItem } = useCart();
   
   // Find default variant or use first one
@@ -217,15 +220,43 @@ export function ProductInfo({ product, className }: ProductInfoProps) {
     console.log('Added to cart:', cartItem);
   };
 
+  const handleDealerContentLinkGuard = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDealerShowcase) return;
+    const target = e.target as HTMLElement;
+    const anchor = target.closest('a');
+    if (!anchor) return;
+    const href = anchor.getAttribute('href') || '';
+    if (!href || href.startsWith('#') || href.startsWith('mailto:') || href.startsWith('tel:')) return;
+
+    try {
+      const url = new URL(href, window.location.origin);
+      const isInternal = url.origin === window.location.origin;
+      if (!isInternal) return;
+
+      const allowedPrefixes = ['/catalog', '/cart', '/checkout', '/admin'];
+      const allowed = allowedPrefixes.some((prefix) => url.pathname.startsWith(prefix));
+      if (!allowed) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    } catch {
+      // ignore parsing errors
+    }
+  };
+
   return (
     <div className={cn('space-y-5', className)}>
       {/* Brand */}
-      <Link
-        href={`/catalog?brand=${product.brand.slug}`}
-        className="text-sm font-normal text-neutral-400 transition-colors hover:text-neutral-600"
-      >
-        {product.brand.name}
-      </Link>
+      {isDealerShowcase ? (
+        <span className="text-sm font-normal text-neutral-400">{product.brand.name}</span>
+      ) : (
+        <Link
+          href={`/catalog?brand=${product.brand.slug}`}
+          className="text-sm font-normal text-neutral-400 transition-colors hover:text-neutral-600"
+        >
+          {product.brand.name}
+        </Link>
+      )}
 
       {/* Product Name - используем shortName если есть, иначе name */}
       <h1 className="text-2xl font-semibold leading-snug tracking-tight text-neutral-900 lg:text-[1.65rem]">
@@ -548,7 +579,10 @@ export function ProductInfo({ product, className }: ProductInfoProps) {
         </TabsList>
 
         <TabsContent value="description" className="mt-8 space-y-6">
-          <div className="prose prose-sm max-w-none text-neutral-800">
+          <div
+            className="prose prose-sm max-w-none text-neutral-800"
+            onClickCapture={handleDealerContentLinkGuard}
+          >
             {product.description ? (
               <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(product.description) }} />
             ) : (

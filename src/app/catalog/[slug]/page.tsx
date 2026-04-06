@@ -85,6 +85,7 @@ interface ProductPageProps {
   }> | {
     slug: string;
   };
+  searchParams?: Promise<{ dealer?: string }> | { dealer?: string };
 }
 
 async function getProduct(slug: string, baseUrl: string): Promise<{ product: Product; relatedProducts: Product[]; canonicalSlug?: string } | null> {
@@ -107,9 +108,11 @@ async function getProduct(slug: string, baseUrl: string): Promise<{ product: Pro
   }
 }
 
-export default async function ProductPage({ params }: ProductPageProps) {
+export default async function ProductPage({ params, searchParams }: ProductPageProps) {
   // Поддержка как синхронных, так и асинхронных params (Next.js 14/15)
   const resolvedParams = await Promise.resolve(params);
+  const resolvedSearch = await Promise.resolve(searchParams ?? {});
+  const isDealerShowcase = resolvedSearch?.dealer === '1';
   const slug = resolvedParams.slug;
   
   const headersList = headers();
@@ -127,7 +130,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
   const { product, relatedProducts, canonicalSlug } = data;
   if (canonicalSlug && canonicalSlug !== slug) {
-    redirect(`/catalog/${canonicalSlug}`);
+    redirect(`/catalog/${canonicalSlug}${isDealerShowcase ? '?dealer=1' : ''}`);
   }
 
   // Логируем количество изображений для отладки
@@ -138,13 +141,14 @@ export default async function ProductPage({ params }: ProductPageProps) {
   // API уже возвращает полные URL изображений, дополнительная обработка не нужна
 
   const breadcrumbItems = [
-    { label: 'Главная', href: '/' },
-    { label: 'Каталог', href: '/catalog' },
+    ...(isDealerShowcase
+      ? [{ label: 'Кабинет дилера', href: '/admin' }, { label: 'Витрина', href: '/catalog?dealer=1' }]
+      : [{ label: 'Главная', href: '/' }, { label: 'Каталог', href: '/catalog' }]),
     { 
       label: product.productCategories[0]?.category.name || 'Товары', 
-      href: `/catalog?category=${product.productCategories[0]?.category.slug}` 
+      href: `/catalog?category=${product.productCategories[0]?.category.slug}${isDealerShowcase ? '&dealer=1' : ''}` 
     },
-    { label: product.shortName || product.name, href: `/catalog/${product.slug}` },
+    { label: product.shortName || product.name, href: `/catalog/${product.slug}${isDealerShowcase ? '?dealer=1' : ''}` },
   ];
 
   return (

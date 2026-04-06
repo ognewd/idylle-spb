@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import { prisma } from '@/lib/prisma';
 import { getJwtSecret } from '@/lib/admin-auth';
 import { checkRateLimit, getRateLimitOptionsForEndpoint } from '@/lib/rate-limit';
+import { getAvailablePanelModes, normalizeRoles, resolveDefaultPanelMode } from '@/lib/panel-roles';
 
 export async function POST(request: NextRequest) {
   const opts = await getRateLimitOptionsForEndpoint('adminLogin');
@@ -28,14 +29,19 @@ export async function POST(request: NextRequest) {
         name: true,
         password: true,
         role: true,
+        roles: true,
         isActive: true,
         allowedAdminSections: true,
         partnerId: true,
+        dealerProfile: {
+          select: { id: true, companyName: true },
+        },
       },
     });
 
-    const allowedRoles = ['admin', 'super_admin', 'partner'];
-    if (!user || !allowedRoles.includes(user.role)) {
+    const resolvedRoles = normalizeRoles(user?.role, user?.roles);
+    const availableModes = getAvailablePanelModes(resolvedRoles);
+    if (!user || availableModes.length === 0) {
       return NextResponse.json(
         { error: 'Неверные учетные данные' },
         { status: 401 }
@@ -66,13 +72,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const activeMode = resolveDefaultPanelMode(resolvedRoles);
     const token = jwt.sign(
       {
         userId: user.id,
         email: user.email,
         role: user.role,
+        roles: resolvedRoles,
+        activeMode,
+        availableModes,
         allowedAdminSections: user.allowedAdminSections || [],
         partnerId: user.partnerId || null,
+        dealerProfileId: user.dealerProfile?.id || null,
+        dealerCompanyName: user.dealerProfile?.companyName || null,
       },
       secret,
       { expiresIn: '24h' }
@@ -85,9 +97,15 @@ export async function POST(request: NextRequest) {
         email: user.email,
         name: user.name,
         role: user.role,
+        roles: resolvedRoles,
+        activeMode,
+        availableModes,
         allowedAdminSections: user.allowedAdminSections || [],
         partnerId: user.partnerId || null,
+        dealerProfileId: user.dealerProfile?.id || null,
+        dealerCompanyName: user.dealerProfile?.companyName || null,
       },
+      requiresModeSelection: availableModes.length > 1,
     });
   } catch (error) {
     console.error('Admin login error:', error instanceof Error ? error.message : 'Unknown');

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sendMail } from '@/lib/mail';
+import { prisma } from '@/lib/prisma';
 
 const TO_EMAIL = 'office@aromarussia.ru';
 
@@ -69,6 +70,16 @@ export async function POST(request: NextRequest) {
       'Интересующие бренды:',
       brands,
     ].join('\n');
+
+    await prisma.dealerRequest.create({
+      data: {
+        companyName,
+        contacts,
+        requisites,
+        brands,
+        status: 'new',
+      },
+    });
 
     const result = await sendMail({
       to: TO_EMAIL,

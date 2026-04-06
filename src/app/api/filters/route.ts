@@ -1,25 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getDealerContextFromRequest } from '@/lib/dealer-context';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category');
+    const dealerContext = await getDealerContextFromRequest(request);
     
     // Базовое условие для where
     const baseWhere: any = {
       isActive: true,
     };
 
+    if (dealerContext) {
+      baseWhere.brandId = { in: dealerContext.allowedBrandIds };
+      if (dealerContext.allowedCategoryIds.length > 0) {
+        baseWhere.productCategories = {
+          some: { categoryId: { in: dealerContext.allowedCategoryIds } },
+        };
+      }
+    }
+
     // Если указана категория, фильтруем по ней
     if (category) {
-      baseWhere.productCategories = {
+      const categoryFilter = {
         some: {
           category: {
             slug: category,
           },
         },
       };
+      if (baseWhere.productCategories) {
+        baseWhere.AND = [...(Array.isArray(baseWhere.AND) ? baseWhere.AND : []), { productCategories: categoryFilter }];
+      } else {
+        baseWhere.productCategories = categoryFilter;
+      }
     }
 
     // Получаем уникальные значения для фильтров
@@ -67,18 +83,7 @@ export async function GET(request: NextRequest) {
         where: {
           isActive: true,
           products: {
-            some: category ? {
-              isActive: true,
-              productCategories: {
-                some: {
-                  category: {
-                    slug: category,
-                  },
-                },
-              },
-            } : {
-              isActive: true,
-            },
+            some: baseWhere,
           },
         },
         select: {

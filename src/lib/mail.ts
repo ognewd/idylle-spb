@@ -6,6 +6,11 @@ interface MailOptions {
   subject: string;
   html: string;
   text?: string;
+  attachments?: Array<{
+    filename: string;
+    content: string | Buffer;
+    contentType?: string;
+  }>;
 }
 
 export interface OrderEmailData {
@@ -156,6 +161,7 @@ export async function sendMail(options: MailOptions) {
       subject: options.subject,
       html: options.html,
       text: options.text || options.subject,
+      attachments: options.attachments,
     };
 
     const info = await transporterInst.sendMail(mailOptions);
@@ -240,6 +246,48 @@ export async function sendPartnerCredentialsEmail(params: {
   return sendPartnerMail({
     to: params.to,
     subject: 'Ваш доступ к кабинету партнёра',
+    html,
+    text,
+  });
+}
+
+export async function sendDealerCredentialsEmail(params: {
+  to: string;
+  userName: string;
+  loginEmail: string;
+  password: string;
+  companyName?: string;
+}) {
+  const base = getPublicSiteBaseUrl();
+  const loginUrl = `${base}/admin/login`;
+  const companyLine = params.companyName
+    ? `<p>Компания: <strong>${escapeHtml(params.companyName)}</strong></p>`
+    : '';
+
+  const html = `
+<!DOCTYPE html>
+<html><body style="font-family: system-ui, sans-serif; line-height: 1.5; color: #111;">
+  <h2 style="margin-top:0;">Доступ к кабинету дилера</h2>
+  <p>Здравствуйте, ${escapeHtml(params.userName)}!</p>
+  ${companyLine}
+  <p>Для вас создан аккаунт в личном кабинете дилера на сайте.</p>
+  <p><strong>Адрес входа:</strong> <a href="${loginUrl}">${escapeHtml(loginUrl)}</a></p>
+  <p><strong>Email (логин):</strong> ${escapeHtml(params.loginEmail)}</p>
+  <p><strong>Пароль:</strong> <code style="background:#f4f4f5;padding:2px 6px;border-radius:4px;">${escapeHtml(params.password)}</code></p>
+  <p style="color:#71717a;font-size:14px;">Если не получается войти, свяжитесь с менеджером.</p>
+</body></html>`;
+
+  const text = [
+    'Доступ к кабинету дилера',
+    '',
+    `Вход: ${loginUrl}`,
+    `Email: ${params.loginEmail}`,
+    `Пароль: ${params.password}`,
+  ].join('\n');
+
+  return sendPartnerMail({
+    to: params.to,
+    subject: 'Ваш доступ к кабинету дилера',
     html,
     text,
   });

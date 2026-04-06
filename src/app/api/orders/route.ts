@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { sendMail, renderEmailTemplate, OrderEmailData } from '@/lib/mail';
+import { sendMail, sendPartnerMail, renderEmailTemplate, OrderEmailData } from '@/lib/mail';
 import { ORDER_CONFIRMATION_TEMPLATE } from '@/lib/email-templates';
 import { createCdekOrderFromCart } from '@/lib/cdek/create-order-from-cart';
 import { checkRateLimit, getRateLimitOptionsForEndpoint } from '@/lib/rate-limit';
@@ -46,16 +46,120 @@ export async function POST(request: NextRequest) {
       cdekDeliveryDateMax,
       // БСПБ: передаётся, если платёж уже создан до создания заказа
       bspbOrderId,
+      orderType,
+      dealerProfileId,
     } = body;
 
+    const isDealerOrder = orderType === 'dealer' && !!dealerProfileId;
+
+    let normalizedItems: Array<any> = items;
+
     // Calculate totals
-    const subtotal = items.reduce((sum: number, item: any) => 
-      sum + (item.price * item.quantity), 0
-    );
+    let subtotal = items.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0);
+
+    if (isDealerOrder) {
+      const dealer = await prisma.dealerProfile.findUnique({
+        where: { id: String(dealerProfileId) },
+        include: {
+          brandAccesses: true,
+          categoryAccesses: true,
+          productDiscounts: true,
+          categoryDiscounts: true,
+          brandDiscountTiers: true,
+          categoryDiscountTiers: true,
+        },
+      });
+      if (!dealer || dealer.status !== 'active') {
+        return NextResponse.json({ error: 'Дилерский профиль недоступен' }, { status: 403 });
+      }
+
+      const productIds = items.map((i: any) => String(i.productId));
+      const products = await prisma.product.findMany({
+        where: { id: { in: productIds }, isActive: true },
+        include: {
+          productCategories: true,
+        },
+      });
+      const byId = new Map(products.map((p) => [p.id, p]));
+      const allowedBrandIds = new Set(dealer.brandAccesses.map((x) => x.brandId));
+      const allowedCategoryIds = new Set(dealer.categoryAccesses.map((x) => x.categoryId));
+      const brandDiscountMap = new Map(dealer.brandAccesses.map((x) => [x.brandId, Number(x.discountPercent)]));
+      const productDiscountMap = new Map(dealer.productDiscounts.map((x) => [x.productId, Number(x.discountPercent)]));
+      const categoryDiscountMap = new Map(dealer.categoryDiscounts.map((x) => [x.categoryId, Number(x.discountPercent)]));
+      const brandTierMap = new Map<string, Array<{ minQty: number; maxQty: number | null; discountPercent: number }>>();
+      const categoryTierMap = new Map<string, Array<{ minQty: number; maxQty: number | null; discountPercent: number }>>();
+
+      dealer.brandDiscountTiers.forEach((tier) => {
+        const list = brandTierMap.get(tier.brandId) || [];
+        list.push({
+          minQty: Number(tier.minQty),
+          maxQty: tier.maxQty == null ? null : Number(tier.maxQty),
+          discountPercent: Number(tier.discountPercent),
+        });
+        brandTierMap.set(tier.brandId, list);
+      });
+      dealer.categoryDiscountTiers.forEach((tier) => {
+        const list = categoryTierMap.get(tier.categoryId) || [];
+        list.push({
+          minQty: Number(tier.minQty),
+          maxQty: tier.maxQty == null ? null : Number(tier.maxQty),
+          discountPercent: Number(tier.discountPercent),
+        });
+        categoryTierMap.set(tier.categoryId, list);
+      });
+      const resolveTierDiscount = (
+        tiers: Array<{ minQty: number; maxQty: number | null; discountPercent: number }> | undefined,
+        qty: number
+      ) => {
+        if (!tiers || tiers.length === 0) return null;
+        const sorted = [...tiers].sort((a, b) => a.minQty - b.minQty);
+        const found = sorted.find((tier) => qty >= tier.minQty && (tier.maxQty == null || qty <= tier.maxQty));
+        return found ? found.discountPercent : null;
+      };
+
+      normalizedItems = items.map((item: any) => {
+        const product = byId.get(String(item.productId));
+        if (!product) {
+          throw new Error(`Товар ${item.productId} недоступен`);
+        }
+        if (!allowedBrandIds.has(product.brandId)) {
+          throw new Error(`Товар ${product.name} не доступен дилеру`);
+        }
+        const productCategoryIds = product.productCategories.map((pc) => pc.categoryId);
+        if (allowedCategoryIds.size > 0 && !productCategoryIds.some((categoryId) => allowedCategoryIds.has(categoryId))) {
+          throw new Error(`Категория товара ${product.name} не доступна дилеру`);
+        }
+        const productDiscount = productDiscountMap.get(product.id);
+        const brandDiscount = brandDiscountMap.get(product.brandId);
+        const qty = Number(item.quantity || 0);
+        const brandTierDiscount = resolveTierDiscount(brandTierMap.get(product.brandId), qty);
+        let categoryDiscount = 0;
+        let categoryTierDiscount = 0;
+        for (const pc of product.productCategories) {
+          const v = categoryDiscountMap.get(pc.categoryId) || 0;
+          if (v > categoryDiscount) categoryDiscount = v;
+          const tierV = resolveTierDiscount(categoryTierMap.get(pc.categoryId), qty) || 0;
+          if (tierV > categoryTierDiscount) categoryTierDiscount = tierV;
+        }
+        const discountPercent = productDiscount ?? brandTierDiscount ?? brandDiscount ?? categoryTierDiscount ?? categoryDiscount ?? 0;
+        const basePrice = Number(product.price);
+        const finalUnitPrice = discountPercent > 0 ? Math.max(0, Math.round(basePrice * (100 - discountPercent) / 100)) : basePrice;
+        return {
+          ...item,
+          name: product.name,
+          price: finalUnitPrice,
+          quantity: qty,
+        };
+      });
+
+      subtotal = normalizedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    }
     
     // Если выбрана доставка СДЕК, используем стоимость из параметров, иначе старую логику
     let shipping = 0;
-    if (deliveryMethod === 'cdek' && cdekDeliveryCost) {
+    if (isDealerOrder) {
+      shipping = 0;
+    } else if (deliveryMethod === 'cdek' && cdekDeliveryCost) {
       shipping = parseFloat(cdekDeliveryCost);
     } else if (deliveryMethod === 'delivery' && subtotal < 5000) {
       shipping = 500;
@@ -86,10 +190,12 @@ export async function POST(request: NextRequest) {
       lastName,
       email,
       phone,
-      deliveryMethod,
-      paymentMethod,
-      city,
+      deliveryMethod: isDealerOrder ? 'pickup' : deliveryMethod,
+      paymentMethod: isDealerOrder ? 'invoice' : paymentMethod,
+      city: isDealerOrder ? null : city,
       deliveryAddress: address,
+      orderType: isDealerOrder ? 'dealer' : 'retail',
+      dealerProfileId: isDealerOrder ? String(dealerProfileId) : null,
       notes: (orderComment != null && String(orderComment).trim() !== '' ? String(orderComment).trim() : (comment != null && String(comment).trim() !== '' ? String(comment).trim() : null)),
       courierComment: courierComment != null && String(courierComment).trim() !== '' ? String(courierComment).trim() : null,
       companyName,
@@ -102,7 +208,7 @@ export async function POST(request: NextRequest) {
       status: 'pending',
       paymentStatus: 'pending',
       items: {
-        create: items.map((item: any) => ({
+        create: normalizedItems.map((item: any) => ({
           productId: item.productId,
           productName: item.name,
           quantity: item.quantity,
@@ -164,7 +270,7 @@ export async function POST(request: NextRequest) {
     console.log(`📦 [CDEK] deliveryMethod=${deliveryMethod}, cdekTariffCode=${cdekTariffCode}, cdekDeliveryType=${cdekDeliveryType}, cdekPvzCode=${cdekPvzCode}`);
     if (deliveryMethod === 'cdek' && cdekTariffCode) {
       try {
-        const cdekItems = items.map((item: any) => ({
+        const cdekItems = normalizedItems.map((item: any) => ({
           name: item.name,
           quantity: item.quantity,
           cost: Number(item.price),
@@ -254,6 +360,76 @@ export async function POST(request: NextRequest) {
 
     // Send order confirmation email
     try {
+      if (isDealerOrder) {
+        const dealer = await prisma.dealerProfile.findUnique({
+          where: { id: String(dealerProfileId) },
+          select: { companyName: true, requisites: true, contacts: true },
+        });
+        const csvRows = [
+          ['SKU', 'Товар', 'Вариант', 'Количество', 'Цена', 'Сумма'],
+          ...normalizedItems.map((item: any) => [
+            item.productId || '',
+            item.name || '',
+            item.variant?.volume || item.variant?.size || '',
+            String(item.quantity || 0),
+            String(item.price || 0),
+            String((item.price || 0) * (item.quantity || 0)),
+          ]),
+        ];
+        const csvContent = csvRows
+          .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(';'))
+          .join('\n');
+
+        const orderLines = normalizedItems
+          .map((item: any) => `- ${item.name} (${item.variant?.volume || item.variant?.size || 'базовый вариант'}) x ${item.quantity} = ${(item.price * item.quantity).toLocaleString('ru-RU')} ₽`)
+          .join('<br/>');
+
+        const managerMail = {
+          to: 'opt@aromarussia.ru',
+          subject: `Оптовый заказ ${orderNumber} от ${dealer?.companyName || companyName || email}`,
+          html: `
+            <h2>Новый оптовый заказ ${orderNumber}</h2>
+            <p><strong>Компания:</strong> ${dealer?.companyName || companyName || '—'}</p>
+            <p><strong>Контакты:</strong><br/>${(dealer?.contacts || '').replace(/\n/g, '<br/>') || '—'}</p>
+            <p><strong>Реквизиты:</strong><br/>${(dealer?.requisites || '').replace(/\n/g, '<br/>') || '—'}</p>
+            <p><strong>Состав заказа:</strong><br/>${orderLines}</p>
+            <p><strong>Итого:</strong> ${total.toLocaleString('ru-RU')} ₽</p>
+          `,
+          text: `Новый оптовый заказ ${orderNumber}\nКомпания: ${dealer?.companyName || companyName || '—'}\nИтого: ${total}\n`,
+          attachments: [
+            {
+              filename: `dealer-order-${orderNumber}.csv`,
+              content: csvContent,
+              contentType: 'text/csv; charset=utf-8',
+            },
+          ],
+        } as const;
+
+        const managerSendResult = await sendMail(managerMail);
+        if (!managerSendResult.success) {
+          console.warn('Primary SMTP failed for dealer order email, trying partner SMTP fallback:', managerSendResult.error);
+          const fallbackResult = await sendPartnerMail(managerMail);
+          if (!fallbackResult.success) {
+            console.error('Fallback SMTP also failed for dealer order email:', fallbackResult.error);
+          }
+        }
+
+        await sendMail({
+          to: email,
+          subject: `Ваш оптовый заказ ${orderNumber} принят`,
+          html: `
+            <h2>Спасибо за заказ</h2>
+            <p>Заказ <strong>${orderNumber}</strong> принят в обработку.</p>
+            <p><strong>Состав заказа:</strong></p>
+            <p>${orderLines}</p>
+            <p><strong>Итого:</strong> ${total.toLocaleString('ru-RU')} ₽</p>
+            <p>Ждите подтверждения и счет.</p>
+          `,
+          text: `Заказ ${orderNumber} принят.\nСостав заказа:\n${normalizedItems
+            .map((item: any) => `- ${item.name} (${item.variant?.volume || item.variant?.size || 'базовый вариант'}) x ${item.quantity} = ${(item.price * item.quantity).toLocaleString('ru-RU')} ₽`)
+            .join('\n')}\nИтого: ${total.toLocaleString('ru-RU')} ₽\nЖдите подтверждения и счет.`,
+        });
+      } else {
       const logoUrl = process.env.NEXT_PUBLIC_BASE_URL 
         ? `${process.env.NEXT_PUBLIC_BASE_URL}/logo-idylle.png`
         : 'http://localhost:3000/logo-idylle.png';
@@ -289,7 +465,7 @@ export async function POST(request: NextRequest) {
         deliveryAddress: address,
         paymentMethod,
         paymentMethodLabel: paymentMethodLabels[paymentMethod] || paymentMethod,
-        orderItems: items.map((item: any) => ({
+        orderItems: normalizedItems.map((item: any) => ({
           name: item.name,
           variantInfo: item.variant?.volume || item.variant?.size,
           quantity: item.quantity,
@@ -320,6 +496,7 @@ export async function POST(request: NextRequest) {
       });
 
       console.log('📧 Order confirmation email sent to', email);
+      }
     } catch (emailError) {
       console.error('Error sending order confirmation email:', emailError);
       // Don't fail the order if email fails

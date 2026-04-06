@@ -9,6 +9,7 @@ import { Heart, ShoppingCart, Star, Image as ImageIcon, ChevronLeft, ChevronRigh
 import { cn } from '@/lib/utils';
 import { useCart } from '@/contexts/CartContext';
 import { useWishlist } from '@/contexts/WishlistContext';
+import { useSearchParams } from 'next/navigation';
 import { getImageUrl } from '@/lib/image-url';
 import { galleryIndexFromClientX } from '@/lib/gallery-index-from-pointer';
 import { useFinePointerHover } from '@/hooks/use-fine-pointer-hover';
@@ -73,6 +74,10 @@ export function ProductCard({
   className,
   priority = false,
 }: ProductCardProps) {
+  const searchParams = useSearchParams();
+  const isDealerShowcase = searchParams.get('dealer') === '1';
+  const productHref = `/catalog/${product.slug}${isDealerShowcase ? '?dealer=1' : ''}`;
+  const brandHref = `/catalog?brand=${product.brand.slug}${isDealerShowcase ? '&dealer=1' : ''}`;
   const { addItem } = useCart();
   const { isInWishlist: wishlistHas, toggle } = useWishlist();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -227,7 +232,7 @@ export function ProductCard({
       <div className="relative aspect-square overflow-hidden bg-neutral-100">
         {primaryImage ? (
           <Link
-            href={`/catalog/${product.slug}`}
+            href={productHref}
             className="block w-full h-full"
             onClick={(e) => { if (didSwipeRef.current) e.preventDefault(); }}
           >
@@ -353,7 +358,7 @@ export function ProductCard({
       <div className="p-4">
         {/* Brand */}
         <Link
-          href={`/catalog?brand=${product.brand.slug}`}
+          href={brandHref}
           className="text-xs text-neutral-500 hover:text-neutral-900 transition-colors"
           onClick={(e) => e.stopPropagation()}
         >
@@ -361,7 +366,7 @@ export function ProductCard({
         </Link>
 
         {/* Name */}
-        <Link href={`/catalog/${product.slug}`}>
+        <Link href={productHref}>
           <h3 className="font-medium text-sm mt-1 mb-2 line-clamp-2 min-h-[2.5rem] hover:text-primary transition-colors">
             {product.name}
           </h3>

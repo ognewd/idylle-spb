@@ -9,6 +9,7 @@ import { Heart, ShoppingCart, Star, Image as ImageIcon, ChevronLeft, ChevronRigh
 import { cn } from '@/lib/utils';
 import { useCart } from '@/contexts/CartContext';
 import { useWishlist } from '@/contexts/WishlistContext';
+import { useSearchParams } from 'next/navigation';
 import { getImageUrl } from '@/lib/image-url';
 import { galleryIndexFromClientX } from '@/lib/gallery-index-from-pointer';
 import { useFinePointerHover } from '@/hooks/use-fine-pointer-hover';
@@ -62,6 +63,10 @@ interface ProductCardListProps {
 }
 
 export function ProductCardList({ product, className }: ProductCardListProps) {
+  const searchParams = useSearchParams();
+  const isDealerShowcase = searchParams.get('dealer') === '1';
+  const productHref = `/catalog/${product.slug}${isDealerShowcase ? '?dealer=1' : ''}`;
+  const brandHref = `/catalog?brand=${product.brand.slug}${isDealerShowcase ? '&dealer=1' : ''}`;
   const { addItem } = useCart();
   const { isInWishlist: wishlistHas, toggle } = useWishlist();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -206,7 +211,7 @@ export function ProductCardList({ product, className }: ProductCardListProps) {
         <div className="relative w-full sm:w-48 aspect-square flex-shrink-0 overflow-hidden bg-neutral-100 rounded-lg">
           {primaryImage ? (
             <Link
-              href={`/catalog/${product.slug}`}
+              href={productHref}
               className="block w-full h-full"
               onClick={(e) => { if (didSwipeRef.current) e.preventDefault(); }}
             >
@@ -312,12 +317,12 @@ export function ProductCardList({ product, className }: ProductCardListProps) {
           <div>
             {/* Brand & Name */}
             <Link
-              href={`/catalog?brand=${product.brand.slug}`}
+              href={brandHref}
               className="text-xs text-neutral-500 hover:text-neutral-900"
             >
               {product.brand.name}
             </Link>
-            <Link href={`/catalog/${product.slug}`}>
+            <Link href={productHref}>
               <h3 className="font-medium text-base mb-2 hover:text-primary transition-colors">
                 {product.name}
               </h3>

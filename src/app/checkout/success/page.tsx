@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { CheckCircle, Home, Package, Mail, Phone } from 'lucide-react';
+import { CheckCircle, Home, Package, Mail } from 'lucide-react';
 import Link from 'next/link';
 
 interface OrderData {
@@ -14,6 +15,8 @@ interface OrderData {
 
 export default function CheckoutSuccessPage() {
   const [orderData, setOrderData] = useState<OrderData | null>(null);
+  const searchParams = useSearchParams();
+  const isDealerMode = searchParams.get('dealer') === '1';
 
   useEffect(() => {
     const storedOrderData = localStorage.getItem('lastOrderData');
@@ -74,98 +77,62 @@ export default function CheckoutSuccessPage() {
                 </div>
               </div>
 
-              {/* Next Steps */}
-              <div className="mb-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">
-                  Что происходит дальше?
-                </h2>
-                <div className="space-y-4">
-                  <div className="flex gap-4 p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-100">
-                    <div className="flex-shrink-0">
-                      <div className="w-10 h-10 rounded-full bg-purple-500 flex items-center justify-center text-white font-bold">
-                        1
-                      </div>
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900 mb-1">Обработка заказа</h3>
-                      <p className="text-sm text-gray-600">
-                        Наш менеджер свяжется с вами в течение 30 минут для подтверждения заказа
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-4 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-100">
-                    <div className="flex-shrink-0">
-                      <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold">
-                        2
-                      </div>
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900 mb-1">Подготовка заказа</h3>
-                      <p className="text-sm text-gray-600">
-                        Мы соберём ваш заказ и тщательно упакуем каждый товар
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-4 p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-100">
-                    <div className="flex-shrink-0">
-                      <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center text-white font-bold">
-                        3
-                      </div>
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900 mb-1">Доставка</h3>
-                      <p className="text-sm text-gray-600">
-                        После подготовки заказ будет передан в службу доставки или подготовлен к самовывозу
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
               {/* Contact Information */}
               <div className="bg-gray-50 rounded-lg p-6 mb-8">
                 <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <Phone className="h-5 w-5" />
+                  <Mail className="h-5 w-5" />
                   Есть вопросы?
                 </h3>
                 <div className="space-y-2 text-sm text-gray-600">
-                  <p>
-                    Наша служба доставки работает ежедневно с 10:00 до 19:00
-                  </p>
-                  <p>
-                    Телефон:{' '}
-                    <a href="tel:88005008829" className="font-medium text-purple-600 hover:text-purple-700">
-                      8-800-500-88-29
-                    </a>
-                  </p>
-                  <p>
-                    <a href="tel:+79217892777" className="font-medium text-purple-600 hover:text-purple-700">
-                      8-921-789-27-77
-                    </a>
-                  </p>
-                  <p>
-                    Email:{' '}
-                    <a href="mailto:zakaz@aromarussia.ru" className="font-medium text-purple-600 hover:text-purple-700">
-                      zakaz@aromarussia.ru
-                    </a>
-                  </p>
+                  {isDealerMode ? (
+                    <>
+                      <p>Наша служба поддержки работает ежедневно с 10:00 до 19:00</p>
+                      <p>
+                        Email:{' '}
+                        <a href="mailto:opt@aromarussia.ru" className="font-medium text-purple-600 hover:text-purple-700">
+                          opt@aromarussia.ru
+                        </a>
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p>
+                        Наша служба доставки работает ежедневно с 10:00 до 19:00
+                      </p>
+                      <p>
+                        Телефон:{' '}
+                        <a href="tel:88005008829" className="font-medium text-purple-600 hover:text-purple-700">
+                          8-800-500-88-29
+                        </a>
+                      </p>
+                      <p>
+                        <a href="tel:+79217892777" className="font-medium text-purple-600 hover:text-purple-700">
+                          8-921-789-27-77
+                        </a>
+                      </p>
+                      <p>
+                        Email:{' '}
+                        <a href="mailto:zakaz@aromarussia.ru" className="font-medium text-purple-600 hover:text-purple-700">
+                          zakaz@aromarussia.ru
+                        </a>
+                      </p>
+                    </>
+                  )}
                 </div>
               </div>
 
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-4">
                 <Button size="lg" className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700" asChild>
-                  <Link href="/">
+                  <Link href={isDealerMode ? '/admin' : '/'}>
                     <Home className="mr-2 h-5 w-5" />
-                    На главную
+                    {isDealerMode ? 'В кабинет дилера' : 'На главную'}
                   </Link>
                 </Button>
                 <Button size="lg" variant="outline" className="flex-1" asChild>
-                  <Link href="/catalog">
+                  <Link href={isDealerMode ? '/catalog?dealer=1' : '/catalog'}>
                     <Package className="mr-2 h-5 w-5" />
-                    Продолжить покупки
+                    {isDealerMode ? 'Вернуться к витрине' : 'Продолжить покупки'}
                   </Link>
                 </Button>
               </div>

@@ -14,6 +14,7 @@ model User {
   phone                String?
   password             String
   role                 String         @default("user")
+  roles                String[]       @default([])
   isActive             Boolean        @default(true)
   unsubscribed         Boolean        @default(false) // Отписка от маркетинговых писем
   marketingConsent     String?        // "granted" | "denied" | null
@@ -24,7 +25,9 @@ model User {
   privacyAcceptedAt    DateTime?
   allowedAdminSections String[]       @default([])
   partnerId            String?
+  dealerProfileId      String?
   partner              Partner?       @relation("PartnerUsers", fields: [partnerId], references: [id], onDelete: SetNull)
+  dealerProfile        DealerProfile? @relation("DealerUsers", fields: [dealerProfileId], references: [id], onDelete: SetNull)
   addresses            Address[]
   orders               Order[]
   reviews              Review[]
@@ -69,6 +72,9 @@ model Category {
   children                   Category[]                 @relation("CategoryHierarchy")
   productCategories          ProductCategory[]
   seasonalDiscountCategories SeasonalDiscountCategory[]
+  dealerCategoryDiscounts    DealerCategoryDiscount[]
+  dealerCategoryAccesses     DealerCategoryAccess[]
+  dealerCategoryDiscountTiers DealerCategoryDiscountTier[]
 
   @@map("categories")
 }
@@ -85,6 +91,8 @@ model Brand {
   updatedAt     DateTime       @updatedAt
   products      Product[]
   partnerBrands PartnerBrand[]
+  dealerBrandAccesses DealerBrandAccess[]
+  dealerBrandDiscountTiers DealerBrandDiscountTier[]
 
   @@map("brands")
 }
@@ -118,6 +126,127 @@ model PartnerBrand {
 
   @@unique([partnerId, brandId])
   @@map("partner_brands")
+}
+
+model DealerProfile {
+  id                String                  @id @default(cuid())
+  companyName        String
+  contacts           String                  @db.Text
+  requisites         String                  @db.Text
+  status             String                  @default("active") // active | blocked
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+  users              User[]                  @relation("DealerUsers")
+  brandAccesses      DealerBrandAccess[]
+  categoryAccesses   DealerCategoryAccess[]
+  productDiscounts   DealerProductDiscount[]
+  categoryDiscounts  DealerCategoryDiscount[]
+  brandDiscountTiers DealerBrandDiscountTier[]
+  categoryDiscountTiers DealerCategoryDiscountTier[]
+  orders             Order[]
+
+  @@map("dealer_profiles")
+}
+
+model DealerBrandAccess {
+  id              String        @id @default(cuid())
+  dealerProfileId String
+  brandId         String
+  discountPercent Decimal       @default(0) @db.Decimal(5, 2)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  dealerProfile   DealerProfile @relation(fields: [dealerProfileId], references: [id], onDelete: Cascade)
+  brand           Brand         @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@unique([dealerProfileId, brandId])
+  @@map("dealer_brand_accesses")
+}
+
+model DealerProductDiscount {
+  id              String        @id @default(cuid())
+  dealerProfileId String
+  productId       String
+  discountPercent Decimal       @default(0) @db.Decimal(5, 2)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  dealerProfile   DealerProfile @relation(fields: [dealerProfileId], references: [id], onDelete: Cascade)
+  product         Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([dealerProfileId, productId])
+  @@map("dealer_product_discounts")
+}
+
+model DealerCategoryDiscount {
+  id              String        @id @default(cuid())
+  dealerProfileId String
+  categoryId      String
+  discountPercent Decimal       @default(0) @db.Decimal(5, 2)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  dealerProfile   DealerProfile @relation(fields: [dealerProfileId], references: [id], onDelete: Cascade)
+  category        Category      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([dealerProfileId, categoryId])
+  @@map("dealer_category_discounts")
+}
+
+model DealerCategoryAccess {
+  id              String        @id @default(cuid())
+  dealerProfileId String
+  categoryId      String
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  dealerProfile   DealerProfile @relation(fields: [dealerProfileId], references: [id], onDelete: Cascade)
+  category        Category      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([dealerProfileId, categoryId])
+  @@map("dealer_category_accesses")
+}
+
+model DealerBrandDiscountTier {
+  id              String        @id @default(cuid())
+  dealerProfileId String
+  brandId         String
+  minQty          Int
+  maxQty          Int?
+  discountPercent Decimal       @default(0) @db.Decimal(5, 2)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  dealerProfile   DealerProfile @relation(fields: [dealerProfileId], references: [id], onDelete: Cascade)
+  brand           Brand         @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@index([dealerProfileId, brandId, minQty])
+  @@map("dealer_brand_discount_tiers")
+}
+
+model DealerCategoryDiscountTier {
+  id              String        @id @default(cuid())
+  dealerProfileId String
+  categoryId      String
+  minQty          Int
+  maxQty          Int?
+  discountPercent Decimal       @default(0) @db.Decimal(5, 2)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  dealerProfile   DealerProfile @relation(fields: [dealerProfileId], references: [id], onDelete: Cascade)
+  category        Category      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@index([dealerProfileId, categoryId, minQty])
+  @@map("dealer_category_discount_tiers")
+}
+
+model DealerRequest {
+  id           String   @id @default(cuid())
+  companyName  String
+  contacts     String   @db.Text
+  requisites   String   @db.Text
+  brands       String   @db.Text
+  status       String   @default("new") // new | in_review | approved | rejected
+  managerNote  String?  @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("dealer_requests")
 }
 
 model Product {
@@ -163,6 +292,7 @@ model Product {
   reviews           Review[]
   seasonalDiscounts SeasonalDiscountProduct[]
   wishlist          WishlistItem[]
+  dealerDiscounts   DealerProductDiscount[]
 
   @@index([myWarehouseCode])
   @@map("products")
@@ -232,6 +362,7 @@ model Order {
   paymentStatus   String      @default("pending")
   paymentMethod   String
   deliveryMethod  String      @default("delivery")
+  orderType       String      @default("retail") // retail | dealer
   firstName       String
   lastName        String
   email           String
@@ -252,9 +383,11 @@ model Order {
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
   addressId       String?
+  dealerProfileId String?
   items           OrderItem[]
   address         Address?    @relation(fields: [addressId], references: [id])
   user            User?       @relation(fields: [userId], references: [id])
+  dealerProfile   DealerProfile? @relation(fields: [dealerProfileId], references: [id], onDelete: SetNull)
   
   // Поля СДЕК
   cdekOrderUuid        String?   // UUID заказа в системе СДЕК

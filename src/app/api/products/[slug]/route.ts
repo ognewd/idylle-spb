@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getImageUrl } from '@/lib/image-url';
+import { getDealerContextFromRequest, getDealerDiscountPercent } from '@/lib/dealer-context';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string }> | { slug: string } }
 ) {
   try {
+    const dealerContext = await getDealerContextFromRequest(request);
     // Поддержка как синхронных, так и асинхронных params (Next.js 14/15)
     const resolvedParams = await Promise.resolve(params);
     const slug = resolvedParams.slug;
@@ -74,6 +76,22 @@ export async function GET(
     }
 
     if (!product) {
+      return NextResponse.json(
+        { error: 'Product not found' },
+        { status: 404 }
+      );
+    }
+    if (dealerContext && !dealerContext.allowedBrandIds.includes(product.brandId)) {
+      return NextResponse.json(
+        { error: 'Product not found' },
+        { status: 404 }
+      );
+    }
+    if (
+      dealerContext &&
+      dealerContext.allowedCategoryIds.length > 0 &&
+      !product.productCategories.some((pc) => dealerContext.allowedCategoryIds.includes(pc.categoryId))
+    ) {
       return NextResponse.json(
         { error: 'Product not found' },
         { status: 404 }
@@ -192,7 +210,20 @@ export async function GET(
     // Compute seasonal discount and discounted price for the main product
     const seasonal = getSeasonalForProduct(product);
     const basePrice = Number(product.price);
-    const discountedPrice = seasonal ? Math.max(0, Math.round(basePrice * (100 - seasonal.discount) / 100)) : basePrice;
+    const seasonalDiscountPrice = seasonal ? Math.max(0, Math.round(basePrice * (100 - seasonal.discount) / 100)) : basePrice;
+    const dealerDiscountPercent = dealerContext
+      ? getDealerDiscountPercent({
+          productId: product.id,
+          brandId: product.brandId,
+          categoryIds: product.productCategories.map((pc) => pc.categoryId),
+          brandDiscountByBrandId: dealerContext.brandDiscountByBrandId,
+          productDiscountByProductId: dealerContext.productDiscountByProductId,
+          categoryDiscountByCategoryId: dealerContext.categoryDiscountByCategoryId,
+        })
+      : 0;
+    const discountedPrice = dealerDiscountPercent > 0
+      ? Math.max(0, Math.round(seasonalDiscountPrice * (100 - dealerDiscountPercent) / 100))
+      : seasonalDiscountPrice;
 
     // Получаем origin из запроса для правильного формирования URL изображений
     let requestOrigin = 'https://aromarussia.ru'; // fallback
@@ -218,7 +249,8 @@ export async function GET(
         averageRating: Math.round(averageRating * 10) / 10,
         reviewCount: reviews.length,
         price: discountedPrice,
-        comparePrice: seasonal ? basePrice : (product.comparePrice ? Number(product.comparePrice) : null),
+        comparePrice: seasonal || dealerDiscountPercent > 0 ? basePrice : (product.comparePrice ? Number(product.comparePrice) : null),
+        dealerDiscountPercent: dealerDiscountPercent > 0 ? dealerDiscountPercent : null,
         seasonalDiscount: seasonal || null,
         weight: product.weight ? Number(product.weight) : null,
         images: product.images.map(img => {

@@ -26,6 +26,7 @@ import Link from 'next/link';
 interface Order {
   id: string;
   orderNumber: string;
+  orderType?: string;
   firstName: string;
   lastName: string;
   email: string;
@@ -69,6 +70,7 @@ export default function AdminOrdersPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [paymentStatusFilter, setPaymentStatusFilter] = useState('all');
+  const [orderTypeFilter, setOrderTypeFilter] = useState<'all' | 'dealer' | 'retail'>('all');
 
   useEffect(() => {
     fetchOrders();
@@ -103,8 +105,10 @@ export default function AdminOrdersPage() {
     
     const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
     const matchesPaymentStatus = paymentStatusFilter === 'all' || order.paymentStatus === paymentStatusFilter;
+    const matchesOrderType =
+      orderTypeFilter === 'all' || (order.orderType || 'retail') === orderTypeFilter;
 
-    return matchesSearch && matchesStatus && matchesPaymentStatus;
+    return matchesSearch && matchesStatus && matchesPaymentStatus && matchesOrderType;
   });
 
   const getDeliveryMethodLabel = (order: Order) => {
@@ -171,7 +175,7 @@ export default function AdminOrdersPage() {
       {/* Filters */}
       <Card className="mb-6">
         <CardContent className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -206,6 +210,17 @@ export default function AdminOrdersPage() {
                 <SelectItem value="paid">Оплачен</SelectItem>
                 <SelectItem value="failed">Ошибка</SelectItem>
                 <SelectItem value="refunded">Возврат</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={orderTypeFilter} onValueChange={(v) => setOrderTypeFilter(v as 'all' | 'dealer' | 'retail')}>
+              <SelectTrigger>
+                <SelectValue placeholder="Тип заказа" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Все типы</SelectItem>
+                <SelectItem value="dealer">Только дилерские</SelectItem>
+                <SelectItem value="retail">Только розничные</SelectItem>
               </SelectContent>
             </Select>
 
@@ -248,7 +263,12 @@ export default function AdminOrdersPage() {
                   return (
                     <TableRow key={order.id}>
                       <TableCell className="font-medium">
-                        {order.orderNumber}
+                        <div className="flex items-center gap-2">
+                          <span>{order.orderNumber}</span>
+                          {order.orderType === 'dealer' && (
+                            <Badge className="bg-indigo-100 text-indigo-800">Дилер</Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div>

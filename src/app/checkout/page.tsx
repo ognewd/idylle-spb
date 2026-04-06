@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import { CreditCard, FileText, Banknote, Store, CheckCircle, User, ShoppingBag, AlertCircle, Loader2, Search, MapPin } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { CityAutocomplete, CitySuggestion } from '@/components/ui/city-autocomplete';
@@ -92,10 +92,13 @@ function pvzMatchesSearchQuery(p: CdekPvzItem, rawQuery: string): boolean {
 
 export default function CheckoutPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { items, totalPrice, totalWeightGrams, clearCart } = useCart();
   const { data: session } = useSession();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showGuestOption, setShowGuestOption] = useState(!session?.user);
+  const [dealerProfileId, setDealerProfileId] = useState<string | null>(null);
+  const isDealerMode = searchParams.get('mode') === 'dealer';
   
   // Шаг 1: Контакты
   const [phone, setPhone] = useState('');
@@ -233,6 +236,21 @@ export default function CheckoutPage() {
         .catch(error => console.error('Error fetching user data:', error));
     }
   }, [session]);
+
+  useEffect(() => {
+    if (!isDealerMode) return;
+    setPaymentMethod('invoice');
+    setDeliveryMethod('spb_boutique');
+    try {
+      const token = localStorage.getItem('admin_token');
+      if (token) {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        setDealerProfileId(payload?.dealerProfileId || null);
+      }
+    } catch {
+      setDealerProfileId(null);
+    }
+  }, [isDealerMode]);
 
   // Определяем, является ли выбранный город СПб
   const isSpb = selectedCity ? isSaintPetersburg(selectedCity.code, selectedCity.city) : false;
@@ -452,7 +470,9 @@ export default function CheckoutPage() {
 
   // Расчет итоговой стоимости
   let deliveryPrice = 0;
-  if (isSpb && deliveryMethod === 'spb_courier') {
+  if (isDealerMode) {
+    deliveryPrice = 0;
+  } else if (isSpb && deliveryMethod === 'spb_courier') {
     deliveryPrice = totalPrice >= DELIVERY_CONFIG.SPB_FREE_DELIVERY_THRESHOLD ? 0 : DELIVERY_CONFIG.SPB_COURIER_PRICE;
   } else if (isSpb && deliveryMethod === 'spb_boutique') {
     deliveryPrice = DELIVERY_CONFIG.BOUTIQUE_PICKUP_PRICE;
@@ -473,8 +493,8 @@ export default function CheckoutPage() {
     try {
       // Определяем deliveryMethod для API
       let apiDeliveryMethod: string = 'delivery';
-      if (deliveryMethod === 'spb_boutique') apiDeliveryMethod = 'pickup';
-      if (deliveryMethod?.includes('cdek') || deliveryMethod === 'spb_cdek') apiDeliveryMethod = 'cdek';
+      if (isDealerMode || deliveryMethod === 'spb_boutique') apiDeliveryMethod = 'pickup';
+      if (!isDealerMode && (deliveryMethod?.includes('cdek') || deliveryMethod === 'spb_cdek')) apiDeliveryMethod = 'cdek';
 
       const orderPayload = {
         items: items.map(item => ({
@@ -489,9 +509,11 @@ export default function CheckoutPage() {
         email,
         phone,
         deliveryMethod: apiDeliveryMethod,
-        paymentMethod,
-        city: selectedCity?.city || null,
-        address: deliveryMethod === 'spb_courier' || deliveryMethod === 'cdek_courier'
+        paymentMethod: isDealerMode ? 'invoice' : paymentMethod,
+        orderType: isDealerMode ? 'dealer' : 'retail',
+        dealerProfileId: isDealerMode ? dealerProfileId : null,
+        city: isDealerMode ? null : (selectedCity?.city || null),
+        address: !isDealerMode && (deliveryMethod === 'spb_courier' || deliveryMethod === 'cdek_courier')
           ? `${address.street}, д. ${address.house}${address.apartment ? ', кв. ' + address.apartment : ''}`
           : null,
         orderComment: formData.comment?.trim() || null,
@@ -500,7 +522,7 @@ export default function CheckoutPage() {
         inn: paymentMethod === 'invoice' ? formData.inn : null,
         kpp: paymentMethod === 'invoice' ? formData.kpp : null,
         companyAddress: paymentMethod === 'invoice' ? formData.companyAddress : null,
-        ...(apiDeliveryMethod === 'cdek' && cdekData && {
+        ...(apiDeliveryMethod === 'cdek' && cdekData && !isDealerMode && {
           cdekTariffCode: cdekData.tariff?.tariff_code,
           cdekTariffName: cdekData.tariff?.tariff_name,
           cdekDeliveryType: cdekData.deliveryType,
@@ -511,7 +533,7 @@ export default function CheckoutPage() {
       };
 
       // --- Оплата картой: сначала платёж, заказ создастся после оплаты ---
-      if (paymentMethod === 'card') {
+      if (!isDealerMode && paymentMethod === 'card') {
         console.log('[BSPB] Начинаем оплату картой, сумма:', finalPrice);
         const bspbRes = await fetch('/api/payments/bspb/create', {
           method: 'POST',
@@ -566,7 +588,7 @@ export default function CheckoutPage() {
         lastName: formData.lastName,
       }));
 
-      router.push('/checkout/success');
+      router.push(isDealerMode ? '/checkout/success?dealer=1' : '/checkout/success');
       setTimeout(() => clearCart(), 100);
     } catch (error) {
       console.error('Error submitting order:', error);
@@ -581,6 +603,13 @@ export default function CheckoutPage() {
         <h1 className="text-3xl md:text-4xl font-bold mb-8">Оформление заказа</h1>
 
         <form onSubmit={handleSubmit}>
+          {isDealerMode && (
+            <Card className="mb-6 border-amber-200 bg-amber-50">
+              <CardContent className="pt-6 text-sm text-amber-900">
+                Дилерский режим: оформляется оптовый заказ без доставки (самовывоз). После отправки заявки ожидайте подтверждение и счет.
+              </CardContent>
+            </Card>
+          )}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Main Form */}
             <div className="lg:col-span-2 space-y-6">

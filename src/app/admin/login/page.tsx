@@ -50,7 +50,11 @@ export default function AdminLoginPage() {
         console.log('Full data:', data);
         localStorage.setItem('admin_token', data.token);
         console.log('Token saved to localStorage');
-        router.push('/admin');
+        if (data.requiresModeSelection) {
+          router.push('/admin/mode-select');
+        } else {
+          router.push('/admin');
+        }
       } else {
         console.error('Login error:', data);
         setError(data.error || 'Ошибка входа');
