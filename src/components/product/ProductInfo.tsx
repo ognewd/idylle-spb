@@ -4,9 +4,16 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Heart, ShoppingCart, Star, Truck, Shield, RotateCcw, MessageCircle } from 'lucide-react';
+import {
+  Heart,
+  ShoppingCart,
+  Star,
+  Truck,
+  Shield,
+  RotateCcw,
+  MessageCircle,
+} from 'lucide-react';
 import { cn, getReviewWord } from '@/lib/utils';
 import { sanitizeHtml } from '@/lib/sanitize';
 import { useCart } from '@/contexts/CartContext';
@@ -94,6 +101,30 @@ interface ProductInfoProps {
   className?: string;
 }
 
+function SpecRow({
+  label,
+  children,
+  valueClassName,
+}: {
+  label: string;
+  children: React.ReactNode;
+  valueClassName?: string;
+}) {
+  return (
+    <div className="flex flex-col gap-0.5 py-3.5 transition-colors hover:bg-neutral-50/80 sm:flex-row sm:items-start sm:gap-8">
+      <span className="shrink-0 text-sm font-medium text-neutral-500 sm:w-52">{label}</span>
+      <div
+        className={cn(
+          'min-w-0 flex-1 break-words text-sm font-semibold text-neutral-900',
+          valueClassName
+        )}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export function ProductInfo({ product, className }: ProductInfoProps) {
   const { addItem } = useCart();
   
@@ -121,6 +152,30 @@ export function ProductInfo({ product, className }: ProductInfoProps) {
       ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length 
       : 0);
   const isOutOfStock = finalStock === 0;
+
+  const hasStructuredNotesInTable =
+    !!product.topNotes &&
+    !!product.topNotes.match(
+      /Верхние ноты:|Сердце аромата:|Средние ноты:|Ноты сердца:|Ноты шлейфа:|Базовые ноты:/i
+    );
+
+  const showTopNotesInTable =
+    !!product.topNotes &&
+    product.topNotes.trim() !== '' &&
+    product.topNotes.trim() !== '-' &&
+    !hasStructuredNotesInTable;
+
+  const hasExtendedSpecs =
+    (product.productCategories && product.productCategories.length > 0) ||
+    (product.productType && product.productType.trim() && product.productType.trim() !== '-') ||
+    !!showTopNotesInTable ||
+    (product.volume && product.volume.trim() && product.volume.trim() !== '-') ||
+    (product.weight && product.weight > 0) ||
+    (product.dimensions && product.dimensions.trim() && product.dimensions.trim() !== '-') ||
+    (product.purpose && product.purpose.trim() && product.purpose.trim() !== '-') ||
+    (product.brandCountry && product.brandCountry.trim() && product.brandCountry.trim() !== '-') ||
+    (product.manufactureCountry && product.manufactureCountry.trim() && product.manufactureCountry.trim() !== '-') ||
+    (product.barcode && product.barcode.trim() && product.barcode.trim() !== '-');
 
   const handleAddToWishlist = () => {
     setIsInWishlist(!isInWishlist);
@@ -163,59 +218,58 @@ export function ProductInfo({ product, className }: ProductInfoProps) {
   };
 
   return (
-    <div className={cn("space-y-6", className)}>
+    <div className={cn('space-y-5', className)}>
       {/* Brand */}
       <Link
         href={`/catalog?brand=${product.brand.slug}`}
-        className="text-sm text-muted-foreground hover:text-primary transition-colors"
+        className="text-sm font-normal text-neutral-400 transition-colors hover:text-neutral-600"
       >
         {product.brand.name}
       </Link>
 
       {/* Product Name - используем shortName если есть, иначе name */}
-      <h1 className="text-3xl font-bold">{product.shortName || product.name}</h1>
-
-      <ProductWantAsGift
-        productName={product.shortName || product.name}
-        productSlug={product.slug}
-      />
+      <h1 className="text-2xl font-semibold leading-snug tracking-tight text-neutral-900 lg:text-[1.65rem]">
+        {product.shortName || product.name}
+      </h1>
 
       {/* Rating and Reviews */}
       {reviewCount > 0 && (
-        <div className="flex items-center space-x-2">
-          <div className="flex items-center">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-0.5">
             {[...Array(5)].map((_, i) => (
               <Star
                 key={i}
                 className={cn(
-                  "h-4 w-4",
+                  'h-5 w-5',
                   i < Math.floor(averageRating)
-                    ? "fill-yellow-400 text-yellow-400"
-                    : "text-muted-foreground"
+                    ? 'fill-yellow-400 text-yellow-400'
+                    : 'text-neutral-300'
                 )}
               />
             ))}
           </div>
-          <span className="text-sm text-muted-foreground">
-            {averageRating.toFixed(1)} ({reviewCount} {getReviewWord(reviewCount)})
+          <span className="text-sm text-neutral-600">
+            <span className="font-medium text-neutral-900">{averageRating.toFixed(1)}</span>
+            {' '}
+            ({reviewCount} {getReviewWord(reviewCount)})
           </span>
         </div>
       )}
 
       {/* Price */}
-      <div className="flex items-center space-x-3">
-        <span className="text-3xl font-bold">
+      <div className="flex flex-wrap items-baseline gap-3">
+        <span className="text-2xl font-normal tracking-tight text-neutral-900 lg:text-[1.75rem] tabular-nums">
           {finalPrice.toLocaleString('ru-RU')} ₽
         </span>
         {finalComparePrice && (
-          <span className="text-lg text-muted-foreground line-through">
+          <span className="text-lg text-neutral-400 line-through">
             {finalComparePrice.toLocaleString('ru-RU')} ₽
           </span>
         )}
         {discountPercentage > 0 && (
-          <Badge variant="destructive" className="text-sm">
-            -{discountPercentage}%
-          </Badge>
+          <span className="inline-flex items-center rounded-md bg-neutral-900 px-2 py-0.5 text-xs font-semibold text-white">
+            −{discountPercentage}%
+          </span>
         )}
       </div>
       
@@ -245,143 +299,41 @@ export function ProductInfo({ product, className }: ProductInfoProps) {
 
         const trimNotes = (s: string) => s.trim().replace(/\s+/g, ' ');
 
-        const blocks: { header: string; content: string; bg: string; headerCl: string; contentCl: string; maxW: string }[] = [];
-        if (topNotesMatch) blocks.push({ header: topNotesMatch[1], content: trimNotes(topNotesMatch[2]), bg: '#FEF3C7', headerCl: 'text-amber-900', contentCl: 'text-amber-800', maxW: 'max-w-md' });
-        if (heartNotesMatch) blocks.push({ header: heartNotesMatch[1], content: trimNotes(heartNotesMatch[2]), bg: '#FCE7F3', headerCl: 'text-rose-900', contentCl: 'text-rose-800', maxW: 'max-w-lg' });
-        if (baseNotesMatch) blocks.push({ header: baseNotesMatch[1], content: trimNotes(baseNotesMatch[2]), bg: '#FED7AA', headerCl: 'text-orange-900', contentCl: 'text-orange-800', maxW: 'max-w-xl' });
+        const blocks: { header: string; content: string }[] = [];
+        if (topNotesMatch) blocks.push({ header: topNotesMatch[1], content: trimNotes(topNotesMatch[2]) });
+        if (heartNotesMatch) blocks.push({ header: heartNotesMatch[1], content: trimNotes(heartNotesMatch[2]) });
+        if (baseNotesMatch) blocks.push({ header: baseNotesMatch[1], content: trimNotes(baseNotesMatch[2]) });
+
+        const noteBars = [
+          { bg: 'bg-[#FEF9C7]', label: 'text-amber-900', body: 'text-amber-900/90' },
+          { bg: 'bg-[#FCE7F3]', label: 'text-pink-900', body: 'text-pink-900/90' },
+          { bg: 'bg-[#FFEDD5]', label: 'text-orange-950', body: 'text-orange-900/90' },
+        ] as const;
 
         return (
-          <div className="space-y-2 flex flex-col items-start">
-            {blocks.map((b, i) => (
-              <div key={i} className={cn('py-2 px-4 rounded-md', b.maxW)} style={{ backgroundColor: b.bg }}>
-                <span className={cn(b.headerCl)}>{b.header} </span>
-                <span className={cn('text-sm', b.contentCl)}>{b.content}</span>
-              </div>
-            ))}
+          <div className="flex flex-col gap-2">
+            {blocks.map((b, i) => {
+              const t = noteBars[i % noteBars.length];
+              return (
+                <div key={i} className={cn('rounded-lg px-3.5 py-2.5', t.bg)}>
+                  <p className={cn('text-[13px] leading-snug', t.body)}>
+                    <span className={cn('font-semibold', t.label)}>{b.header} </span>
+                    {b.content}
+                  </p>
+                </div>
+              );
+            })}
           </div>
         );
       })()}
 
-      {/* Характеристики товара */}
-      {(() => {
-        // Проверяем, есть ли структурированные ноты (если да, не показываем topNotes в таблице)
-        const hasStructuredNotes = product.topNotes &&
-          product.topNotes.match(/Верхние ноты:|Сердце аромата:|Средние ноты:|Ноты сердца:|Ноты шлейфа:|Базовые ноты:/i);
-        
-        const showTopNotesInTable = product.topNotes && 
-          product.topNotes.trim() && 
-          product.topNotes.trim() !== '-' && 
-          !hasStructuredNotes;
-        
-        return (product.productCategories && product.productCategories.length > 0) ||
-         (product.productType && product.productType.trim() && product.productType.trim() !== '-') ||
-         showTopNotesInTable ||
-         (product.volume && product.volume.trim() && product.volume.trim() !== '-') ||
-         (product.weight && product.weight > 0) ||
-         (product.dimensions && product.dimensions.trim() && product.dimensions.trim() !== '-') ||
-         (product.purpose && product.purpose.trim() && product.purpose.trim() !== '-') ||
-         (product.brandCountry && product.brandCountry.trim() && product.brandCountry.trim() !== '-') ||
-         (product.manufactureCountry && product.manufactureCountry.trim() && product.manufactureCountry.trim() !== '-') ||
-         (product.barcode && product.barcode.trim() && product.barcode.trim() !== '-');
-      })() ? (
-        <div className="border rounded-lg p-4 bg-gray-50">
-          <h2 className="text-lg font-semibold mb-4">Характеристики</h2>
-          <div className="grid gap-x-4 text-sm" style={{ gridTemplateColumns: 'minmax(11rem, max-content) 1fr' }}>
-            <span className="py-2 pr-2 border-b border-gray-200 text-muted-foreground font-medium whitespace-nowrap">Бренд:</span>
-            <span className="py-2 border-b border-gray-200 min-w-0 break-words">{product.brand.name}</span>
-
-            {product.productCategories && product.productCategories.length > 0 && (
-              <>
-                <span className="py-2 pr-2 border-b border-gray-200 text-muted-foreground font-medium whitespace-nowrap">Категория:</span>
-                <span className="py-2 border-b border-gray-200 min-w-0 break-words">{product.productCategories[0]?.category.name}</span>
-              </>
-            )}
-
-            {product.productType && product.productType.trim() && product.productType.trim() !== '-' && (
-              <>
-                <span className="py-2 pr-2 border-b border-gray-200 text-muted-foreground font-medium whitespace-nowrap">Вид товара:</span>
-                <span className="py-2 border-b border-gray-200 min-w-0 break-words">{product.productType}</span>
-              </>
-            )}
-            
-            {(() => {
-              const hasStructuredNotes = product.topNotes &&
-                product.topNotes.match(/Верхние ноты:|Сердце аромата:|Средние ноты:|Ноты сердца:|Ноты шлейфа:|Базовые ноты:/i);
-              if (!product.topNotes || !product.topNotes.trim() || product.topNotes.trim() === '-' || hasStructuredNotes) return null;
-              return (
-                <>
-                  <span className="py-2 pr-2 border-b border-gray-200 text-muted-foreground font-medium whitespace-nowrap">Основные ноты:</span>
-                  <span className="py-2 border-b border-gray-200 min-w-0 break-words">{product.topNotes}</span>
-                </>
-              );
-            })()}
-
-            {product.volume && product.volume.trim() && product.volume.trim() !== '-' && (
-              <>
-                <span className="py-2 pr-2 border-b border-gray-200 text-muted-foreground font-medium whitespace-nowrap">Объем:</span>
-                <span className="py-2 border-b border-gray-200 min-w-0 break-words">{product.volume}</span>
-              </>
-            )}
-
-            {product.weight && product.weight > 0 && (
-              <>
-                <span className="py-2 pr-2 border-b border-gray-200 text-muted-foreground font-medium whitespace-nowrap">Вес:</span>
-                <span className="py-2 border-b border-gray-200 min-w-0 break-words">{product.weight} г</span>
-              </>
-            )}
-
-            {product.dimensions && product.dimensions.trim() && product.dimensions.trim() !== '-' && (
-              <>
-                <span className="py-2 pr-2 border-b border-gray-200 text-muted-foreground font-medium whitespace-nowrap">Размеры:</span>
-                <span className="py-2 border-b border-gray-200 min-w-0 break-words">{product.dimensions}</span>
-              </>
-            )}
-
-            {product.purpose && product.purpose.trim() && product.purpose.trim() !== '-' && (
-              <>
-                <span className="py-2 pr-2 border-b border-gray-200 text-muted-foreground font-medium whitespace-nowrap">Назначение:</span>
-                <span className="py-2 border-b border-gray-200 min-w-0 break-words">{product.purpose}</span>
-              </>
-            )}
-
-            {product.brandCountry && product.brandCountry.trim() && product.brandCountry.trim() !== '-' && (
-              <>
-                <span className="py-2 pr-2 border-b border-gray-200 text-muted-foreground font-medium whitespace-nowrap">Страна происхождения бренда:</span>
-                <span className="py-2 border-b border-gray-200 min-w-0 break-words">{product.brandCountry}</span>
-              </>
-            )}
-
-            {product.manufactureCountry && product.manufactureCountry.trim() && product.manufactureCountry.trim() !== '-' && (
-              <>
-                <span className="py-2 pr-2 border-b border-gray-200 text-muted-foreground font-medium whitespace-nowrap">Страна производства:</span>
-                <span className="py-2 border-b border-gray-200 min-w-0 break-words">{product.manufactureCountry}</span>
-              </>
-            )}
-
-            {product.barcode && product.barcode.trim() && product.barcode.trim() !== '-' && (
-              <>
-                <span className="py-2 pr-2 border-b border-gray-200 text-muted-foreground font-medium whitespace-nowrap">Штрихкод:</span>
-                <span className={cn('py-2 border-b border-gray-200 min-w-0 break-words font-mono')}>{product.barcode}</span>
-              </>
-            )}
-          </div>
-        </div>
-      ) : (
-        // Если нет характеристик, показываем только бренд
-        <div className="border rounded-lg p-4 bg-gray-50">
-          <h2 className="text-lg font-semibold mb-4">Характеристики</h2>
-          <div className="grid gap-x-4 text-sm" style={{ gridTemplateColumns: 'minmax(11rem, max-content) 1fr' }}>
-            <span className="py-2 pr-2 border-b border-gray-200 text-muted-foreground font-medium whitespace-nowrap">Бренд:</span>
-            <span className="py-2 border-b border-gray-200 min-w-0 break-words">{product.brand.name}</span>
-          </div>
-        </div>
-      )}
-
       {/* Variants */}
       {product.variants && product.variants.length > 0 && (
         <div className="space-y-3">
-          <h3 className="font-medium">{product.variants[0]?.name || 'Варианты'}:</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          <h3 className="text-base font-semibold tracking-tight text-neutral-900">
+            {product.variants[0]?.name || 'Варианты'}:
+          </h3>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {product.variants.map((variant) => {
               const isSelected = selectedVariant?.id === variant.id;
               const variantDiscount = variant.comparePrice
@@ -392,11 +344,11 @@ export function ProductInfo({ product, className }: ProductInfoProps) {
                 <div
                   key={variant.id}
                   className={cn(
-                    "relative p-4 border-2 rounded-lg transition-all",
-                    "hover:border-primary",
-                    isSelected 
-                      ? "border-primary bg-primary/5" 
-                      : "border-gray-200"
+                    'relative rounded-xl border bg-white p-5 transition-shadow duration-200',
+                    'hover:border-neutral-300 hover:shadow-sm',
+                    isSelected
+                      ? 'border-neutral-900 shadow-sm ring-1 ring-neutral-900'
+                      : 'border-neutral-200'
                   )}
                 >
                   {/* Discount Badge */}
@@ -441,7 +393,7 @@ export function ProductInfo({ product, className }: ProductInfoProps) {
                   {/* Add to Cart Button */}
                   <Button
                     size="sm"
-                    className="w-full"
+                    className="w-full rounded-xl bg-neutral-900 font-semibold text-white shadow-none transition-colors hover:bg-neutral-800 disabled:opacity-50"
                     disabled={variant.stock === 0}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -488,23 +440,27 @@ export function ProductInfo({ product, className }: ProductInfoProps) {
 
       {/* Actions for products without variants */}
       {(!product.variants || product.variants.length === 0) && (
-        <div className="space-y-4">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <span className="text-sm font-medium">Количество:</span>
-              <div className="flex items-center border rounded-md">
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-neutral-700">Количество:</span>
+              <div className="flex h-9 items-center overflow-hidden rounded-lg border border-neutral-300 bg-white">
                 <Button
                   variant="ghost"
                   size="sm"
+                  className="h-9 rounded-none px-2.5 text-neutral-700 hover:bg-neutral-50"
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
                   disabled={quantity <= 1}
                 >
-                  -
+                  −
                 </Button>
-                <span className="px-3 py-1 min-w-[3rem] text-center">{quantity}</span>
+                <span className="min-w-[2.25rem] px-1.5 text-center text-sm font-medium tabular-nums text-neutral-900">
+                  {quantity}
+                </span>
                 <Button
                   variant="ghost"
                   size="sm"
+                  className="h-9 rounded-none px-2.5 text-neutral-700 hover:bg-neutral-50"
                   onClick={() => setQuantity(Math.min(finalStock, quantity + 1))}
                   disabled={quantity >= finalStock}
                 >
@@ -512,33 +468,33 @@ export function ProductInfo({ product, className }: ProductInfoProps) {
                 </Button>
               </div>
             </div>
+            {finalStock > 0 && finalStock < 10 && (
+              <span className="text-sm text-orange-600">Осталось {finalStock} шт.</span>
+            )}
           </div>
 
-          <div className="flex space-x-3">
+          <div className="flex gap-3">
             <Button
-              className="flex-1"
+              className="h-10 flex-1 rounded-xl bg-neutral-900 text-sm font-semibold text-white hover:bg-neutral-800 disabled:opacity-50"
               size="lg"
               disabled={isOutOfStock}
               onClick={handleAddToCart}
             >
-              <ShoppingCart className="h-4 w-4 mr-2" />
+              <ShoppingCart className="mr-2 h-4 w-4" />
               {isOutOfStock ? 'Нет в наличии' : 'В корзину'}
             </Button>
             <Button
               variant="outline"
               size="lg"
+              className="h-10 w-10 shrink-0 rounded-xl border-neutral-300 bg-white p-0 text-neutral-900 hover:bg-neutral-50"
               onClick={handleAddToWishlist}
+              aria-label={isInWishlist ? 'Убрать из избранного' : 'В избранное'}
             >
-              <Heart className={cn("h-4 w-4", isInWishlist && "fill-red-500 text-red-500")} />
+              <Heart
+                className={cn('mx-auto h-5 w-5', isInWishlist ? 'fill-red-500 text-red-500' : 'text-neutral-900')}
+              />
             </Button>
           </div>
-
-          {/* Stock Status */}
-          {finalStock > 0 && finalStock < 10 && (
-            <p className="text-sm text-orange-600">
-              Осталось {finalStock} шт.
-            </p>
-          )}
         </div>
       )}
       
@@ -549,12 +505,12 @@ export function ProductInfo({ product, className }: ProductInfoProps) {
             variant="outline"
             size="lg"
             onClick={handleAddToWishlist}
-            className="min-w-[200px]"
+            className="h-11 rounded-xl border-neutral-300 bg-white px-5 text-sm font-medium text-neutral-900 hover:bg-neutral-50"
           >
             <Heart
               className={cn(
-                "h-4 w-4 mr-2",
-                isInWishlist ? "fill-red-500 text-red-500" : ""
+                'mr-2 h-4 w-4',
+                isInWishlist ? 'fill-red-500 text-red-500' : 'text-neutral-900'
               )}
             />
             {isInWishlist ? 'В избранном' : 'В избранное'}
@@ -562,113 +518,111 @@ export function ProductInfo({ product, className }: ProductInfoProps) {
         </div>
       )}
 
-      {/* Features - Modern Design */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6">
-        <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 p-4 border border-blue-100 hover:border-blue-200 transition-all hover:shadow-md">
-          <div className="flex items-start space-x-3">
-            <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-blue-100 group-hover:bg-blue-200 flex items-center justify-center transition-colors">
-              <Truck className="h-5 w-5 text-blue-600" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-xs font-semibold text-blue-600 uppercase tracking-wide mb-1">Доставка</div>
-              <div className="text-sm font-medium text-gray-900 leading-tight">Бесплатная от 15000₽ по СПБ</div>
-            </div>
-          </div>
-        </div>
-        
-        <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 p-4 border border-emerald-100 hover:border-emerald-200 transition-all hover:shadow-md">
-          <div className="flex items-start space-x-3">
-            <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-emerald-100 group-hover:bg-emerald-200 flex items-center justify-center transition-colors">
-              <Shield className="h-5 w-5 text-emerald-600" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-xs font-semibold text-emerald-600 uppercase tracking-wide mb-1">Гарантия</div>
-              <div className="text-sm font-medium text-gray-900 leading-tight">Качество гарантировано</div>
-            </div>
-          </div>
-        </div>
-        
-        <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 p-4 border border-amber-100 hover:border-amber-200 transition-all hover:shadow-md">
-          <div className="flex items-start space-x-3">
-            <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-amber-100 group-hover:bg-amber-200 flex items-center justify-center transition-colors">
-              <RotateCcw className="h-5 w-5 text-amber-600" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-xs font-semibold text-amber-600 uppercase tracking-wide mb-1">Возврат</div>
-              <div className="text-sm font-medium text-gray-900 leading-tight">В течение 14 дней</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Помощь с заказом */}
-      <div className="mt-6 p-4 bg-white rounded-xl border-2 border-primary/20 shadow-sm hover:shadow-md transition-shadow">
-        <div className="flex items-start space-x-3">
-          <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-            <MessageCircle className="h-5 w-5 text-primary" />
-          </div>
-          <div className="flex-1">
-            <h3 className="font-semibold mb-2">Нужна помощь с заказом?</h3>
-            <a href="tel:89215990090" className="text-primary hover:underline font-medium block mb-3">
-              тел. 8-921-599-00-90
-            </a>
-            <div className="flex gap-2">
-              <Link 
-                href="https://wa.me/79217892777" 
-                target="_blank"
-                className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm font-medium"
-              >
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
-                </svg>
-                WhatsApp
-              </Link>
-              <Link 
-                href="https://t.me/+79217892777" 
-                target="_blank"
-                className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium"
-              >
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.139-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.831-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
-                </svg>
-                Telegram
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
+      <ProductWantAsGift
+        productName={product.shortName || product.name}
+        productSlug={product.slug}
+        className="h-10 w-full justify-center sm:justify-center"
+      />
 
       {/* Product Details Tabs */}
       <Tabs defaultValue="description" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="description">Описание</TabsTrigger>
-          <TabsTrigger value="reviews">Отзывы ({reviewCount})</TabsTrigger>
+        <TabsList className="mb-0 flex h-auto w-full flex-wrap justify-center gap-6 rounded-none border-0 border-b border-neutral-200 bg-transparent p-0 pb-0 shadow-none sm:gap-10">
+          <TabsTrigger
+            value="description"
+            className="-mb-px rounded-none border-0 border-b-2 border-transparent bg-transparent px-0 py-3 text-sm font-medium text-neutral-500 shadow-none ring-offset-0 transition-colors hover:text-neutral-800 data-[state=active]:!bg-transparent data-[state=active]:border-neutral-900 data-[state=active]:text-neutral-900 data-[state=active]:shadow-none"
+          >
+            Описание
+          </TabsTrigger>
+          <TabsTrigger
+            value="specs"
+            className="-mb-px rounded-none border-0 border-b-2 border-transparent bg-transparent px-0 py-3 text-sm font-medium text-neutral-500 shadow-none ring-offset-0 transition-colors hover:text-neutral-800 data-[state=active]:!bg-transparent data-[state=active]:border-neutral-900 data-[state=active]:text-neutral-900 data-[state=active]:shadow-none"
+          >
+            Характеристики
+          </TabsTrigger>
+          <TabsTrigger
+            value="reviews"
+            className="-mb-px rounded-none border-0 border-b-2 border-transparent bg-transparent px-0 py-3 text-sm font-medium text-neutral-500 shadow-none ring-offset-0 transition-colors hover:text-neutral-800 data-[state=active]:!bg-transparent data-[state=active]:border-neutral-900 data-[state=active]:text-neutral-900 data-[state=active]:shadow-none"
+          >
+            Отзывы ({reviewCount})
+          </TabsTrigger>
         </TabsList>
-        
-        <TabsContent value="description" className="mt-4 space-y-6">
-          <div className="prose prose-sm max-w-none">
+
+        <TabsContent value="description" className="mt-8 space-y-6">
+          <div className="prose prose-sm max-w-none text-neutral-800">
             {product.description ? (
               <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(product.description) }} />
             ) : (
               <p className="text-muted-foreground">Описание товара отсутствует</p>
             )}
           </div>
-          
-          {/* Способ применения */}
+
           {product.usageInstructions && (
-            <div className="mt-6 pt-6 border-t">
-              <h3 className="font-semibold text-lg mb-3">Способ применения</h3>
-              <div className="text-sm text-muted-foreground whitespace-pre-line">
+            <div className="rounded-xl bg-neutral-100 p-6">
+              <h3 className="mb-3 text-lg font-semibold text-neutral-900">Способ применения</h3>
+              <div className="whitespace-pre-line text-sm leading-relaxed text-neutral-700">
                 {product.usageInstructions}
               </div>
             </div>
           )}
         </TabsContent>
-        
-        <TabsContent value="reviews" className="mt-4">
+
+        <TabsContent value="specs" className="mt-8">
+          <div className="rounded-xl border border-neutral-200 bg-neutral-50/50 p-6">
+            <div className="divide-y divide-neutral-200">
+              <SpecRow label="Бренд:">{product.brand.name}</SpecRow>
+              {hasExtendedSpecs && (
+                <>
+                  {product.productCategories && product.productCategories.length > 0 && (
+                    <SpecRow label="Категория:">{product.productCategories[0]?.category.name}</SpecRow>
+                  )}
+
+                  {product.productType && product.productType.trim() && product.productType.trim() !== '-' && (
+                    <SpecRow label="Вид товара:">{product.productType}</SpecRow>
+                  )}
+
+                  {showTopNotesInTable && (
+                    <SpecRow label="Основные ноты:">{product.topNotes}</SpecRow>
+                  )}
+
+                  {product.volume && product.volume.trim() && product.volume.trim() !== '-' && (
+                    <SpecRow label="Объем:">{product.volume}</SpecRow>
+                  )}
+
+                  {product.weight && product.weight > 0 && (
+                    <SpecRow label="Вес:">{product.weight} г</SpecRow>
+                  )}
+
+                  {product.dimensions && product.dimensions.trim() && product.dimensions.trim() !== '-' && (
+                    <SpecRow label="Размеры:">{product.dimensions}</SpecRow>
+                  )}
+
+                  {product.purpose && product.purpose.trim() && product.purpose.trim() !== '-' && (
+                    <SpecRow label="Назначение:">{product.purpose}</SpecRow>
+                  )}
+
+                  {product.brandCountry && product.brandCountry.trim() && product.brandCountry.trim() !== '-' && (
+                    <SpecRow label="Страна происхождения бренда:">{product.brandCountry}</SpecRow>
+                  )}
+
+                  {product.manufactureCountry && product.manufactureCountry.trim() && product.manufactureCountry.trim() !== '-' && (
+                    <SpecRow label="Страна производства:">{product.manufactureCountry}</SpecRow>
+                  )}
+
+                  {product.barcode && product.barcode.trim() && product.barcode.trim() !== '-' && (
+                    <SpecRow label="Штрихкод:" valueClassName="font-mono font-normal tracking-wide">
+                      {product.barcode}
+                    </SpecRow>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="reviews" className="mt-8">
           <div className="space-y-6">
             {/* Список отзывов */}
-            <div className="space-y-4">
+            <div className="space-y-3">
               {reviews.length > 0 ? (
                 reviews.map((review) => (
                   <div key={review.id} className="border rounded-lg p-4">
@@ -720,6 +674,81 @@ export function ProductInfo({ product, className }: ProductInfoProps) {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Features */}
+      <div className="mt-1.5 grid grid-cols-1 gap-2.5 sm:grid-cols-3 sm:gap-2.5">
+        <div className="flex gap-2.5 rounded-xl border border-blue-100 bg-blue-50/60 p-3">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
+            <Truck className="h-4 w-4" aria-hidden />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-neutral-900">Бесплатная доставка</p>
+            <p className="mt-0.5 text-xs leading-relaxed text-neutral-600">
+              От 15&nbsp;000&nbsp;₽ по Санкт-Петербургу
+            </p>
+          </div>
+        </div>
+
+        <div className="flex gap-2.5 rounded-xl border border-emerald-100 bg-emerald-50/60 p-3">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+            <Shield className="h-4 w-4" aria-hidden />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-neutral-900">Гарантия качества</p>
+            <p className="mt-0.5 text-xs leading-relaxed text-neutral-600">
+              Только оригинальная продукция
+            </p>
+          </div>
+        </div>
+
+        <div className="flex gap-2.5 rounded-xl border border-amber-100 bg-amber-50/60 p-3">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
+            <RotateCcw className="h-4 w-4" aria-hidden />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-neutral-900">Возврат 14 дней</p>
+            <p className="mt-0.5 text-xs leading-relaxed text-neutral-600">Без лишних вопросов</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Помощь с заказом */}
+      <div className="mt-4 rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
+        <div className="flex items-start gap-3">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-neutral-100 text-neutral-600">
+            <MessageCircle className="h-4 w-4" aria-hidden />
+          </div>
+          <div className="flex-1">
+            <h3 className="mb-1 font-semibold text-neutral-900">Нужна помощь с заказом?</h3>
+            <a href="tel:89215990090" className="mb-2 block text-sm font-medium text-neutral-900 hover:underline">
+              тел. 8-921-599-00-90
+            </a>
+            <div className="flex gap-1.5">
+              <Link 
+                href="https://wa.me/79217892777" 
+                target="_blank"
+                className="flex items-center gap-1.5 rounded-md bg-green-500 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-green-600"
+              >
+                <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                </svg>
+                WhatsApp
+              </Link>
+              <Link 
+                href="https://t.me/+79217892777" 
+                target="_blank"
+                className="flex items-center gap-1.5 rounded-md bg-blue-500 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-blue-600"
+              >
+                <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.139-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.831-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+                </svg>
+                Telegram
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   );
 }

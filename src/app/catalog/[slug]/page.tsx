@@ -150,10 +150,10 @@ export default async function ProductPage({ params }: ProductPageProps) {
   return (
     <div className="min-h-screen bg-white">
       <SetAdminEditProductId productId={product.id} />
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 sm:py-10 lg:py-12">
         <Breadcrumbs items={breadcrumbItems} />
         
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 lg:gap-6 mt-6">
+        <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-5 lg:gap-10">
         {/* Product Images - Sticky на десктопе */}
         <div className="lg:col-span-2">
           <StickyImageContainer 

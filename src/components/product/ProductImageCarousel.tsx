@@ -59,7 +59,7 @@ export function ProductImageCarousel({ images, name, className }: ProductImageCa
 
   if (images.length === 0) {
     return (
-      <div className={cn("bg-muted rounded-lg flex items-center justify-center min-h-[240px] max-h-[320px]", className)}>
+      <div className={cn('flex min-h-[240px] max-h-[320px] items-center justify-center rounded-xl border border-dashed border-neutral-200 bg-neutral-50/80 backdrop-blur-sm', className)}>
         <div className="flex flex-col items-center justify-center text-muted-foreground space-y-3">
           <ImageIcon className="h-20 w-20 opacity-50" />
           <p className="text-lg text-center px-4">Изображение еще не добавлено</p>
@@ -69,22 +69,23 @@ export function ProductImageCarousel({ images, name, className }: ProductImageCa
   }
 
   return (
-    <div className={cn("space-y-3", className)}>
+    <div className={cn('space-y-4', className)}>
       {/* Main Image — свайп на мобильном листает фото, не скроллит страницу */}
       <div
         ref={containerRef}
-        className="relative bg-white overflow-visible group flex items-center justify-center min-h-[240px] max-h-[420px] w-full"
+        className="group relative flex min-h-[240px] max-h-[420px] w-full items-center justify-center overflow-visible"
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
         style={{ touchAction: 'pan-y' }}
       >
-        <div className="relative w-full h-full flex items-center justify-center">
-          <img
-            src={getImageUrl(images[currentIndex])}
-            alt={`${name} - изображение ${currentIndex + 1}`}
-            className="max-w-full max-h-[380px] w-auto h-auto object-contain"
-          />
-        </div>
+        <div className="relative w-full overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
+          <div className="flex min-h-[220px] items-center justify-center p-2 sm:min-h-[280px] sm:p-4">
+            <img
+              src={getImageUrl(images[currentIndex])}
+              alt={`${name} - изображение ${currentIndex + 1}`}
+              className="max-h-[380px] w-auto max-w-full object-contain"
+            />
+          </div>
 
         {/* Navigation Arrows — на мобильном видны всегда (нет hover), на десктопе по hover */}
         {images.length > 1 && (
@@ -92,7 +93,8 @@ export function ProductImageCarousel({ images, name, className }: ProductImageCa
             <Button
               variant="secondary"
               size="icon"
-              className="absolute left-2 top-1/2 -translate-y-1/2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-10"
+              aria-label="Предыдущее фото"
+              className="absolute left-2 top-1/2 z-10 h-10 w-10 -translate-y-1/2 border border-white/40 bg-white/90 opacity-100 shadow-xl backdrop-blur-md transition-all hover:bg-white sm:opacity-0 sm:group-hover:opacity-100"
               onClick={prevImage}
             >
               <ChevronLeft className="h-4 w-4" />
@@ -100,7 +102,8 @@ export function ProductImageCarousel({ images, name, className }: ProductImageCa
             <Button
               variant="secondary"
               size="icon"
-              className="absolute right-2 top-1/2 -translate-y-1/2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-10"
+              aria-label="Следующее фото"
+              className="absolute right-2 top-1/2 z-10 h-10 w-10 -translate-y-1/2 border border-white/40 bg-white/90 opacity-100 shadow-xl backdrop-blur-md transition-all hover:bg-white sm:opacity-0 sm:group-hover:opacity-100"
               onClick={nextImage}
             >
               <ChevronRight className="h-4 w-4" />
@@ -112,7 +115,8 @@ export function ProductImageCarousel({ images, name, className }: ProductImageCa
         <Button
           variant="secondary"
           size="icon"
-          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+          aria-label="Увеличить фото"
+          className="absolute right-2 top-2 z-10 border border-white/40 bg-white/90 opacity-0 shadow-lg backdrop-blur-md transition-opacity hover:bg-white group-hover:opacity-100"
           onClick={() => setIsLightboxOpen(true)}
         >
           <ZoomIn className="h-4 w-4" />
@@ -120,31 +124,32 @@ export function ProductImageCarousel({ images, name, className }: ProductImageCa
 
         {/* Image Counter */}
         {images.length > 1 && (
-          <div className="absolute bottom-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded">
+          <div className="absolute bottom-3 right-3 rounded-full bg-black/55 px-3 py-1.5 text-xs text-white shadow-lg backdrop-blur-sm">
             {currentIndex + 1} / {images.length}
           </div>
         )}
+        </div>
       </div>
 
       {/* Thumbnail Navigation */}
       {images.length > 1 && (
-        <div className="flex space-x-2 overflow-x-auto pb-1">
+        <div className="flex gap-3 overflow-x-auto pb-1">
           {images.map((image, index) => (
             <button
               key={index}
+              type="button"
               onClick={() => goToImage(index)}
               className={cn(
-                "relative flex-shrink-0 w-16 h-16 overflow-visible transition-opacity",
+                'relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border-2 bg-neutral-50 transition-all duration-200',
                 index === currentIndex
-                  ? "opacity-100"
-                  : "opacity-70 hover:opacity-100"
+                  ? 'border-neutral-900 shadow-sm'
+                  : 'border-neutral-200 opacity-90 hover:border-neutral-400 hover:opacity-100'
               )}
             >
               <img
                 src={getImageUrl(image)}
                 alt={`${name} - миниатюра ${index + 1}`}
-                className="w-full h-full"
-                style={{ objectFit: 'contain' }}
+                className="h-full w-full object-contain p-0.5"
               />
             </button>
           ))}
