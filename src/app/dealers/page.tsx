@@ -2,12 +2,38 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Download, Mail, CheckCircle2, TrendingUp, Users, Shield, FileText, UserCheck, Target } from 'lucide-react';
 
 export default function DealersPage() {
+  type DealersFormState = {
+    companyName: string;
+    contacts: string;
+    requisites: string;
+    brands: string;
+    agreeDocuments: boolean;
+  };
+
   const [activeTab, setActiveTab] = useState<'partners' | 'dealers'>('partners');
+  const [isDealersFormOpen, setIsDealersFormOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [dealersForm, setDealersForm] = useState<DealersFormState>({
+    companyName: '',
+    contacts: '',
+    requisites: '',
+    brands: '',
+    agreeDocuments: false,
+  });
 
   useEffect(() => {
     // Устанавливаем метаданные страницы
@@ -57,6 +83,67 @@ export default function DealersPage() {
       setTimeout(() => {
         window.history.pushState(null, '', `#${tab}`);
       }, 100);
+    }
+  };
+
+  const handleDealersFormChange = <K extends keyof DealersFormState>(
+    field: K,
+    value: DealersFormState[K]
+  ) => {
+    setDealersForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleDealersSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setFormError('');
+    setSubmitSuccess(false);
+
+    if (
+      !dealersForm.companyName.trim() ||
+      !dealersForm.contacts.trim() ||
+      !dealersForm.requisites.trim() ||
+      !dealersForm.brands.trim()
+    ) {
+      setFormError('Пожалуйста, заполните все поля формы');
+      return;
+    }
+
+    if (!dealersForm.agreeDocuments) {
+      setFormError('Необходимо подтвердить согласие с документами');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const response = await fetch('/api/dealers/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyName: dealersForm.companyName,
+          contacts: dealersForm.contacts,
+          requisites: dealersForm.requisites,
+          brands: dealersForm.brands,
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setFormError(data.error || 'Не удалось отправить заявку');
+        return;
+      }
+
+      setSubmitSuccess(true);
+      setDealersForm({
+        companyName: '',
+        contacts: '',
+        requisites: '',
+        brands: '',
+        agreeDocuments: false,
+      });
+    } catch {
+      setFormError('Ошибка сети. Попробуйте еще раз');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -439,13 +526,114 @@ export default function DealersPage() {
               <p className="text-white/90 mb-6 leading-relaxed">
                 Для подключения к дилерской программе необходимо направить запрос: <a href="mailto:office@aromarussia.ru" className="text-[#D4830F] font-semibold hover:underline">office@aromarussia.ru</a> и дождаться ответа менеджера. После согласования условий предоставляется доступ к B2B-кабинету.
               </p>
-              <a 
-                href="mailto:office@aromarussia.ru" 
-                className="inline-flex items-center justify-center gap-2 px-8 py-3 bg-[#D4830F] hover:bg-[#b8700d] text-white rounded-md font-medium transition-colors text-base"
-              >
-                <Mail className="h-5 w-5" />
-                Написать нам
-              </a>
+              <Dialog open={isDealersFormOpen} onOpenChange={setIsDealersFormOpen}>
+                <DialogTrigger asChild>
+                  <Button className="inline-flex items-center justify-center gap-2 px-8 py-3 bg-[#D4830F] hover:bg-[#b8700d] text-white rounded-md font-medium transition-colors text-base">
+                    <Mail className="h-5 w-5" />
+                    Написать нам
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[620px]">
+                  <DialogHeader>
+                    <DialogTitle>Как начать сотрудничество</DialogTitle>
+                  </DialogHeader>
+
+                  <form onSubmit={handleDealersSubmit} className="space-y-4">
+                    <div>
+                      <Label htmlFor="companyName">Название компании *</Label>
+                      <Input
+                        id="companyName"
+                        value={dealersForm.companyName}
+                        onChange={(e) => handleDealersFormChange('companyName', e.target.value)}
+                        placeholder="ООО Пример"
+                        className="mt-1"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="contacts">Контакты *</Label>
+                      <Textarea
+                        id="contacts"
+                        value={dealersForm.contacts}
+                        onChange={(e) => handleDealersFormChange('contacts', e.target.value)}
+                        placeholder="Контактное лицо, телефон, email"
+                        className="mt-1 min-h-[90px]"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="requisites">Реквизиты *</Label>
+                      <Textarea
+                        id="requisites"
+                        value={dealersForm.requisites}
+                        onChange={(e) => handleDealersFormChange('requisites', e.target.value)}
+                        placeholder="ИНН, КПП, юридический адрес, банковские реквизиты"
+                        className="mt-1 min-h-[90px]"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="brands">Какие бренды хотите закупать *</Label>
+                      <Textarea
+                        id="brands"
+                        value={dealersForm.brands}
+                        onChange={(e) => handleDealersFormChange('brands', e.target.value)}
+                        placeholder="Перечислите бренды и примерные объемы"
+                        className="mt-1 min-h-[90px]"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2 rounded-md border border-gray-200 bg-gray-50 p-3">
+                      <label className="flex items-start gap-2 text-sm text-gray-700">
+                        <Checkbox
+                          checked={dealersForm.agreeDocuments}
+                          onCheckedChange={(checked) => handleDealersFormChange('agreeDocuments', checked === true)}
+                          className="mt-0.5"
+                        />
+                        <span>
+                          Я принимаю{' '}
+                          <Link href="/privacy" target="_blank" className="text-[#D4830F] underline underline-offset-2">
+                            Политику конфиденциальности
+                          </Link>
+                          ,{' '}
+                          <Link href="/terms" target="_blank" className="text-[#D4830F] underline underline-offset-2">
+                            Условия использования
+                          </Link>
+                          {' '}и даю согласие на{' '}
+                          <Link href="/privacy" target="_blank" className="text-[#D4830F] underline underline-offset-2">
+                            обработку персональных данных
+                          </Link>
+                          {' '}*
+                        </span>
+                      </label>
+                    </div>
+
+                    {formError && (
+                      <p className="text-sm text-red-500">{formError}</p>
+                    )}
+                    {submitSuccess && (
+                      <p className="text-sm text-green-600">Заявка отправлена. Мы свяжемся с вами в ближайшее время.</p>
+                    )}
+
+                    <div className="flex justify-end gap-2">
+                      <Button type="button" variant="outline" onClick={() => setIsDealersFormOpen(false)}>
+                        Закрыть
+                      </Button>
+                      <Button
+                        type="submit"
+                        className="bg-[#D4830F] hover:bg-[#b8700d]"
+                        disabled={isSubmitting || !dealersForm.agreeDocuments}
+                      >
+                        {isSubmitting ? 'Отправка...' : 'Отправить заявку'}
+                      </Button>
+                    </div>
+                  </form>
+                </DialogContent>
+              </Dialog>
             </CardContent>
           </Card>
         </section>
