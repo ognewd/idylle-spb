@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Download, Mail, CheckCircle2, TrendingUp, Users, Shield, FileText, UserCheck, Target } from 'lucide-react';
@@ -61,18 +62,29 @@ export default function DealersPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Hero Section */}
-      <div className="bg-gradient-to-br from-[#1a1a1a] via-[#2d2d2d] to-[#1a1a1a] text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">Сотрудничество</h1>
-          <p className="text-xl md:text-2xl opacity-90 max-w-3xl">
-            Два направления партнерства для развития бизнеса в сфере премиальных ароматов
-          </p>
+      {/* Hero: широкое фото, текст и вкладки как раньше */}
+      <div className="relative text-white">
+        <div className="relative min-h-[240px] sm:min-h-[300px] md:min-h-[360px] lg:min-h-[400px] w-full">
+          <Image
+            src="/images/hero/dealers-cooperation.png"
+            alt="Сотрудничество: партнёрам и дилерам"
+            fill
+            className="object-cover object-center"
+            priority
+            sizes="100vw"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/35 to-black/25" aria-hidden />
+          <div className="absolute inset-y-0 left-0 w-full md:w-[58%] bg-gradient-to-r from-black/55 to-transparent pointer-events-none" aria-hidden />
+          <div className="relative z-[1] max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-20 lg:py-24 min-h-[240px] sm:min-h-[300px] md:min-h-[360px] lg:min-h-[400px] flex flex-col justify-end">
+            <h1 className="text-4xl md:text-5xl font-bold mb-4 drop-shadow-md">Сотрудничество</h1>
+            <p className="text-xl md:text-2xl text-white/95 max-w-3xl drop-shadow-md leading-snug">
+              Два направления партнерства для развития бизнеса в сфере премиальных ароматов
+            </p>
+          </div>
         </div>
       </div>
 
-      {/* Navigation Tabs */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8">
+      <div className="relative z-[2] max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8">
         <div className="bg-white rounded-lg shadow-lg p-1 flex gap-2">
           <a
             href="#partners"
