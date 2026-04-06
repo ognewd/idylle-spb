@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 import { prisma } from '@/lib/prisma';
-import { Phone, Mail, MapPin, Clock, MessageCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Phone, MapPin, Clock, MessageCircle } from 'lucide-react';
+import { ContactRequestForm } from '@/components/contact/ContactRequestForm';
 import Link from 'next/link';
 
 // Отключаем статическую генерацию - страница должна рендериться динамически
@@ -166,68 +166,54 @@ export default async function ContactsPage() {
             
             {/* Форма обратной связи */}
             <div>
-              <h2 className="text-2xl font-semibold mb-6">Напишите нам</h2>
-              
-              <form className="space-y-6 bg-white p-6 rounded-lg shadow-sm">
+              <h2 className="text-2xl font-semibold mb-2">Форма обратной связи</h2>
+              <p className="text-sm text-muted-foreground mb-6">
+                Рекомендуем использовать форму — так мы быстрее обработаем ваш запрос.
+              </p>
+
+              <div className="rounded-lg border-2 border-primary/20 bg-white p-6 shadow-sm">
+                <ContactRequestForm submitText="Отправить заявку" />
+              </div>
+
+              <div className="mt-6 rounded-lg bg-white p-6 shadow-sm space-y-5">
                 <div>
-                  <label htmlFor="name" className="block text-sm font-medium mb-2">
-                    Ваше имя
-                  </label>
-                  <input
-                    type="text"
-                    id="name"
-                    name="name"
-                    className="w-full px-4 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-                    placeholder="Введите ваше имя"
-                  />
+                  <h3 className="text-lg font-semibold mb-3">Телефоны</h3>
+                  <div className="space-y-2">
+                    <a href="tel:88005008729" className="block text-primary hover:underline font-medium">
+                      8-800-500-87-29
+                    </a>
+                    <a href="tel:+79215990090" className="block text-primary hover:underline font-medium">
+                      +7-921-599-00-90
+                    </a>
+                  </div>
                 </div>
 
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium mb-2">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    className="w-full px-4 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-                    placeholder="your@email.com"
-                  />
+                  <h3 className="text-lg font-semibold mb-3">Социальные сети и мессенджеры</h3>
+                  <div className="flex flex-wrap gap-2">
+                    <Link
+                      href="https://vk.com/im"
+                      target="_blank"
+                      className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-[#0077FF] text-white text-sm font-medium hover:opacity-90"
+                    >
+                      написать в VK
+                    </Link>
+                    <span className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-neutral-100 text-sm">
+                      IMO: +7-921-789-27-77
+                    </span>
+                    <Link
+                      href="https://wa.me/79217892777"
+                      target="_blank"
+                      className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600"
+                    >
+                      WhatsApp
+                    </Link>
+                    <span className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-sky-500 text-white text-sm font-medium">
+                      Telegram: +7-921-789-27-77
+                    </span>
+                  </div>
                 </div>
-
-                <div>
-                  <label htmlFor="phone" className="block text-sm font-medium mb-2">
-                    Телефон
-                  </label>
-                  <input
-                    type="tel"
-                    id="phone"
-                    name="phone"
-                    className="w-full px-4 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-                    placeholder="+7 (___) ___-__-__"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="message" className="block text-sm font-medium mb-2">
-                    Сообщение
-                  </label>
-                  <textarea
-                    id="message"
-                    name="message"
-                    rows={4}
-                    className="w-full px-4 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary resize-none"
-                    placeholder="Ваше сообщение..."
-                  ></textarea>
-                </div>
-
-                <Button
-                  type="submit"
-                  className="w-full"
-                >
-                  Отправить сообщение
-                </Button>
-              </form>
+              </div>
             </div>
           </div>
 

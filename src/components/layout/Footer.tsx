@@ -1,5 +1,9 @@
+'use client';
+
 import Link from 'next/link';
 import { NewsletterSubscription } from '@/components/forms/NewsletterSubscription';
+import { ContactRequestForm } from '@/components/contact/ContactRequestForm';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { 
   Facebook, 
   Instagram, 
@@ -9,10 +13,25 @@ import {
   Mail,
   MapPin,
   Clock,
-  MessageCircle
+  MessageCircle,
+  Copy,
+  Check,
 } from 'lucide-react';
+import { useState } from 'react';
 
 export function Footer() {
+  const [copiedImo, setCopiedImo] = useState(false);
+
+  const handleCopyImoNumber = async () => {
+    try {
+      await navigator.clipboard.writeText('+7-921-789-27-77');
+      setCopiedImo(true);
+      setTimeout(() => setCopiedImo(false), 1800);
+    } catch {
+      // ignore clipboard errors silently
+    }
+  };
+
   return (
     <footer className="bg-muted/50 border-t">
       <div className="container mx-auto px-4 py-12">
@@ -119,7 +138,36 @@ export function Footer() {
                 <MessageCircle className="h-4 w-4 text-muted-foreground mt-0.5" />
                 <div className="flex-1">
                   <p className="text-xs text-muted-foreground mb-2">Помощь с заказом:</p>
-                  <div className="flex gap-2">
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <button className="mb-2 rounded-md border px-2.5 py-1 text-xs font-medium hover:bg-muted transition-colors">
+                        Оставить обращение
+                      </button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[640px]">
+                      <DialogHeader>
+                        <DialogTitle>Оставить обращение</DialogTitle>
+                      </DialogHeader>
+                      <ContactRequestForm submitText="Отправить заявку" compact />
+                    </DialogContent>
+                  </Dialog>
+                  <a href="tel:88005008729" className="text-xs text-primary hover:underline block">
+                    8-800-500-87-29
+                  </a>
+                  <a href="tel:+79215990090" className="text-xs text-primary hover:underline mt-1 mb-2 block">
+                    +7-921-599-00-90
+                  </a>
+                  <div className="flex flex-wrap gap-2">
+                    <a
+                      href="https://vk.me/idylle_spb"
+                      target="_blank"
+                      className="flex items-center gap-1 px-2 py-1 bg-[#0077FF] text-white rounded text-xs hover:opacity-90 transition-colors"
+                    >
+                      <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                        <path d="M12.785 16.24s.287-.032.434-.193c.135-.148.131-.428.131-.428s-.019-1.307.592-1.5c.602-.19 1.375 1.263 2.195 1.82.62.422 1.091.33 1.091.33l2.19-.03s1.145-.071.602-.97c-.044-.074-.313-.66-1.612-1.86-1.36-1.256-1.178-1.052.46-3.236.998-1.33 1.396-2.141 1.271-2.49-.12-.333-.86-.245-.86-.245l-2.467.016s-.183-.025-.318.056c-.132.08-.216.266-.216.266s-.39 1.034-.909 1.915c-1.096 1.86-1.534 1.958-1.713 1.843-.416-.268-.312-1.075-.312-1.648 0-1.793.272-2.54-.529-2.733-.266-.064-.463-.107-1.145-.113-.876-.009-1.617.003-2.035.207-.278.136-.492.44-.361.458.162.021.528.099.722.364.25.342.242 1.11.242 1.11s.146 2.111-.34 2.374c-.334.18-.793-.188-1.778-1.876-.504-.865-.885-1.822-.885-1.822s-.073-.178-.202-.273c-.157-.115-.377-.153-.377-.153l-2.346.016s-.352.01-.48.166c-.114.138-.009.423-.009.423s1.837 4.298 3.915 6.466c1.905 1.987 4.07 1.856 4.07 1.856Z" />
+                      </svg>
+                      <span>VK</span>
+                    </a>
                     <a 
                       href="https://wa.me/79217892777" 
                       target="_blank"
@@ -140,10 +188,16 @@ export function Footer() {
                       </svg>
                       Telegram
                     </a>
+                    <button
+                      type="button"
+                      onClick={handleCopyImoNumber}
+                      className="flex items-center gap-1 px-2 py-1 bg-neutral-100 text-neutral-700 rounded text-xs hover:bg-neutral-200 transition-colors"
+                      title="Скопировать номер IMO"
+                    >
+                      {copiedImo ? <Check className="w-3 h-3 text-green-600" /> : <Copy className="w-3 h-3" />}
+                      <span>{copiedImo ? 'Скопировано' : 'IMO: +7-921-789-27-77'}</span>
+                    </button>
                   </div>
-                  <a href="tel:89215990090" className="text-xs text-primary hover:underline mt-2 block">
-                    8-921-599-00-90
-                  </a>
                 </div>
               </div>
             </div>

@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import {
   Heart,
   ShoppingCart,
@@ -14,12 +15,15 @@ import {
   Shield,
   RotateCcw,
   MessageCircle,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { cn, getReviewWord } from '@/lib/utils';
 import { sanitizeHtml } from '@/lib/sanitize';
 import { useCart } from '@/contexts/CartContext';
 import { ReviewForm } from './ReviewForm';
 import { ProductWantAsGift } from './ProductWantAsGift';
+import { ContactRequestForm } from '@/components/contact/ContactRequestForm';
 
 interface ProductVariant {
   id: string;
@@ -137,6 +141,18 @@ export function ProductInfo({ product, className }: ProductInfoProps) {
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(defaultVariant);
   const [quantity, setQuantity] = useState(1);
   const [isInWishlist, setIsInWishlist] = useState(false);
+  const [isQuestionDialogOpen, setIsQuestionDialogOpen] = useState(false);
+  const [copiedImo, setCopiedImo] = useState(false);
+
+  const handleCopyImoNumber = async () => {
+    try {
+      await navigator.clipboard.writeText('+7-921-789-27-77');
+      setCopiedImo(true);
+      setTimeout(() => setCopiedImo(false), 1800);
+    } catch {
+      // ignore clipboard errors silently
+    }
+  };
 
   // Calculate price and discount based on selected variant or product
   const finalPrice = selectedVariant?.price || product.price;
@@ -754,10 +770,48 @@ export function ProductInfo({ product, className }: ProductInfoProps) {
           </div>
           <div className="flex-1">
             <h3 className="mb-1 font-semibold text-neutral-900">Нужна помощь с заказом?</h3>
-            <a href="tel:89215990090" className="mb-2 block text-sm font-medium text-neutral-900 hover:underline">
-              тел. 8-921-599-00-90
+            <p className="mb-2 text-xs text-neutral-500">
+              Оставьте обращение — ответим удобным для вас способом.
+            </p>
+            <a href="tel:88005008729" className="block text-sm font-medium text-neutral-900 hover:underline">
+              8-800-500-87-29
             </a>
+            <a href="tel:+79215990090" className="mb-2 block text-sm font-medium text-neutral-900 hover:underline">
+              +7-921-599-00-90
+            </a>
+            <Dialog open={isQuestionDialogOpen} onOpenChange={setIsQuestionDialogOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mb-2 rounded-md border-neutral-300 bg-white text-xs font-medium text-neutral-900 hover:bg-neutral-50"
+                >
+                  Задать вопрос
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[640px]">
+                <DialogHeader>
+                  <DialogTitle>Задать вопрос по товару</DialogTitle>
+                </DialogHeader>
+                <ContactRequestForm
+                  productName={product.shortName || product.name}
+                  productUrl={typeof window !== 'undefined' ? window.location.href : ''}
+                  submitText="Отправить заявку"
+                  compact
+                />
+              </DialogContent>
+            </Dialog>
             <div className="flex gap-1.5">
+              <Link
+                href="https://vk.me/idylle_spb"
+                target="_blank"
+                className="flex items-center gap-1.5 rounded-md bg-[#0077FF] px-3 py-1.5 text-xs font-medium text-white transition-colors hover:opacity-90"
+              >
+                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                  <path d="M12.785 16.24s.287-.032.434-.193c.135-.148.131-.428.131-.428s-.019-1.307.592-1.5c.602-.19 1.375 1.263 2.195 1.82.62.422 1.091.33 1.091.33l2.19-.03s1.145-.071.602-.97c-.044-.074-.313-.66-1.612-1.86-1.36-1.256-1.178-1.052.46-3.236.998-1.33 1.396-2.141 1.271-2.49-.12-.333-.86-.245-.86-.245l-2.467.016s-.183-.025-.318.056c-.132.08-.216.266-.216.266s-.39 1.034-.909 1.915c-1.096 1.86-1.534 1.958-1.713 1.843-.416-.268-.312-1.075-.312-1.648 0-1.793.272-2.54-.529-2.733-.266-.064-.463-.107-1.145-.113-.876-.009-1.617.003-2.035.207-.278.136-.492.44-.361.458.162.021.528.099.722.364.25.342.242 1.11.242 1.11s.146 2.111-.34 2.374c-.334.18-.793-.188-1.778-1.876-.504-.865-.885-1.822-.885-1.822s-.073-.178-.202-.273c-.157-.115-.377-.153-.377-.153l-2.346.016s-.352.01-.48.166c-.114.138-.009.423-.009.423s1.837 4.298 3.915 6.466c1.905 1.987 4.07 1.856 4.07 1.856Z" />
+                </svg>
+                <span>VK</span>
+              </Link>
               <Link 
                 href="https://wa.me/79217892777" 
                 target="_blank"
@@ -778,6 +832,15 @@ export function ProductInfo({ product, className }: ProductInfoProps) {
                 </svg>
                 Telegram
               </Link>
+              <button
+                type="button"
+                onClick={handleCopyImoNumber}
+                className="flex items-center gap-1.5 rounded-md bg-neutral-100 px-2.5 py-1.5 text-xs font-medium text-neutral-700 transition-colors hover:bg-neutral-200"
+                title="Скопировать номер IMO"
+              >
+                {copiedImo ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
+                <span>{copiedImo ? 'Скопировано' : 'IMO: +7-921-789-27-77'}</span>
+              </button>
             </div>
           </div>
         </div>
