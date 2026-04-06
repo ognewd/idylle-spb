@@ -25,6 +25,7 @@ import {
   Upload,
   Award,
   Store,
+  BookOpen,
 } from 'lucide-react';
 import { hasAccessToSection } from '@/lib/admin-permissions';
 
@@ -182,6 +183,7 @@ export default function AdminDashboard() {
     'Партнеры и дилеры',
     'Коммуникации и контент',
     'Администрирование и задачи',
+    'Документация',
   ];
 
   const allMenuItems = [
@@ -359,6 +361,15 @@ export default function AdminDashboard() {
       color: 'bg-emerald-500',
       section: 'orders' as const,
       sectionName: 'Администрирование и задачи' as const,
+    },
+    {
+      title: 'Документация',
+      description: 'Инструкции для администраторов и менеджеров',
+      icon: BookOpen,
+      href: '/admin/documentation',
+      color: 'bg-slate-700',
+      section: 'administrators' as const,
+      sectionName: 'Документация' as const,
     },
   ];
 
