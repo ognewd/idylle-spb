@@ -204,7 +204,7 @@ export default function BrandsPage() {
     const fetchBrands = async () => {
       try {
         setLoading(true);
-        const response = await fetch('/api/brands');
+        const response = await fetch('/api/brands', { cache: 'no-store' });
         if (response.ok) {
           const data = await response.json();
           // Фильтруем только бренды с товарами (дополнительная проверка на клиенте)

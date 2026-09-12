@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-export async function GET(request: NextRequest) {
+// Иначе Next.js кэширует GET и новые бренды после импорта не появляются на /brands
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+export async function GET(_request: NextRequest) {
   try {
     const brands = await prisma.brand.findMany({
       where: { isActive: true },
@@ -28,7 +32,11 @@ export async function GET(request: NextRequest) {
       }))
       .filter(brand => brand.productCount > 0); // Показываем только бренды с товарами
 
-    return NextResponse.json(brandsWithCount);
+    return NextResponse.json(brandsWithCount, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      },
+    });
   } catch (error) {
     console.error('Brands API error:', error);
     return NextResponse.json(
